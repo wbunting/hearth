@@ -102,6 +102,15 @@ macro_rules! integer_surrogate {
             }
         }
 
+        impl $surrogate {
+            /// [fastcoat] Decimal text (`to_string()`; named to avoid shadowing `Display`).
+            #[inline]
+            #[must_use]
+            pub fn to_text(&self) -> crate::StringSurrogate {
+                crate::StringSurrogate::new(self.0.to_string())
+            }
+        }
+
         integer_op!($surrogate, Add, add, checked_add);
         integer_op!($surrogate, Sub, sub, checked_sub);
         integer_op!($surrogate, Mul, mul, checked_mul);

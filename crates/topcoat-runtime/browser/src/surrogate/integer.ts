@@ -1,3 +1,4 @@
+import { String as RString } from "./string";
 import type { AttributeValueViewParts, NodeViewParts } from "../dom/view";
 import type { IntegerKind, SerializedInteger } from "../expression/serialized";
 import { Bool } from "./bool";
@@ -184,6 +185,11 @@ export class Integer implements AttributeValueViewParts, NodeViewParts {
 
 	toAttributeValue(): string {
 		return this.v.toString();
+	}
+
+	/** [fastcoat] Decimal text (Rust `to_string`). */
+	to_text(): RString {
+		return new RString(this.v.toString());
 	}
 
 	toNodeText(): string {

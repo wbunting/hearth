@@ -46,6 +46,13 @@ impl_cmp_op!(ge, >=);
 impl_cmp_op!(le, <=);
 
 impl StrSurrogate {
+    /// [fastcoat] `str::parse::<i64>().ok()`, for route params and form input.
+    #[inline]
+    #[must_use]
+    pub fn parse_i64(&self) -> crate::OptionSurrogate<i64> {
+        crate::OptionSurrogate::new(self.0.parse::<i64>().ok())
+    }
+
     #[inline]
     #[must_use]
     pub fn to_owned(&self) -> StringSurrogate {
@@ -98,5 +105,18 @@ impl StrSurrogate {
     #[must_use]
     pub fn contains(&self, other: &StrSurrogate) -> BoolSurrogate {
         BoolSurrogate::new(self.0.contains(&other.0))
+    }
+}
+
+#[cfg(test)]
+mod fastcoat_tests {
+    use crate::Surrogated;
+
+    #[test]
+    fn parse_i64_matches_std() {
+        for s in ["42", "-7", "+3", "", "4 2", "1.5", "9223372036854775807", "9223372036854775808", "abc"] {
+            let got = s.into_surrogate().parse_i64();
+            assert_eq!(crate::Surrogate::into_real(got), s.parse::<i64>().ok(), "{s}");
+        }
     }
 }

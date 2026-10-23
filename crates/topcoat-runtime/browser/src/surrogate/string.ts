@@ -1,6 +1,7 @@
+import { Option } from "./option";
 import type { AttributeValueViewParts, NodeViewParts } from "../dom/view";
 import { Bool } from "./bool";
-import { Integer, serverUsizeType } from "./integer";
+import { integerType, Integer, serverUsizeType } from "./integer";
 
 const TEXT_ENCODER = new TextEncoder();
 
@@ -58,6 +59,15 @@ export class Str implements AttributeValueViewParts, NodeViewParts {
 
 	to_owned(): String {
 		return new String(this.v);
+	}
+
+	/** [fastcoat] `str::parse::<i64>().ok()` (canonical decimal only, like Rust). */
+	parse_i64(): Option<Integer> {
+		const t = this.v;
+		if (!/^[+-]?[0-9]+$/.test(t)) return Option.none();
+		const n = BigInt(t);
+		if (n < -(2n ** 63n) || n > 2n ** 63n - 1n) return Option.none();
+		return Option.some(new Integer(n, integerType("i64", 64)));
 	}
 
 	is_empty(): Bool {
