@@ -67,3 +67,34 @@ Re-run with `bench/issues-probe.js` (LOAD / INTERACT) on `/issues?mode=ssr|local
 Topcoat shards (server rerun per interaction) cannot do. The real P1/P2 work:
 generated indexes, parameterized queries, and partial (first-view) snapshots
 instead of full-table SSR.
+
+# P0.5 (same day): detail view, Rust-emitted schema/indexes, first-view SSR
+
+Changes:
+- Issue detail page (`/issue/{short_id}`): description, comments, reactions,
+  labels, assignee, inline title edit, close/reopen. Client-side routing
+  between list and detail, with `j`/`k`/`esc`. Deep links render via SSR.
+- **Rust emits the client schema**: `client_schema.rs` reads Toasty's model
+  metadata (`#[index]`, `#[unique]`, primary keys) and emits collection
+  descriptors (key, endpoints, BTree index fields). The generic TS
+  `runtime.ts` builds every collection and index from it. No hand-listed
+  indexes remain.
+- Replaced `@tanstack/query-db-collection` and `query-core` with an
+  80-line sync adapter: **118 → 97 KB gz**.
+- SSR embeds only the **first view** (100 open issues + their labels, or one
+  issue + its comments), queried by index in SQL, and backfills full tables
+  after. Label filter uses an index lookup + `inArray` instead of a join.
+
+| 50k issues, localhost | before | after |
+|---|---|---|
+| SSR TTFB `/issues` | 260–300ms | **4–8ms** |
+| SSR HTML | 17MB (2MB br) | **74KB (12KB br)** |
+| Rows visible (FCP) | ~320ms | **48–76ms** |
+| Interactive (collections ready for first view) | ~1000ms | **48–74ms** (list), **22–24ms** (detail) |
+| Full 50k backfill complete | n/a | ~2.0–2.9s (background) |
+| `local` mode interactive | ~880ms | ~1.7s (cold, no persistence yet) |
+| List → detail (click → frame) | (no detail) | **26–32ms** (first: 100ms) |
+| Detail → list (back) | n/a | **15–19ms** |
+| Label filter | 413ms | **97ms** |
+| Optimistic comment / label / reaction | n/a | **4–7ms** to frame, server-confirmed |
+| Title text filter | ~210ms | ~290ms (still unindexed `ilike`) |

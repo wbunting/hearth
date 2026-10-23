@@ -9,9 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@tanstack/db": "0.15.2",
-    "@tanstack/query-core": "5.104.5",
-    "@tanstack/query-db-collection": "1.4.8"
+    "@tanstack/db": "0.15.2"
   },
   "devDependencies": {
     "happy-dom": "^20.14.0",

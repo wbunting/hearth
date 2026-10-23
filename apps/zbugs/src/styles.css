@@ -21,3 +21,33 @@ body { margin: 0; font: 14px/1.4 ui-sans-serif, system-ui, sans-serif; }
 .users button { width: 100%; text-align: left; padding: 8px; font: inherit; cursor: pointer; }
 .badge { font-size: 11px; margin-left: 6px; padding: 1px 6px; border-radius: 9px; background: var(--accent); color: white; }
 #toast { position: fixed; bottom: 16px; right: 16px; padding: 8px 12px; background: #c33; color: white; border-radius: 6px; }
+a { color: inherit; }
+.brand { font-weight: 700; text-decoration: none; margin-right: auto; }
+.bar strong { margin-right: 0; }
+#app[data-view="list"] #detail-view { display: none; }
+#app[data-view="detail"] #list-view { display: none; }
+.issues a.title, .issues a.sid { text-decoration: none; }
+.issues a.title:hover { text-decoration: underline; }
+.issues li.selected { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.detail { max-width: 860px; margin: 0 auto; padding: 16px 24px 80px; }
+.crumbs { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+.crumbs .spacer { flex: 1; }
+.d-title { font-size: 22px; margin: 12px 0 4px; outline: none; border-radius: 4px; }
+.d-title[contenteditable="true"]:hover, .d-title[contenteditable="true"]:focus { box-shadow: 0 0 0 1px var(--line); }
+.d-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; }
+.d-meta select, .d-meta button { font: inherit; padding: 2px 6px; }
+.d-desc { white-space: pre-wrap; word-break: break-word; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); min-height: 2em; font-size: 13px; }
+.d-labels { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.chip { font-size: 11px; padding: 1px 6px; border: 1px solid var(--line); border-radius: 9px; cursor: pointer; background: none; color: inherit; }
+.chip.on { background: var(--accent); color: white; border-color: var(--accent); }
+.comments { list-style: none; padding: 0; display: grid; gap: 12px; }
+.comments li { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.comments li.pending { opacity: .6; }
+.c-head { display: flex; gap: 8px; font-size: 12px; margin-bottom: 4px; }
+.c-body { white-space: pre-wrap; word-break: break-word; font-size: 13px; }
+.reactions { display: flex; gap: 4px; margin-top: 6px; }
+.reactions button { font: inherit; font-size: 12px; border: 1px solid var(--line); border-radius: 10px; background: none; padding: 0 6px; cursor: pointer; color: inherit; }
+.reactions button.mine { border-color: var(--accent); }
+.new-comment textarea { width: 100%; min-height: 80px; font: inherit; padding: 8px; }
+.new-comment button { margin-top: 6px; font: inherit; padding: 4px 12px; }
+kbd { font-size: 11px; border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; }
