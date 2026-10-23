@@ -3,8 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.20.0",
   "scripts": {
-    "build:client": "pnpm --filter @fastcoat/client build",
-    "dev:client": "pnpm --filter @fastcoat/client dev",
-    "test": "pnpm --filter @fastcoat/client test"
+    "build:runtime": "pnpm --filter @topcoat-rs/runtime build",
+    "test:runtime": "pnpm --filter @topcoat-rs/runtime test"
   }
 }

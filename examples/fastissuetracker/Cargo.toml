@@ -1,0 +1,8 @@
+[package]
+name = "fastissuetracker"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+fastcoat.workspace = true
