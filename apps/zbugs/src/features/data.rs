@@ -353,7 +353,12 @@ pub async fn delete_issue_label(cx: &Cx, input: IssueLabelInput) -> Result<()> {
 pub async fn insert_emoji(cx: &Cx, row: EmojiRow) -> Result<EmojiRow> {
     let scope = read_scope(cx).await?;
     valid_client_id(&row.id)?;
-    require_visible(cx, &scope, &row.subject_id).await?;
+    // A reaction's subject is an issue *or a comment*; authorize via the issue.
+    let issue_id = match Comment::filter_by_id(row.subject_id.clone()).first().exec(&mut db(cx)).await? {
+        Some(c) => c.issue_id,
+        None => row.subject_id.clone(),
+    };
+    require_visible(cx, &scope, &issue_id).await?;
     if row.value.chars().count() > 8 || row.value.is_empty() {
         return Err(bad_request("bad emoji").into());
     }
