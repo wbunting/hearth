@@ -59,5 +59,5 @@ cargo run -p fastissuetracker --release -- seed --synthetic 50000
 PORT=3100 cargo topcoat dev -r -p fastissuetracker
 ```
 
-Requires rustc 1.99 (pinned). `legacy/zbugs-ts` is the earlier TypeScript
+Styling: Tailwind via `topcoat::tailwind` (`build.rs` + `stylesheet!()`), including classes chosen in `$()` client expressions. Requires rustc 1.99 (pinned). `legacy/zbugs-ts` is the earlier TypeScript
 experiment, kept for comparison.

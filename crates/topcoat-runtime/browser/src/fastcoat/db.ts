@@ -100,6 +100,10 @@ export class LocalDb {
 
 	/** Seed rows for a table from SSR (first view). */
 	seed(table: string, rows: Row[]) {
+		// An empty seed carries no information (e.g. a list inside a
+		// `<template>` rendered with a placeholder row): don't let it mark the
+		// table ready with zero rows.
+		if (rows.length === 0) return;
 		if (this.tables.has(table)) {
 			this.apply(table, rows, false);
 			return;
@@ -111,8 +115,12 @@ export class LocalDb {
 		if (this.tables.has(name)) return;
 		const t = this.schema?.tables.find((x) => x.name === name);
 		if (!t) throw new Error(`[fastcoat] unknown table ${name}`);
-		this.createTable(t, this.schema!.scope, this.seeds[name]);
+		const seeded = this.seeds[name];
+		this.createTable(t, this.schema!.scope, seeded);
 		delete this.seeds[name];
+		// A table first used after the initial backfill (e.g. comments, when
+		// the session started on the list page) still needs its full rows.
+		if (this.backfillScheduled && seeded) void this.fetchTable(t).then((rows) => this.apply(name, rows, true));
 		if (!this.backfillScheduled) {
 			this.backfillScheduled = true;
 			// After the first view is interactive, pull full tables.
@@ -136,7 +144,7 @@ export class LocalDb {
 				sync: (params) => {
 					const w = params as unknown as Writer;
 					this.writers.set(t.name, w);
-					if (initial) {
+					if (initial && initial.length > 0) {
 						this.seededTables.add(t.name);
 						this.apply(t.name, initial, false);
 						params.markReady();

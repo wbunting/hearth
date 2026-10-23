@@ -6,12 +6,13 @@ mod login;
 
 use topcoat::{
     Result,
-    asset::{AssetBundle, RouterBuilderAssetExt, asset},
+    asset::{AssetBundle, RouterBuilderAssetExt},
     context::Cx,
     cookie::RouterBuilderCookieExt,
     router::{RouterBuilder, RouterBuilderDiscoverExt, Slot, error::redirect, layout, module_router, page},
     runtime::RouterBuilderRuntimeExt,
     session::{RouterBuilderSessionExt, SessionConfig},
+    tailwind,
     view::{BoxView, View, view},
 };
 
@@ -33,11 +34,11 @@ async fn root(slot: Slot<'_>) -> Result<impl View> {
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>"fastissuetracker"</title>
-                <link rel="stylesheet" href=(asset!("./styles.css"))>
+                <link rel="stylesheet" href=(tailwind::stylesheet!())>
                 topcoat::runtime::script()
                 topcoat::dev::script()
             </head>
-            <body>(slot)</body>
+            <body class="bg-white text-sm text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100">(slot)</body>
         </html>
     })
 }

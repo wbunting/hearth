@@ -6,10 +6,14 @@ publish = false
 
 [dependencies]
 fastcoat.workspace = true
-topcoat.workspace = true
+topcoat = { workspace = true, features = ["tailwind"] }
 toasty = { workspace = true, features = ["sqlite"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 csv.workspace = true
 rand.workspace = true
+
+[build-dependencies]
+# `default-features = false` can't be combined with `workspace = true`.
+topcoat = { path = "../../crates/topcoat/", default-features = false, features = ["tailwind"] }
