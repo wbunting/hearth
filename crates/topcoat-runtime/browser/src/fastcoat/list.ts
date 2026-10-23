@@ -6,7 +6,7 @@
 
 import { hydrate } from "../dom/hydrate";
 import { compile } from "../expression/compile";
-import { signal, type WriteSignal } from "../reactivity";
+import { signal, untrack, type WriteSignal } from "../reactivity";
 import { Scope } from "../scope";
 import { localDb, plain, type Query } from "./db";
 
@@ -62,7 +62,7 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 	const makeItem = (key: string, raw: unknown, at: { start: Comment; end: Comment } | null): Item => {
 		const row = signal<unknown>(db.surrogate(raw as any, marker.query.types));
 		const itemScope = new Scope(scope, scope.runtime, scope.unit);
-		itemScope.context = scope.context.withRow({ read: () => row() });
+		itemScope.context = scope.context.withRow(marker.template, { read: () => row() });
 		let s: Comment;
 		let e: Comment;
 		if (at) {
@@ -91,6 +91,13 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 	};
 
 	const reconcile = () => {
+		try {
+			untrack(reconcileInner);
+		} catch (e) {
+			reportError(e, marker.template);
+		}
+	};
+	const reconcileInner = () => {
 		if (!live || !live.isReady()) return;
 		const t0 = performance.now();
 		const rows = live.toArray as Array<{ [k: string]: unknown }>;
@@ -141,6 +148,9 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 	// Re-run the query whenever a param's signals change.
 	scope.effect(() => {
 		const values = params.map((p) => plain(p(scope.context)));
+		untrack(() => runQuery(values));
+	});
+	function runQuery(values: unknown[]) {
 		const tq = performance.now();
 		unsub?.();
 		live?.cleanup();
@@ -152,7 +162,7 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 		});
 		unsub = () => sub.unsubscribe();
 		reconcile();
-	});
+	}
 	scope.abortSignal.addEventListener("abort", () => {
 		unsub?.();
 		live?.cleanup();
@@ -167,14 +177,20 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
  * arm keep running but their params only change when their signals do.
  */
 export function mountWhen(start: Comment, end: Comment, cond: string, template: string, scope: Scope) {
-	const tpl = document.getElementById(template) as HTMLTemplateElement | null;
-	if (!tpl) throw new Error(`[fastcoat] missing template ${template}`);
+	const found = document.getElementById(template) as HTMLTemplateElement | null;
+	if (!found) throw new Error(`[fastcoat] missing template ${template}`);
+	const tpl: HTMLTemplateElement = found;
 	const compute = compile(cond, "when condition");
 	const parent = start.parentNode!;
 	let shown: Scope | null = null;
 	let wrapper: HTMLElement | null = null;
 	scope.effect(() => {
 		const on = Boolean(plain(compute(scope.context)));
+		// Only `cond` is a dependency: mounting content (hydration, nested
+		// lists, their params) must not subscribe this effect.
+		untrack(() => apply(on));
+	});
+	function apply(on: boolean) {
 		if (!wrapper) {
 			// First run: adopt server content (if any) into a wrapper.
 			wrapper = document.createElement("fastcoat-when");
@@ -195,9 +211,16 @@ export function mountWhen(start: Comment, end: Comment, cond: string, template: 
 			hydrate(wrapper, null, null, shown, new Set(), true);
 		}
 		wrapper.style.display = on ? "contents" : "none";
-	});
+	}
 }
 
 function decode(s: string): string {
 	return s.replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+}
+
+/** Surfaces region errors (they'd otherwise vanish inside microtasks). */
+export function reportError(e: unknown, where: string) {
+	const errs = ((window as any).__fastcoatErrors ??= []) as string[];
+	errs.push(`${where}: ${(e as Error)?.stack ?? e}`);
+	console.error("[fastcoat]", where, e);
 }

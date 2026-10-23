@@ -8,6 +8,7 @@
 //! - [`mutate`]: optimistic writes from `$()` event handlers.
 
 pub mod ir;
+pub mod sql;
 mod list;
 mod row;
 pub mod table;
@@ -23,6 +24,31 @@ pub use table::{ClientSchema, Table, TableDesc, client_schema, describe, mutatio
 #[doc(hidden)]
 pub mod __private {
     pub use serde_json;
+    pub use crate::sql::contains_pattern;
+
+    /// `contains` lowering: `LIKE %x%` for string columns, unsupported
+    /// (falls back to the in-memory pass) for everything else.
+    pub trait Contains {
+        fn contains(self, text: &str) -> Option<toasty::stmt::Expr<bool>>;
+    }
+    impl<M> Contains for toasty::stmt::Path<M, String> {
+        fn contains(self, text: &str) -> Option<toasty::stmt::Expr<bool>> {
+            Some(self.like_with_escape(crate::sql::contains_pattern(text), '\\'))
+        }
+    }
+    macro_rules! no_contains {
+        ($($t:ty),*) => {$(
+            impl<M> Contains for toasty::stmt::Path<M, $t> {
+                fn contains(self, _: &str) -> Option<toasty::stmt::Expr<bool>> { None }
+            }
+        )*};
+    }
+    no_contains!(i64, bool, f64, Option<String>, Option<i64>);
+}
+
+/// The app's database handle (`toasty::Db` in the router's app context).
+pub fn db(cx: &topcoat::context::Cx) -> toasty::Db {
+    topcoat::context::app_context::<toasty::Db>(cx).clone()
 }
 
 /// Build a live query. See crate docs.
@@ -37,7 +63,7 @@ pub mod __private {
 ///     select { id: i.id, title: i.title, open: i.open, creator: c.login }
 /// }
 /// ```
-pub use fastcoat_macro::{live_query, row};
+pub use fastcoat_macro::{Table, live_query, routes, row};
 
 /// Client column types for a `#[fastcoat::row]` struct.
 pub trait RowTypes {

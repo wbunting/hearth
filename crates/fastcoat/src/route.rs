@@ -46,8 +46,13 @@ pub fn when<'a>(cx: &'a Cx, cond: Expr<bool>, body: impl Fn(Cx) -> BoxView<'stat
     let cx = cx.clone();
     Box::pin(topcoat::view::internal::ScopeView::new(topcoat::view::internal::MoveView::new(async move {
         let (on, js) = cond.into_evaluated_and_js();
-        let id = format!("fc-when-{}", NEXT.fetch_add(1, Ordering::Relaxed));
-        let marker = serde_json::json!({ "cond": js.to_source(), "template": id }).to_string();
+        let src = js.to_source();
+        let _ = NEXT.fetch_add(0, Ordering::Relaxed);
+        let id = format!(
+            "fc-when-{:012x}",
+            src.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)) & 0xffff_ffff_ffff
+        );
+        let marker = serde_json::json!({ "cond": src, "template": id }).to_string();
         let marker = marker.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
         let tpl = body(cx.clone()).single().await?.render(&cx);
         let content = if on { body(cx.clone()).single().await?.render(&cx) } else { String::new() };

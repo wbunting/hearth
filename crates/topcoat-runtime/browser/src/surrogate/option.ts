@@ -31,6 +31,11 @@ export class Option<T> implements AttributeValueViewParts, NodeViewParts {
 		return this.value;
 	}
 
+	/** [fastcoat] Rust `Option::unwrap_or`. */
+	unwrap_or(fallback: T): T {
+		return this.value === undefined ? fallback : this.value;
+	}
+
 	expect(msg: { toString(): string }): T {
 		if (this.value === undefined) {
 			throw new Panic(msg.toString());

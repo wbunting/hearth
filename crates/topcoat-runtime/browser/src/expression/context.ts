@@ -13,23 +13,25 @@ import type { DehydratedSurrogate } from "./serialized";
 export class Context {
 	constructor(
 		private readonly registry: SignalRegistry,
-		/** [fastcoat] Row refs of the enclosing client list items, outermost first. */
-		readonly rows: readonly RowRef[] = [],
+		/** [fastcoat] Current row of each enclosing client list, by list id. */
+		readonly rows: ReadonlyMap<string, RowRef> = new Map(),
 	) {}
 
-	/** [fastcoat] A context for content inside a client list item. */
-	withRow(row: RowRef): Context {
-		return new Context(this.registry, [...this.rows, row]);
+	/** [fastcoat] A context for content inside a list item. */
+	withRow(list: string, row: RowRef): Context {
+		const rows = new Map(this.rows);
+		rows.set(list, row);
+		return new Context(this.registry, rows);
 	}
 
 	/**
-	 * [fastcoat] The current row of the client list `depth` levels out from
-	 * the innermost (0 = innermost). Reading it subscribes the running effect,
-	 * so `$(row.title)` re-renders when that row changes.
+	 * [fastcoat] The current row of client list `list` for this item (works
+	 * for nested lists and outer rows captured by inner bodies). Reading it
+	 * subscribes the running effect, so `$(row.title)` updates with the row.
 	 */
-	row(depth: number): unknown {
-		const ref = this.rows[this.rows.length - 1 - depth];
-		if (!ref) throw new Error(`cx.row(${depth}) outside a client list`);
+	row(list: string): unknown {
+		const ref = this.rows.get(list);
+		if (!ref) throw new Error(`cx.row(${list}) outside its client list`);
 		return ref.read();
 	}
 

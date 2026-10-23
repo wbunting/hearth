@@ -33,3 +33,30 @@ impl std::ops::Deref for StringSurrogate {
         StrSurrogate::ref_cast(self.0.as_str())
     }
 }
+
+/// [fastcoat] `String + &str`, as in Rust.
+impl<'a> std::ops::Add<&'a crate::StrSurrogate> for StringSurrogate {
+    type Output = StringSurrogate;
+    fn add(mut self, rhs: &'a crate::StrSurrogate) -> StringSurrogate {
+        self.0.push_str(&rhs.0);
+        self
+    }
+}
+
+/// `String + String` is not Rust, but `$()` has no `&` operator, so accept the
+/// owned form too (lowered identically in JS).
+impl std::ops::Add<StringSurrogate> for StringSurrogate {
+    type Output = StringSurrogate;
+    fn add(mut self, rhs: StringSurrogate) -> StringSurrogate {
+        self.0.push_str(&rhs.0);
+        self
+    }
+}
+
+impl<'a> std::ops::Add<&'a StringSurrogate> for StringSurrogate {
+    type Output = StringSurrogate;
+    fn add(mut self, rhs: &'a StringSurrogate) -> StringSurrogate {
+        self.0.push_str(&rhs.0);
+        self
+    }
+}

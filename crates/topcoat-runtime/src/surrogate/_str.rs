@@ -113,6 +113,16 @@ mod fastcoat_tests {
     use crate::Surrogated;
 
     #[test]
+    fn concat_and_unwrap_or() {
+        let a = String::from("/issue/").into_surrogate();
+        let b = "42".into_surrogate();
+        assert_eq!(crate::Surrogate::into_real(a + b), "/issue/42");
+        let none: Option<String> = None;
+        let d = none.into_surrogate().unwrap_or(String::from("?").into_surrogate());
+        assert_eq!(crate::Surrogate::into_real(d), "?");
+    }
+
+    #[test]
     fn parse_i64_matches_std() {
         for s in ["42", "-7", "+3", "", "4 2", "1.5", "9223372036854775807", "9223372036854775808", "abc"] {
             let got = s.into_surrogate().parse_i64();

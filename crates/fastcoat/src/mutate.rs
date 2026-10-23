@@ -65,13 +65,42 @@ fn browser_only() -> ! {
     panic!("fastcoat table writes run in the browser only")
 }
 
+use topcoat::runtime::StrSurrogate as S;
+
+/// Writes are typed on the Rust side (field names are `&str`, values any
+/// `$()` value); the server's `Table::update/insert` validates them.
+/// `insert`/`toggle` take up to 4 `field, value` pairs (no variadics in Rust).
 impl<T: Table> TableSurrogate<T> {
-    /// Optimistically set a field. `key` and `value` are `$()` values.
-    pub fn set<K, V>(&self, _key: K, _field: &topcoat::runtime::StrSurrogate, _value: V)
-    where
-        K: Surrogate,
-        V: Surrogate,
-    {
+    /// Optimistically set a field.
+    pub fn set<K: Surrogate, V: Surrogate>(&self, _key: K, _field: &S, _value: V) {
+        browser_only()
+    }
+    /// Optimistically delete a row.
+    pub fn remove<K: Surrogate>(&self, _key: K) {
+        browser_only()
+    }
+    pub fn insert1<A: Surrogate>(&self, _f1: &S, _v1: A) {
+        browser_only()
+    }
+    pub fn insert2<A: Surrogate, B: Surrogate>(&self, _f1: &S, _v1: A, _f2: &S, _v2: B) {
+        browser_only()
+    }
+    pub fn insert3<A: Surrogate, B: Surrogate, C: Surrogate>(&self, _f1: &S, _v1: A, _f2: &S, _v2: B, _f3: &S, _v3: C) {
+        browser_only()
+    }
+    pub fn insert4<A: Surrogate, B: Surrogate, C: Surrogate, D: Surrogate>(
+        &self, _f1: &S, _v1: A, _f2: &S, _v2: B, _f3: &S, _v3: C, _f4: &S, _v4: D,
+    ) {
+        browser_only()
+    }
+    /// Delete `key` if present, else insert the given fields (membership rows
+    /// like issue labels or reactions).
+    pub fn toggle2<K: Surrogate, A: Surrogate, B: Surrogate>(&self, _key: K, _f1: &S, _v1: A, _f2: &S, _v2: B) {
+        browser_only()
+    }
+    pub fn toggle3<K: Surrogate, A: Surrogate, B: Surrogate, C: Surrogate>(
+        &self, _key: K, _f1: &S, _v1: A, _f2: &S, _v2: B, _f3: &S, _v3: C,
+    ) {
         browser_only()
     }
 }

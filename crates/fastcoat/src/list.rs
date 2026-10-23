@@ -15,7 +15,6 @@ use std::{collections::HashMap, sync::atomic::{AtomicU64, Ordering}};
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
 use topcoat::{
-    Result,
     context::Cx,
     runtime::Expr,
     view::{BoxView, Unescaped, ViewExt},
@@ -102,7 +101,15 @@ where
         let seed = seed_rows(&ir, &tables, &rows);
 
         // --- Markup.
-        let id = format!("fc-tpl-{}", NEXT_TEMPLATE.fetch_add(1, Ordering::Relaxed));
+        // Stable per query shape: the same `live_query!` renders the same id in
+        // SSR markup, in `<template>`s of enclosing regions, and on every
+        // request (row refs are keyed by it).
+        let ir_json = serde_json::to_string(&ir).unwrap_or_default();
+        let id = format!(
+            "fc-list-{:012x}",
+            ir_json.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)) & 0xffff_ffff_ffff
+        );
+        let _ = NEXT_TEMPLATE.fetch_add(0, Ordering::Relaxed);
         let marker = serde_json::json!({
             "query": ir,
             "params": params.iter().map(|(_, js)| js).collect::<Vec<_>>(),
@@ -111,18 +118,19 @@ where
         });
         let marker = comment_escape(&marker.to_string());
 
+        let inner_cx = cx.clone();
         let mut html = String::new();
         html.push_str(&format!("<!--::fastcoat::list::start({marker})-->"));
         for row in &rows {
             let key = row.get(ir.key).map(json_key).unwrap_or_default();
             let r: R = serde_json::from_value(Value::Object(row.clone())).unwrap_or_default();
-            let handle = body(cx.clone(), Row::bind(r, 0)).single().await?;
+            let handle = body(inner_cx.clone(), Row::bind(r, &id)).single().await?;
             html.push_str(&format!("<!--::fastcoat::item({})-->", comment_escape(&serde_json::to_string(&key).unwrap())));
             html.push_str(&handle.render(&cx));
             html.push_str("<!--::fastcoat::item-end-->");
         }
         html.push_str("<!--::fastcoat::list::end-->");
-        let tpl = body(cx.clone(), Row::bind(R::default(), 0)).single().await?.render(&cx);
+        let tpl = body(inner_cx.clone(), Row::bind(R::default(), &id)).single().await?.render(&cx);
         html.push_str(&format!(r#"<template id="{id}">{tpl}</template>"#));
         Ok::<_, topcoat::Error>(Unescaped::new_unchecked(html))
     };
@@ -134,57 +142,106 @@ where
 }
 
 /// Evaluate the IR over loaded rows: base filter/order/limit, then joins.
-fn evaluate(q: &Query, tables: &HashMap<&str, Vec<JsonRow>>, params: &[Value]) -> Vec<JsonRow> {
-    let empty = Vec::new();
-    let base = tables.get(q.from.alias).unwrap_or(&empty);
-    let mut rows: Vec<&JsonRow> = base
-        .iter()
-        .filter(|r| {
-            q.where_.as_ref().is_none_or(|w| {
-                let env = HashMap::from([(q.from.alias, *r)]);
-                ir::truthy(&ir::eval(w, &env, params))
-            })
-        })
-        .collect();
-    rows.sort_by(|a, b| {
+fn evaluate<'t>(q: &Query, tables: &'t HashMap<&str, Vec<JsonRow>>, params: &[Value]) -> Vec<JsonRow> {
+    static EMPTY: Vec<JsonRow> = Vec::new();
+    let empty: &'t [JsonRow] = &EMPTY;
+    let base: &'t [JsonRow] = tables.get(q.from.alias).map_or(empty, Vec::as_slice);
+    // Same plan as the browser (db.ts): filter/order/limit before joins when
+    // they only touch the base alias, otherwise after.
+    let early = q.joins.is_empty()
+        || (q.where_.as_ref().is_none_or(|w| aliases(w).iter().all(|a| *a == q.from.alias))
+            && q.order.iter().all(|o| aliases(&o.expr).iter().all(|a| *a == q.from.alias)));
+
+    // Hash indexes on each joined table's join column.
+    let mut join_idx: Vec<HashMap<String, Vec<&'t JsonRow>>> = Vec::new();
+    for j in &q.joins {
+        let mut m: HashMap<String, Vec<&'t JsonRow>> = HashMap::new();
+        for rr in tables.get(j.alias).map_or(empty, Vec::as_slice) {
+            let e = HashMap::from([(j.alias, rr)]);
+            m.entry(ir::eval(&j.on.1, &e, params).to_string()).or_default().push(rr);
+        }
+        join_idx.push(m);
+    }
+    let join = |r: &'t JsonRow| -> Vec<HashMap<&'static str, &'t JsonRow>> {
+        let mut envs: Vec<HashMap<&'static str, &'t JsonRow>> = vec![HashMap::from([(q.from.alias, r)])];
+        for (j, idx) in q.joins.iter().zip(&join_idx) {
+            let mut next = Vec::new();
+            for env in envs {
+                let lv = ir::eval(&j.on.0, &env, params).to_string();
+                match idx.get(&lv) {
+                    Some(matches) => {
+                        for rr in matches {
+                            let mut e = env.clone();
+                            e.insert(j.alias, rr);
+                            next.push(e);
+                        }
+                    }
+                    None if j.kind == "inner" => {}
+                    None => next.push(env),
+                }
+            }
+            envs = next;
+        }
+        envs
+    };
+    let keep = |env: &HashMap<&str, &JsonRow>| q.where_.as_ref().is_none_or(|w| ir::truthy(&ir::eval(w, env, params)));
+    let order = |a: &HashMap<&str, &JsonRow>, b: &HashMap<&str, &JsonRow>| {
         for o in &q.order {
-            let (ea, eb) = (HashMap::from([(q.from.alias, *a)]), HashMap::from([(q.from.alias, *b)]));
-            let ord = ir::cmp(&ir::eval(&o.expr, &ea, params), &ir::eval(&o.expr, &eb, params));
+            let ord = ir::cmp(&ir::eval(&o.expr, a, params), &ir::eval(&o.expr, b, params));
             let ord = if o.desc { ord.reverse() } else { ord };
             if ord.is_ne() {
                 return ord;
             }
         }
         std::cmp::Ordering::Equal
-    });
-    if let Some(n) = q.limit {
-        rows.truncate(n);
-    }
-    // Joins (left/inner) by index on the right side.
-    let mut out = Vec::with_capacity(rows.len());
-    'row: for r in rows {
-        let mut env: HashMap<&str, &JsonRow> = HashMap::from([(q.from.alias, r)]);
-        for j in &q.joins {
-            let right = tables.get(j.alias).unwrap_or(&empty);
-            let lv = ir::eval(&j.on.0, &env, params);
-            let found = right.iter().find(|rr| {
-                let e = HashMap::from([(j.alias, *rr)]);
-                ir::eval(&j.on.1, &e, params) == lv
-            });
-            match found {
-                Some(rr) => {
-                    env.insert(j.alias, rr);
-                }
-                None if j.kind == "inner" => continue 'row,
-                None => {}
+    };
+
+    let envs: Vec<HashMap<&'static str, &'t JsonRow>> = if early {
+        let mut rows: Vec<HashMap<&'static str, &'t JsonRow>> =
+            base.iter().map(|r| HashMap::from([(q.from.alias, r)])).filter(|e| keep(e)).collect();
+        rows.sort_by(|a, b| order(a, b));
+        if let Some(n) = q.limit {
+            rows.truncate(n);
+        }
+        rows.into_iter().flat_map(|e| join(e[q.from.alias])).collect()
+    } else {
+        let mut rows: Vec<_> = base.iter().flat_map(|r| join(r)).filter(|e| keep(e)).collect();
+        rows.sort_by(|a, b| order(a, b));
+        if let Some(n) = q.limit {
+            rows.truncate(n);
+        }
+        rows
+    };
+    envs.into_iter()
+        .map(|env| {
+            let mut obj = JsonRow::new();
+            for (field, e) in &q.select.0 {
+                obj.insert((*field).to_owned(), ir::eval(e, &env, params));
+            }
+            obj
+        })
+        .collect()
+}
+
+fn aliases(e: &ir::Expr) -> Vec<&'static str> {
+    let mut out = Vec::new();
+    fn walk(e: &ir::Expr, out: &mut Vec<&'static str>) {
+        match e {
+            ir::Expr::Col { col: (a, _) } => out.push(a),
+            ir::Expr::Lit { .. } | ir::Expr::Param { .. } => {}
+            ir::Expr::Bin { l, r, .. } => {
+                walk(l, out);
+                walk(r, out);
+            }
+            ir::Expr::Many { args, .. } => args.iter().for_each(|a| walk(a, out)),
+            ir::Expr::Not { arg, .. } => walk(arg, out),
+            ir::Expr::If { cond, then, .. } => {
+                walk(cond, out);
+                walk(then, out);
             }
         }
-        let mut obj = JsonRow::new();
-        for (field, e) in &q.select.0 {
-            obj.insert((*field).to_owned(), ir::eval(e, &env, params));
-        }
-        out.push(obj);
     }
+    walk(e, &mut out);
     out
 }
 

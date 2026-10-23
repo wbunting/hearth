@@ -26,6 +26,69 @@ use syn::{
     token::Brace,
 };
 
+mod table;
+
+/// See `fastcoat::Table`.
+#[proc_macro_derive(Table, attributes(table, key, index, computed))]
+pub fn derive_table(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as syn::DeriveInput);
+    table::derive(input).unwrap_or_else(syn::Error::into_compile_error).into()
+}
+
+/// `fastcoat::routes!(issues: IssueRow, users: UserRow, ...)`: load + mutate
+/// endpoints for each table and a `client_schema(scope)` fn listing them.
+/// The names must match each table's `#[table(name = ...)]` (checked at runtime
+/// on first request; route paths must be literals at macro time).
+#[proc_macro]
+pub fn routes(input: TokenStream) -> TokenStream {
+    use syn::{Token, punctuated::Punctuated};
+    struct Entry {
+        name: Ident,
+        ty: syn::Path,
+    }
+    impl Parse for Entry {
+        fn parse(input: ParseStream) -> syn::Result<Self> {
+            let name = input.parse()?;
+            input.parse::<Token![:]>()?;
+            Ok(Entry { name, ty: input.parse()? })
+        }
+    }
+    let entries = parse_macro_input!(input with Punctuated::<Entry, Token![,]>::parse_terminated);
+    let mut items = Vec::new();
+    let mut describes = Vec::new();
+    for Entry { name, ty: t } in &entries {
+        let snake = name.to_string();
+        let load_path = format!("/_fastcoat/{snake}/load");
+        let mutate_path = format!("/_fastcoat/{snake}/mutate");
+        let load = quote::format_ident!("__fastcoat_load_{}", snake);
+        let mutate = quote::format_ident!("__fastcoat_mutate_{}", snake);
+        items.push(quote! {
+            #[::topcoat::router::route(GET #load_path)]
+            async fn #load(cx: &::topcoat::context::Cx) -> ::topcoat::Result<::topcoat::router::content::Json<::std::vec::Vec<<#t as ::fastcoat::Table>::Row>>> {
+                ::fastcoat::table::check_table::<#t>(#snake)?;
+                ::core::result::Result::Ok(::topcoat::router::content::Json(<#t as ::fastcoat::Table>::load(cx).await?))
+            }
+            #[::topcoat::router::route(POST #mutate_path)]
+            async fn #mutate(cx: &::topcoat::context::Cx, ::topcoat::router::content::Json(m): ::topcoat::router::content::Json<::fastcoat::table::Mutation>)
+                -> ::topcoat::Result<::topcoat::router::content::Json<::fastcoat::__private::serde_json::Value>>
+            {
+                ::fastcoat::table::check_table::<#t>(#snake)?;
+                ::core::result::Result::Ok(::topcoat::router::content::Json(::fastcoat::table::mutation_route::<#t>(cx, m).await?))
+            }
+        });
+        describes.push(quote!(::fastcoat::table::describe::<#t>()));
+    }
+    quote! {
+        #(#items)*
+        /// Client schema for the synced tables (embedded in pages).
+        pub fn client_schema(scope: ::std::string::String) -> ::fastcoat::ClientSchema {
+            ::fastcoat::client_schema(scope, ::std::vec![#(#describes),*])
+        }
+    }
+    .into()
+}
+
+
 #[proc_macro]
 pub fn live_query(input: TokenStream) -> TokenStream {
     let q = parse_macro_input!(input as Q);

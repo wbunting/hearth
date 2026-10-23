@@ -114,6 +114,7 @@ export class LocalDb {
 			this.backfillScheduled = true;
 			// After the first view is interactive, pull full tables.
 			setTimeout(() => this.backfill().then(() => ((window as any).__fastcoatBackfilled = performance.now())), 0);
+			this.watchFreshness();
 		}
 	}
 
@@ -155,7 +156,11 @@ export class LocalDb {
 			onInsert: async ({ transaction }) => {
 				for (const m of transaction.mutations) {
 					const row = (await post(t.mutate, { op: "insert", row: m.modified })) as Row;
-					this.apply(t.name, [row], false);
+					// The server may assign a different key (e.g. deterministic
+					// reaction ids): drop the optimistic key if it changed.
+					const optimistic = String(m.key);
+					const real = String(row[t.key]);
+					this.apply(t.name, [row], false, real === optimistic ? [] : [optimistic]);
 				}
 			},
 			onDelete: async ({ transaction }) => {
@@ -199,9 +204,22 @@ export class LocalDb {
 		this.version.set((v) => v + 1);
 	}
 
+	/** Refresh synced tables when the tab regains focus or comes online. */
+	private watchFreshness() {
+		let last = Date.now();
+		const refresh = () => {
+			if (Date.now() - last < 5000) return;
+			last = Date.now();
+			void this.backfill();
+		};
+		addEventListener("focus", refresh);
+		addEventListener("online", refresh);
+		document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && refresh());
+	}
+
 	/** Backfill every created table with its full scoped rows. */
 	async backfill() {
-		const seeded = [...this.desc.values()].filter((t) => this.seededTables.has(t.name));
+		const seeded = [...this.desc.values()];
 		await Promise.all(seeded.map(async (t) => this.apply(t.name, await this.fetchTable(t), true)));
 	}
 	private seededTables = new Set<string>();
@@ -230,22 +248,40 @@ export class LocalDb {
 			startSync: true,
 			query: (qb: any) => {
 				let b = qb.from({ [q.from.alias]: coll(q.from.table) });
-				// Filter + order + limit on the base table first (indexes apply),
-				// then join: joins run over <= limit rows.
-				const baseOnly = q.joins.length > 0;
-				const where = q.where && lower(q.where, params);
-				if (where) b = b.where((refs: any) => where(refs));
-				for (const o of q.order) {
-					const ex = lower(o.expr, params);
-					b = b.orderBy((refs: any) => ex(refs), o.desc ? "desc" : "asc");
-				}
-				if (q.limit != null) b = b.limit(q.limit);
+				// Filter/order/limit on the base table *before* joins when they
+				// only reference the base alias (indexes apply; joins then run over
+				// <= limit rows). Otherwise join first, then filter/order/limit.
+				const aliasesOf = (e: Expr | null): Set<string> => {
+					const out = new Set<string>();
+					const walk = (x: any) => {
+						if (!x || typeof x !== "object") return;
+						if ("col" in x) out.add(x.col[0]);
+						for (const v of Object.values(x)) {
+							if (Array.isArray(v)) v.forEach(walk);
+							else if (v && typeof v === "object") walk(v);
+						}
+					};
+					walk(e);
+					return out;
+				};
+				const baseOnly = (e: Expr | null) => [...aliasesOf(e)].every((a) => a === q.from.alias);
+				const early = q.joins.length === 0 || (baseOnly(q.where) && q.order.every((o) => baseOnly(o.expr)));
+				const applyFilters = () => {
+					const where = q.where && lower(q.where, params);
+					if (where) b = b.where((refs: any) => where(refs));
+					for (const o of q.order) {
+						const ex = lower(o.expr, params);
+						b = b.orderBy((refs: any) => ex(refs), o.desc ? "desc" : "asc");
+					}
+					if (q.limit != null) b = b.limit(q.limit);
+				};
+				if (early) applyFilters();
 				for (const j of q.joins) {
 					const [l, r] = j.on.map((e) => lower(e, params));
 					const method = j.kind === "inner" ? "innerJoin" : "leftJoin";
 					b = b[method]({ [j.alias]: coll(j.table) }, (refs: any) => eq(l!(refs), r!(refs)));
 				}
-				void baseOnly;
+				if (!early) applyFilters();
 				const sel = Object.entries(q.select).map(([k, e]) => [k, lower(e, params)] as const);
 				return b.select((refs: any) => Object.fromEntries(sel.map(([k, f]) => [k, f(refs)])));
 			},
@@ -269,19 +305,48 @@ export class LocalDb {
 	}
 
 	insert(table: string, row: Row) {
+		this.ensure(table);
+		const t = this.desc.get(table)!;
+		// Client-generated key so the optimistic row and server row match.
+		if (row[t.key] == null || row[t.key] === "") row[t.key] = crypto.randomUUID();
 		const tx = this.tables.get(table)!.insert(row);
 		tx.isPersisted.promise.catch((e: Error) => toast(`Rolled back: ${e.message}`));
 	}
 
 	delete(table: string, key: unknown) {
+		this.ensure(table);
 		const tx = this.tables.get(table)!.delete(String(plain(key)));
 		tx.isPersisted.promise.catch((e: Error) => toast(`Rolled back: ${e.message}`));
 	}
 
-	/** Handle used by Rust `fastcoat::table::<T>()` inside `$()`. */
+	/** Handle used by Rust `fastcoat::table_handle::<T>()` inside `$()`. */
 	table(name: string) {
 		return {
 			set: (key: unknown, field: unknown, value: unknown) => this.update(name, key, { [String(plain(field))]: plain(value) }),
+			/** Insert a row given as alternating field/value pairs (Rust varargs-free). */
+			insert: (...kv: unknown[]) => {
+				const row: Row = {};
+				for (let i = 0; i + 1 < kv.length; i += 2) row[String(plain(kv[i]))] = plain(kv[i + 1]);
+				this.insert(name, row);
+			},
+			remove: (key: unknown) => this.delete(name, key),
+			insert1: (...kv: unknown[]) => this.table(name).insert(...kv),
+			insert2: (...kv: unknown[]) => this.table(name).insert(...kv),
+			insert3: (...kv: unknown[]) => this.table(name).insert(...kv),
+			insert4: (...kv: unknown[]) => this.table(name).insert(...kv),
+			toggle2: (key: unknown, ...kv: unknown[]) => this.table(name).toggle(key, ...kv),
+			toggle3: (key: unknown, ...kv: unknown[]) => this.table(name).toggle(key, ...kv),
+			/** Toggle membership: delete `key` if present, else insert. */
+			toggle: (key: unknown, ...kv: unknown[]) => {
+				const k = String(plain(key));
+				this.ensure(name);
+				if (this.tables.get(name)!.has(k)) this.delete(name, k);
+				else {
+					const row: Row = {};
+					for (let i = 0; i + 1 < kv.length; i += 2) row[String(plain(kv[i]))] = plain(kv[i + 1]);
+					this.insert(name, row);
+				}
+			},
 			dehydrate: () => name,
 		};
 	}

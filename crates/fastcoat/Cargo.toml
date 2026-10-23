@@ -10,3 +10,4 @@ topcoat.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 fastcoat-macro.workspace = true
+toasty = { workspace = true }

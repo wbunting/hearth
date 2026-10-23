@@ -51,6 +51,15 @@ where
         self.0.unwrap().into_surrogate()
     }
 
+    /// [fastcoat] Returns the contained value or `default`.
+    #[inline]
+    pub fn unwrap_or(self, default: T::Surrogate) -> T::Surrogate {
+        match self.0 {
+            Some(v) => v.into_surrogate(),
+            None => default,
+        }
+    }
+
     /// Returns the contained value, panicking with `msg` if `None`.
     ///
     /// # Panics

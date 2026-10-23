@@ -9,10 +9,12 @@
 
 use topcoat::runtime::{Expr, Js};
 
-/// The JS for the current row of the `depth`-th enclosing client list.
+/// The JS for the current row of the client list with id `list` (each list
+/// item's context maps list ids to that item's row, so nested lists and
+/// captured outer rows resolve correctly at any depth).
 #[must_use]
-pub fn row_surrogate_js(depth: usize) -> Js {
-    Js::source(format!("cx.row({depth})"))
+pub fn row_surrogate_js(list: &str) -> Js {
+    Js::source(format!("cx.row({list:?})"))
 }
 
 /// Wraps an SSR row as the loop variable of a client list body.
@@ -20,8 +22,8 @@ pub struct Row;
 
 impl Row {
     #[must_use]
-    pub fn bind<R>(value: R, depth: usize) -> Expr<R> {
-        Expr::evaluate_dynamic(value, row_surrogate_js(depth))
+    pub fn bind<R>(value: R, list: &str) -> Expr<R> {
+        Expr::evaluate_dynamic(value, row_surrogate_js(list))
     }
 }
 
@@ -47,3 +49,5 @@ impl RowField for Option<String> {
 impl RowField for Option<i64> {
     const TYPE: &'static str = "opt_i64";
 }
+
+

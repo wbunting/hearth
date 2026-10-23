@@ -131,7 +131,7 @@ impl LowerView for ForLoop {
             });
             let clones2: Vec<_> = clones2.collect();
             let tokens = quote::quote! {
-                #fastcoat::client_for(__cx, #query, {
+                #fastcoat::client_for(__cx, ::core::clone::Clone::clone(&(#query)), {
                     #(#clones2)*
                     move |__cx_owned: ::topcoat::context::Cx, #pat| {
                         #(#clones2)*
