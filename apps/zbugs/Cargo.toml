@@ -6,6 +6,7 @@ version.workspace = true
 publish.workspace = true
 
 [dependencies]
+fastcoat = { path = "../../crates/fastcoat" }
 topcoat.workspace = true
 toasty.workspace = true
 toasty-cli.workspace = true

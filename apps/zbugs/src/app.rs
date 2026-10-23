@@ -1,4 +1,5 @@
 mod api;
+mod rs;
 mod issues;
 mod login;
 

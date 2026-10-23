@@ -1,2 +1,3 @@
 packages:
   - client
+  - vendor/topcoat/crates/topcoat-runtime/browser

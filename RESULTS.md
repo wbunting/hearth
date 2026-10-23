@@ -98,3 +98,40 @@ Changes:
 | Label filter | 413ms | **97ms** |
 | Optimistic comment / label / reaction | n/a | **4–7ms** to frame, server-confirmed |
 | Title text filter | ~210ms | ~290ms (still unindexed `ilike`) |
+
+# Fork spike: pure-Rust app logic (2026-10-23)
+
+`apps/zbugs/src/app/rs.rs` is the issue list and detail page with **zero app
+JS/TS**: a `live_query!` with two joins and three signal-driven filters, a client
+`for row in $(query)` loop, a Rust toggle closure that becomes an optimistic
+TanStack write, and `if $(path...)` client routing between list and detail.
+
+| 50k issues, localhost, release | P0.5 (handwritten TS) | **pure Rust (fork)** |
+|---|---|---|
+| TTFB list / detail | 4–8ms / ~3ms | 20–24ms / 11–13ms |
+| FCP list / detail | 48–76ms / 36–44ms | 52–88ms / 32–44ms |
+| Interactive list / detail | 48–74ms / 22–24ms | **92–141ms / 41–48ms** |
+| List → detail (click → frame) | 26–32ms | **10–18ms** |
+| Detail → list (back) | 15–19ms | **15–18ms** |
+| Filter change | 21–73ms | 28–55ms |
+| Title text filter | ~290ms | **~55ms** (IR `contains` → ilike, no join) |
+| Optimistic toggle | 17ms | 16–19ms |
+| Full backfill (background) | 2.0–2.9s | 0.95–1.2s |
+| Bundle (gz) | 15KB topcoat + 97KB app | **102KB total** (one runtime) |
+
+Fork size vs topcoat v0.10.0: **13 files, +1032/−7** (`docs/topcoat-fork.diff`);
+~90% new files (`browser/src/fastcoat/*`, the `ClientIf`/client-`for` lowering).
+Upstream files touched: hydrate (region skip), text (first-render flag), scope
+(per-scope context), context (`cx.row`, `cx.db`, `cx.route`), `Expr::evaluate_dynamic`.
+New Rust crates `fastcoat` + `fastcoat-macro`: ~1.2k lines.
+
+Learned:
+- Topcoat's `$()` → JS lowering + `#[record]` surrogates were the right
+  foundation: row templates needed only `cx.row(n)` as the capture's JS.
+- Planner rules matter more than the engine: point lookups must drop
+  orderBy/limit (163ms → 0.4ms); keep-alive route arms (no query rebuild)
+  took navigation from 50–140ms to 10–18ms.
+- Spike shortcuts to replace: capture analysis is a heuristic ident scan;
+  `Table` impls + endpoints are hand-written (want `#[derive(Table)]`);
+  SSR evaluates joins in memory over SQL-limited base rows; route regions keep
+  arms alive forever.

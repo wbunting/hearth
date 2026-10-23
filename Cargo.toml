@@ -1,6 +1,7 @@
 [workspace]
 resolver = "3"
-members = ["apps/zbugs"]
+members = ["apps/zbugs", "crates/fastcoat", "crates/fastcoat-macro"]
+exclude = ["vendor"]
 
 [workspace.package]
 edition = "2024"
@@ -17,3 +18,28 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 csv = "1"
 rand = "0.9"
+
+# Fork: vendor/topcoat (v0.10.0 + fastcoat changes). See docs/fork-spike.md.
+[patch.crates-io]
+topcoat = { path = "vendor/topcoat/crates/topcoat" }
+topcoat-asset = { path = "vendor/topcoat/crates/topcoat-asset" }
+topcoat-cookie = { path = "vendor/topcoat/crates/topcoat-cookie" }
+topcoat-core = { path = "vendor/topcoat/crates/topcoat-core" }
+topcoat-core-grammar = { path = "vendor/topcoat/crates/topcoat-core/grammar" }
+topcoat-core-macro = { path = "vendor/topcoat/crates/topcoat-core/macro" }
+topcoat-font = { path = "vendor/topcoat/crates/topcoat-font" }
+topcoat-font-grammar = { path = "vendor/topcoat/crates/topcoat-font/grammar" }
+topcoat-font-macro = { path = "vendor/topcoat/crates/topcoat-font/macro" }
+topcoat-icon = { path = "vendor/topcoat/crates/topcoat-icon" }
+topcoat-icon-grammar = { path = "vendor/topcoat/crates/topcoat-icon/grammar" }
+topcoat-icon-macro = { path = "vendor/topcoat/crates/topcoat-icon/macro" }
+topcoat-router = { path = "vendor/topcoat/crates/topcoat-router" }
+topcoat-router-grammar = { path = "vendor/topcoat/crates/topcoat-router/grammar" }
+topcoat-router-macro = { path = "vendor/topcoat/crates/topcoat-router/macro" }
+topcoat-runtime = { path = "vendor/topcoat/crates/topcoat-runtime" }
+topcoat-runtime-grammar = { path = "vendor/topcoat/crates/topcoat-runtime/grammar" }
+topcoat-runtime-macro = { path = "vendor/topcoat/crates/topcoat-runtime/macro" }
+topcoat-session = { path = "vendor/topcoat/crates/topcoat-session" }
+topcoat-view = { path = "vendor/topcoat/crates/topcoat-view" }
+topcoat-view-grammar = { path = "vendor/topcoat/crates/topcoat-view/grammar" }
+topcoat-view-macro = { path = "vendor/topcoat/crates/topcoat-view/macro" }

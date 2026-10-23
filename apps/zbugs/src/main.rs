@@ -4,6 +4,7 @@ mod db;
 mod features;
 mod seed;
 mod snapshot;
+mod tables;
 
 #[tokio::main]
 async fn main() {

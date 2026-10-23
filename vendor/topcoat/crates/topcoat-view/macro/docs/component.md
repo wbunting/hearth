@@ -1,0 +1,1 @@
+../../../../docs/view/component.md
