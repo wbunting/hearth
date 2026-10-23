@@ -1,26 +1,63 @@
 # fastcoat
 
-Experiment: write the whole app in Rust with [Topcoat](https://github.com/tokio-rs/topcoat),
-and use [TanStack DB](https://tanstack.com/db) (no React) as the client-side reactive store.
-Test app: a zbugs (Zero's Linear/Jira clone) schema in Toasty/SQLite.
+A fork of [Topcoat](https://github.com/tokio-rs/topcoat) (v0.10.0) for
+**local-first web apps written entirely in Rust**. You write Rust; the
+framework renders the first view on the server and compiles the
+interactive parts to JavaScript that runs against a local database
+([TanStack DB](https://tanstack.com/db)) in the browser.
 
-See [PLAN.md](PLAN.md) for the design and phases, and [RESULTS.md](RESULTS.md) for measurements.
+```rust
+#[derive(Table, Clone, Debug, Default, Serialize, Deserialize)]
+#[table(name = "issues", model = Issue, scope = issue_scope, writable(open, title, assignee_id), update = update_issue)]
+pub struct IssueRow { #[key] pub id: String, #[index] pub modified: i64, /* ... */ }
 
-## Run
+let issues = live_query! {
+    ListItem from i in IssueRow
+    left join c in UserRow on i.creator_id == c.id
+    where if $(!text.get().is_empty()) { i.title contains $(text.get()) }
+    order by i.modified desc  limit 200
+    select { id: i.id, title: i.title, open: i.open, creator: c.login }
+};
 
-```sh
-cargo install topcoat-cli --version 0.10.0 --locked   # needs rustc 1.99 (pinned in rust-toolchain.toml)
-pnpm install && pnpm build:client                      # client/dist/fastcoat.js
-cargo run -p zbugs --release -- seed                   # 516 real zbugs issues
-cargo run -p zbugs --release -- seed --synthetic 50000 # or add 50k synthetic
-PORT=3100 topcoat dev -r -p zbugs                      # http://127.0.0.1:3100
+view! {
+    if $(path.starts_with("/issues")) {
+        <ul> for issue in $(issues) {
+            <li>
+                <button @click=$(|_e| issues_t.set(issue.id.clone(), "open", !issue.open))>
+                    $(if issue.open { "○" } else { "●" })
+                </button>
+                <a data-fastcoat-link="" :href=$("/issue/".to_owned() + issue.short_id.to_text())>
+                    $(issue.title.clone())
+                </a>
+            </li>
+        } </ul>
+    }
+}
 ```
 
-After `pnpm build:client`, touch a `.rs` file so `topcoat dev` re-bundles assets.
-`/issues?mode=ssr` renders rows on the server; `/issues?mode=local` renders a shell and lets the client fill it.
+## What fastcoat adds to Topcoat
+| | |
+|---|---|
+| `#[derive(Table)]` + `routes!` | a Toasty model synced to the browser: columns, key, indexes, **required read scope**, whitelisted writes, load/mutate endpoints, typed IR→SQL lowering |
+| `live_query!` | one query → SSR (SQL for the base table, in-memory joins) **and** a TanStack DB live query in the browser |
+| `for x in $(query) { … }` | client keyed list; `$()` in the body reads the live row |
+| `if $(cond) { … }` | client-switchable region (routing, toggles), kept alive |
+| `route::path/segment` | reactive URL in `$()`; `data-fastcoat-link` anchors navigate client-side |
+| `table_handle::<T>()` | optimistic `set/insert/remove/toggle` from `$()` handlers, validated by the table's Rust write fns, rolled back on rejection |
+| `$()` vocabulary | `str.parse_i64()`, `int.to_text()`, `String + &str`, `Option::unwrap_or` (Rust + TS, tested) |
 
-## Layout
+Fork surface vs upstream: see `docs/fastcoat/` (design, results, diff).
+Upstream examples under `examples/` are unchanged.
 
-- `apps/zbugs`: Topcoat app (models, auth/read scope, JSON routes, pages, seed)
-- `client`: Vite library build; TanStack DB collections, keyed list renderer, P0 issue list
-- `bench`: in-page probes
+## Example
+[`examples/fastissuetracker`](examples/fastissuetracker): a Linear/Jira-style
+tracker (after Zero's zbugs), no app JS/TS.
+
+```sh
+pnpm install && pnpm build:runtime           # browser runtime (committed in dist/)
+cargo run -p fastissuetracker --release -- seed --synthetic 50000
+PORT=3100 cargo topcoat dev -r -p fastissuetracker
+```
+
+Requires rustc 1.99 (pinned). `legacy/zbugs-ts` is the earlier TypeScript
+experiment, kept for comparison.

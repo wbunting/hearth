@@ -135,3 +135,31 @@ Learned:
   `Table` impls + endpoints are hand-written (want `#[derive(Table)]`);
   SSR evaluates joins in memory over SQL-limited base rows; route regions keep
   arms alive forever.
+
+# fastissuetracker on the fastcoat fork (2026-10-24)
+
+Pure-Rust example (`examples/fastissuetracker`, ~700 lines of app Rust, 0 app JS/TS).
+50,516 issues, release, localhost, Chromium.
+
+| | |
+|---|---|
+| TTFB `/issues` / `/issue/3016` | 15–16ms / 12–13ms |
+| HTML (compressed) | 23–24KB |
+| DOM interactive | 32–40ms |
+| Full tables backfilled (background) | 0.83–0.91s |
+| List → detail / back (warm) | 4–7ms / 2ms (sync work); first visit ~16ms |
+| Filters (open/closed/creator/assignee/text) | 18–72ms, results verified |
+| Optimistic toggle / comment / reaction / label | 1–8ms to DOM, server-confirmed |
+| Other user's edit visible after focus | 324ms |
+| Runtime bundle (gz) | ~103KB |
+
+Fixed along the way: reactions on comments 403'd (subject resolved as issue
+only); region effects subscribed to signals read during mounting (routing
+stopped reacting); nested list rows (`cx.row(<list id>)`); inserts needed
+server-owned fields (now defaulted).
+
+"Make it real" status: capture analysis ✅ (syn visitor, tested); `#[derive(Table)]`
++ `routes!` ✅; IR→SQL for base-table SSR ✅ (joins in memory); `$()` vocab ✅;
+multi-user freshness ✅ (focus/online refresh, full refetch); keep-alive route
+arms (no LRU yet) ◐; SSR row markup still repeats `$()` JS per row (compresses
+well; ~1.2MB raw) ◐; delta sync ✗.
