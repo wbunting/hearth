@@ -3,6 +3,7 @@ mod document_type;
 mod element;
 mod element_name;
 mod element_tag;
+mod captures;
 mod for_loop;
 pub(crate) mod hir;
 mod html_ident;

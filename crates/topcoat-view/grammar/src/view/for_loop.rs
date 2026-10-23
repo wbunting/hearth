@@ -122,23 +122,13 @@ impl LowerView for ForLoop {
             // The body runs once per SSR row + once for the template, so it
             // must be `Fn`: every capture is cloned into each invocation
             // (captures are cheap: signals/handles/Exprs are Arc-like).
-            // Free identifiers the body may capture from the enclosing scope:
-            // the body runs once per SSR row + once for the template (an `Fn`),
-            // so each invocation clones what it uses. Unknown idents (fields,
-            // methods, locals) are filtered by `__fastcoat_clone_if_local!`,
-            // which only clones names bound in the enclosing scope.
-            let mut idents = std::collections::BTreeSet::new();
-            collect_expr_idents(self.client_body.clone(), &mut idents);
-            let pat_idents: std::collections::BTreeSet<String> =
-                collect_pat_idents(pat);
-            let clones = idents
-                .iter()
-                .filter(|i| !pat_idents.contains(*i) && is_capture_candidate(i))
-                .map(|i| {
-                    let id = syn::Ident::new(i, proc_macro2::Span::call_site());
-                    quote::quote! { let #id = ::core::clone::Clone::clone(&#id); }
-                });
-            let clones2 = clones.clone();
+            // Exactly the identifiers the body uses from the enclosing scope
+            // (see `captures.rs`); each invocation clones its own copy.
+            let bound = captures_bound(pat);
+            let clones2 = super::captures::free_idents(&self.client_body, &bound).into_iter().map(|i| {
+                let id = syn::Ident::new(&i, proc_macro2::Span::call_site());
+                quote::quote! { let #id = ::core::clone::Clone::clone(&#id); }
+            });
             let clones2: Vec<_> = clones2.collect();
             let tokens = quote::quote! {
                 #fastcoat::client_for(__cx, #query, {
@@ -150,7 +140,7 @@ impl LowerView for ForLoop {
                     }
                 })
             };
-            let _ = clones;
+
             builder.expr(crate::view::hir::ExprKind::Node, tokens);
             return;
         }
@@ -210,63 +200,9 @@ mod tests {
     }
 }
 
-/// [fastcoat] Identifiers in a token stream (for capture cloning).
-fn collect_idents(ts: proc_macro2::TokenStream, out: &mut std::collections::BTreeSet<String>) {
-    let mut prev_dot = false;
-    for tt in ts {
-        match tt {
-            proc_macro2::TokenTree::Ident(i) => {
-                if !prev_dot {
-                    out.insert(i.to_string());
-                }
-                prev_dot = false;
-            }
-            proc_macro2::TokenTree::Group(g) => {
-                collect_idents(g.stream(), out);
-                prev_dot = false;
-            }
-            proc_macro2::TokenTree::Punct(p) => prev_dot = p.as_char() == '.' || p.as_char() == ':',
-            proc_macro2::TokenTree::Literal(_) => prev_dot = false,
-        }
-    }
-}
 
-fn collect_pat_idents(pat: &syn::Pat) -> std::collections::BTreeSet<String> {
-    let mut out = std::collections::BTreeSet::new();
-    collect_idents(quote::ToTokens::to_token_stream(pat), &mut out);
-    out
-}
 
-/// Lowercase snake identifiers that aren't keywords/HTML tag names are
-/// candidate captures. (Spike heuristic; the real version resolves names
-/// with the same `NameResolver` the `$()` lowering uses.)
-fn is_capture_candidate(i: &str) -> bool {
-    const SKIP: &[&str] = &[
-        "if", "else", "for", "in", "let", "match", "move", "async", "await", "true", "false", "mut", "ref",
-        "self", "Self", "return", "as", "fn", "e", "_e", "class", "type", "value", "selected", "placeholder",
-        "href", "id", "li", "ul", "span", "button", "a", "div", "input", "select", "option", "strong", "p",
-        "clone", "unwrap", "is_some", "is_none", "to_owned", "get", "set", "target", "len", "Some", "None",
-    ];
-    i.chars().next().is_some_and(|c| c.is_ascii_lowercase()) && !SKIP.contains(&i) && !i.starts_with("__")
-}
 
-/// Idents inside `$(...)` runtime exprs and `(...)` template exprs only (not
-/// tag names, attribute names or text).
-fn collect_expr_idents(ts: proc_macro2::TokenStream, out: &mut std::collections::BTreeSet<String>) {
-    let mut prev: Option<proc_macro2::TokenTree> = None;
-    for tt in ts {
-        if let proc_macro2::TokenTree::Group(g) = &tt {
-            let is_expr = g.delimiter() == proc_macro2::Delimiter::Parenthesis
-                && !matches!(&prev, Some(proc_macro2::TokenTree::Ident(_)));
-            if is_expr {
-                collect_idents(g.stream(), out);
-            } else {
-                collect_expr_idents(g.stream(), out);
-            }
-        }
-        prev = Some(tt);
-    }
-}
 
 /// [fastcoat] `if $(cond) { body }` in view position: rendered on the server
 /// when `cond` is true, and switched in the browser when it changes.
@@ -303,13 +239,8 @@ impl LowerView for ClientIf {
         let mut body_builder = ViewBuilder::new();
         self.body.lower(&mut body_builder);
         let body_owned = body_builder.finish().emit_view(true);
-        let mut idents = std::collections::BTreeSet::new();
-        collect_expr_idents(self.raw_body.clone(), &mut idents);
-        // Names bound by `for <pat> in` inside the body aren't captures.
-        let mut bound = std::collections::BTreeSet::new();
-        collect_for_bindings(self.raw_body.clone(), &mut bound);
-        let clones = idents.iter().filter(|i| is_capture_candidate(i) && !bound.contains(*i)).map(|i| {
-            let id = syn::Ident::new(i, proc_macro2::Span::call_site());
+        let clones = super::captures::free_idents(&self.raw_body, &std::collections::BTreeSet::new()).into_iter().map(|i| {
+            let id = syn::Ident::new(&i, proc_macro2::Span::call_site());
             quote::quote! { let #id = ::core::clone::Clone::clone(&#id); }
         });
         let clones: Vec<_> = clones.collect();
@@ -329,17 +260,15 @@ impl LowerView for ClientIf {
     }
 }
 
-fn collect_for_bindings(ts: proc_macro2::TokenStream, out: &mut std::collections::BTreeSet<String>) {
-    let toks: Vec<_> = ts.into_iter().collect();
-    for (i, tt) in toks.iter().enumerate() {
-        match tt {
-            proc_macro2::TokenTree::Ident(id) if id == "for" => {
-                if let Some(proc_macro2::TokenTree::Ident(b)) = toks.get(i + 1) {
-                    out.insert(b.to_string());
-                }
-            }
-            proc_macro2::TokenTree::Group(g) => collect_for_bindings(g.stream(), out),
-            _ => {}
+
+fn captures_bound(pat: &syn::Pat) -> std::collections::BTreeSet<String> {
+    struct P(std::collections::BTreeSet<String>);
+    impl<'ast> syn::visit::Visit<'ast> for P {
+        fn visit_pat_ident(&mut self, i: &'ast syn::PatIdent) {
+            self.0.insert(i.ident.to_string());
         }
     }
+    let mut p = P(std::collections::BTreeSet::new());
+    syn::visit::Visit::visit_pat(&mut p, pat);
+    p.0
 }
