@@ -163,3 +163,19 @@ server-owned fields (now defaulted).
 multi-user freshness ✅ (focus/online refresh, full refetch); keep-alive route
 arms (no LRU yet) ◐; SSR row markup still repeats `$()` JS per row (compresses
 well; ~1.2MB raw) ◐; delta sync ✗.
+
+## Input lag fix (2026-10-24)
+
+Typing in the title filter blocked input for 35–375ms per keystroke: the query
+rebuild ran synchronously in the input's effect, and `contains` + order/limit
+made TanStack's ordered top-K walk most of the 50k-row index for rare terms.
+
+- List regions now read params synchronously but rebuild the query *after the
+  next paint* (`scheduleAfterPaint`: rAF → `scheduler.postTask(user-visible)`),
+  coalesced and latest-wins (superseded builds are discarded).
+- Planner rule 2: for `contains` + order/limit, estimate selectivity from a
+  cached ~2k-row sample; rare matches run as an unlimited scan with order/limit
+  applied in the list region (300ms → ~25ms), common matches keep top-K (7ms).
+
+Real key presses (Event Timing API, visible tab): **0 input events over 16ms**
+while typing "authentication"/"selectreplic"/"zzzz"; results correct.

@@ -100,7 +100,22 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 	const reconcileInner = () => {
 		if (!live || !live.isReady()) return;
 		const t0 = performance.now();
-		const rows = live.toArray as Array<{ [k: string]: unknown }>;
+		let rows = live.toArray as Array<{ [k: string]: unknown }>;
+		const planned = (live as any).planned as Query | undefined;
+		if (planned?.clientOrder) {
+			// Planner moved order/limit out of the query (see db.ts rule 2).
+			const n = planned.clientOrder.length;
+			rows = rows.slice().sort((a, b) => {
+				for (let i = 0; i < n; i++) {
+					const x = a[`__o${i}`] as any, y = b[`__o${i}`] as any;
+					if (x === y) continue;
+					const c = x == null ? -1 : y == null ? 1 : x < y ? -1 : 1;
+					return planned.clientOrder![i]!.desc ? -c : c;
+				}
+				return 0;
+			});
+			if (planned.clientLimit != null) rows = rows.slice(0, planned.clientLimit);
+		}
 		const keyField = marker.query.key;
 		if (!adopted) {
 			adopted = true;
@@ -146,15 +161,51 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 	};
 
 	// Re-run the query whenever a param's signals change.
+	// Input never waits on queries. Param changes are read synchronously (so
+	// the effect tracks them), then the rebuild runs as a background task
+	// *after* the browser has painted the input:
+	//  - coalesced: a burst of keystrokes runs one query with the latest values
+	//  - latest-wins: if params change while a query is being built, its
+	//    result is dropped and the newest params run next
+	//  - `scheduler.postTask(…, {priority: "user-visible"})` where available
+	//    (yields to pending input), else rAF→setTimeout.
+	// The first run is synchronous so SSR adoption happens during hydration.
+	let pending: unknown[] | null = null;
+	let scheduled = false;
+	let firstRun = true;
+	let generation = 0;
+	const flush = () => {
+		scheduled = false;
+		if (scope.isDisposed || !pending) return;
+		const values = pending;
+		pending = null;
+		const gen = ++generation;
+		untrack(() => runQuery(values, gen));
+	};
 	scope.effect(() => {
 		const values = params.map((p) => plain(p(scope.context)));
-		untrack(() => runQuery(values));
+		if (firstRun) {
+			firstRun = false;
+			untrack(() => runQuery(values, ++generation));
+			return;
+		}
+		pending = values;
+		if (!scheduled) {
+			scheduled = true;
+			scheduleAfterPaint(flush);
+		}
 	});
-	function runQuery(values: unknown[]) {
+	function runQuery(values: unknown[], gen: number) {
 		const tq = performance.now();
+		const next = db.live(marker.query, values);
+		if (gen !== generation || pending) {
+			// Superseded while building: discard; the newer run is queued.
+			next.cleanup();
+			return;
+		}
 		unsub?.();
 		live?.cleanup();
-		live = db.live(marker.query, values);
+		live = next;
 		const sub = live.subscribeChanges(() => queueMicrotask(reconcile));
 		live.onFirstReady(() => {
 			reconcile();
@@ -223,4 +274,13 @@ export function reportError(e: unknown, where: string) {
 	const errs = ((window as any).__fastcoatErrors ??= []) as string[];
 	errs.push(`${where}: ${(e as Error)?.stack ?? e}`);
 	console.error("[fastcoat]", where, e);
+}
+
+/** Runs `fn` after the next paint, at background-ish priority. */
+export function scheduleAfterPaint(fn: () => void) {
+	const sched = (globalThis as any).scheduler;
+	const post = () =>
+		sched?.postTask ? sched.postTask(fn, { priority: "user-visible" }) : setTimeout(fn, 0);
+	if (document.visibilityState === "visible") requestAnimationFrame(post);
+	else post();
 }

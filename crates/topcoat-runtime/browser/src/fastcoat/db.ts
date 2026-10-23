@@ -71,6 +71,9 @@ export type Query = {
 	select: { [field: string]: Expr };
 	key: string; // output field used as the list key
 	types: { [field: string]: ColumnType };
+	/** Set by the planner when order/limit are applied after the query. */
+	clientOrder?: { expr: Expr; desc: boolean }[];
+	clientLimit?: number;
 };
 
 // ---------------------------------------------------------------- db
@@ -227,7 +230,7 @@ export class LocalDb {
 	// ------------------------------------------------------------ queries
 
 	/** Builds a TanStack live query from IR + evaluated params. */
-	live(q: Query, params: unknown[]): Collection<Row, string> {
+	live(q: Query, params: unknown[]): Collection<Row, string> & { planned?: Query } {
 		// Planner rule (measured: 163ms -> 0.4ms at 50k rows): a point lookup
 		// `col == $x` on an indexed column with `limit 1` must not carry
 		// orderBy/limit, which forces TanStack's ordered top-K scan instead of
@@ -237,6 +240,20 @@ export class LocalDb {
 			q.limit === 1 && w && w.op === "eq" && "col" in w.l && w.l.col[0] === q.from.alias &&
 			this.desc.get(q.from.table)?.indexes.includes(w.l.col[1]);
 		if (pointLookup) q = { ...q, order: [], limit: null };
+		// Planner rule 2: `contains` (unindexable) + orderBy/limit. TanStack's
+		// ordered top-K walks the order index until `limit` rows match: cheap
+		// when matches are common (7ms for "s"), terrible when rare (270ms
+		// for "sel"); an unlimited scan is the opposite (160ms / 16ms). Pick
+		// by measured selectivity: sample the base table and estimate how far
+		// top-K would have to walk.
+		if (q.limit != null && q.order.length && hasContains(q.where)) {
+			const rate = this.sampleMatchRate(q, params);
+			const expectedWalk = rate > 0 ? q.limit / rate : Number.POSITIVE_INFINITY;
+			const size = this.tables.get(q.from.table)?.size ?? 0;
+			if (expectedWalk > size * 0.05) {
+				q = { ...q, order: [], limit: null, clientOrder: q.order, clientLimit: q.limit } as Query;
+			}
+		}
 		const tables = this.tables;
 		const coll = (name: string) => {
 			this.ensure(name);
@@ -244,7 +261,8 @@ export class LocalDb {
 			if (!c) throw new Error(`[fastcoat] unknown table ${name}`);
 			return c;
 		};
-		return createLiveQueryCollection({
+		const planned = q;
+		const out = createLiveQueryCollection({
 			startSync: true,
 			query: (qb: any) => {
 				let b = qb.from({ [q.from.alias]: coll(q.from.table) });
@@ -283,9 +301,55 @@ export class LocalDb {
 				}
 				if (!early) applyFilters();
 				const sel = Object.entries(q.select).map(([k, e]) => [k, lower(e, params)] as const);
-				return b.select((refs: any) => Object.fromEntries(sel.map(([k, f]) => [k, f(refs)])));
+				// Planner rule 2 needs the order columns in the output to sort by.
+				const extra = (planned.clientOrder ?? []).map((o, i) => [`__o${i}`, lower(o.expr, params)] as const);
+				return b.select((refs: any) =>
+					Object.fromEntries([...sel, ...extra].map(([k, f]) => [k, f(refs)])),
+				);
 			},
-		}) as unknown as Collection<Row, string>;
+		}) as unknown as Collection<Row, string> & { planned?: Query };
+		out.planned = planned;
+		return out;
+	}
+
+	private sampleCache = new Map<string, { version: number; rows: Row[] }>();
+
+	/** Fraction of a ~2k-row sample of the base table matching `contains` terms. */
+	private sampleMatchRate(q: Query, params: unknown[]): number {
+		// The sample itself is cached per table and refreshed on sync, so a
+		// keystroke costs ~2k substring tests (<1ms), not a 50k-row `toArray`.
+		const version = this.version();
+		let cached = this.sampleCache.get(q.from.table);
+		if (!cached || cached.version !== version) {
+			const all = this.tables.get(q.from.table)?.toArray ?? [];
+			const step = Math.max(1, Math.floor(all.length / 2000));
+			const rows: Row[] = [];
+			for (let i = 0; i < all.length; i += step) rows.push(all[i] as Row);
+			cached = { version, rows };
+			this.sampleCache.set(q.from.table, cached);
+		}
+		const rows = cached.rows;
+		if (rows.length === 0) return 1;
+		const terms: [string, string][] = [];
+		const walk = (e: any) => {
+			if (!e || typeof e !== "object") return;
+			if (e.op === "contains" && "col" in e.l) {
+				const v = "param" in e.r ? plain(params[e.r.param]) : e.r.lit;
+				terms.push([e.l.col[1], String(v ?? "").toLowerCase()]);
+			} else if (e.op === "if") {
+				if (plain(evalParam(e.cond, params))) walk(e.then);
+			} else (e.args ?? (e.arg ? [e.arg] : [])).forEach(walk);
+		};
+		walk(q.where);
+		if (terms.length === 0) return 1;
+		let seen = 0;
+		let hit = 0;
+		for (let i = 0; i < rows.length; i++) {
+			seen++;
+			const r = rows[i] as Row;
+			if (terms.every(([c, t]) => String(r[c] ?? "").toLowerCase().includes(t))) hit++;
+		}
+		return hit / seen;
 	}
 
 	/** Surrogate-shaped view of a plain row so `$()` can read fields. */
@@ -422,6 +486,16 @@ function lower(e: Expr, params: unknown[]): Lowered {
 			return lower(e.then, params);
 		}
 	}
+}
+
+function hasContains(e: Expr | null): boolean {
+	if (!e || typeof e !== "object") return false;
+	const x = e as any;
+	if (x.op === "contains") return true;
+	if (x.op === "if") return hasContains(x.then);
+	if (x.args) return x.args.some(hasContains);
+	if (x.arg) return hasContains(x.arg);
+	return false;
 }
 
 function evalParam(e: Expr, params: unknown[]): unknown {
