@@ -1,0 +1,23 @@
+:root { color-scheme: light dark; --muted: #888; --line: #8883; --accent: #6b5cff; }
+* { box-sizing: border-box; }
+body { margin: 0; font: 14px/1.4 ui-sans-serif, system-ui, sans-serif; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.muted { color: var(--muted); }
+.bar, .filters { display: flex; gap: 8px; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--line); }
+.bar strong { margin-right: auto; }
+.modes a { padding: 2px 8px; border-radius: 6px; text-decoration: none; color: inherit; }
+.modes a.on { background: var(--accent); color: white; }
+.filters select, .filters input { font: inherit; padding: 4px 6px; }
+#timing { margin-left: auto; }
+.issues { list-style: none; margin: 0; padding: 0; }
+.issues li { display: grid; grid-template-columns: 24px 56px 1fr auto 120px; gap: 8px; align-items: center; padding: 6px 16px; border-bottom: 1px solid var(--line); contain: content; }
+.issues li.pending { opacity: .6; }
+.issues .title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.issues .labels span { font-size: 11px; padding: 1px 6px; border: 1px solid var(--line); border-radius: 9px; margin-left: 4px; }
+.issues .who { text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toggle { border: 0; background: none; cursor: pointer; font-size: 14px; color: var(--accent); }
+.login { max-width: 360px; margin: 10vh auto; }
+.users { list-style: none; padding: 0; display: grid; gap: 6px; }
+.users button { width: 100%; text-align: left; padding: 8px; font: inherit; cursor: pointer; }
+.badge { font-size: 11px; margin-left: 6px; padding: 1px 6px; border-radius: 9px; background: var(--accent); color: white; }
+#toast { position: fixed; bottom: 16px; right: 16px; padding: 8px 12px; background: #c33; color: white; border-radius: 6px; }
