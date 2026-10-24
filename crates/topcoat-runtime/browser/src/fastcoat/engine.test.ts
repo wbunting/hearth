@@ -145,6 +145,23 @@ describe("engine", () => {
 		}
 	});
 
+	it("bulk inserts after the index exists stay correct", () => {
+		const base = issues(5_000);
+		const t = table(base.slice(0, 1000));
+		const m = new Map([
+			["issues", new Mirror(t.c, "id")],
+			["users", new Mirror(us.c, "id")],
+		]);
+		const tb = (n: string) => m.get(n)!;
+		run(listQuery, cases[0]!, tb); // build sorted index on 1k rows
+		for (let i = 1000; i < 5000; i += 1000) t.write(base.slice(i, i + 1000));
+		for (const p of cases) expect(run(listQuery, p, tb)).toEqual(reference(base, p));
+		// updates after bulk
+		t.write([{ ...base[10]!, modified: 2e6 }], "update");
+		const after = base.map((r, i) => (i === 10 ? { ...r, modified: 2e6 } : r));
+		for (const p of cases) expect(run(listQuery, p, tb)).toEqual(reference(after, p));
+	});
+
 	it("live query sees writes and keeps unchanged row identity", async () => {
 		const lq = new LiveQuery(listQuery, cases[0]!, tables);
 		const before = lq.toArray;

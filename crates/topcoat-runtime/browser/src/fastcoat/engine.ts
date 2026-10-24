@@ -52,9 +52,8 @@ type OrderSpec = { col: string; desc: boolean }[];
 export class Mirror {
 	readonly rows = new Map<string, Row>();
 	private listeners = new Set<() => void>();
-	private sorted = new Map<string, { spec: OrderSpec; arr: Row[] | null }>();
+	private sorted = new Map<string, { spec: OrderSpec; arr: Row[] | null; pending: Row[] }>();
 	private hashes = new Map<string, Map<unknown, Set<Row>> | null>();
-	private rebuildScheduled = false;
 
 	constructor(
 		readonly coll: Collection<Row, string>,
@@ -78,49 +77,38 @@ export class Mirror {
 
 	private apply(changes: { type: string; key: unknown; value: Row }[]) {
 		if (changes.length === 0) return;
-		// Big batches (backfill) invalidate indexes; they're rebuilt once, off
-		// the input path, instead of being maintained row by row.
-		const bulk = changes.length > 256;
-		if (bulk) this.invalidate();
+		// Large batches (backfill chunks) queue sorted-index inserts and merge
+		// them on next read (sort the batch, one linear merge) instead of a
+		// splice per row.
+		const bulk = changes.length > 64;
 		for (const ch of changes) {
 			const key = String(ch.key);
 			const prev = this.rows.get(key);
 			if (ch.type === "delete") {
 				if (!prev) continue;
-				if (!bulk) this.unindex(prev);
+				this.unindex(prev);
 				this.rows.delete(key);
 			} else {
 				const next = ch.value;
 				if (prev === next) {
 					// Mutated in place: indexes can't locate the old position.
-					if (!bulk) this.invalidate();
+					this.invalidate();
 					continue;
 				}
-				if (prev && !bulk) this.unindex(prev);
+				if (prev) this.unindex(prev);
 				this.rows.set(key, next);
-				if (!bulk) this.index(next);
+				this.index(next, bulk);
 			}
 		}
-		if (bulk) this.scheduleRebuild();
 		for (const l of this.listeners) l();
 	}
 
 	private invalidate() {
-		for (const s of this.sorted.values()) s.arr = null;
+		for (const s of this.sorted.values()) {
+			s.arr = null;
+			s.pending = [];
+		}
 		for (const k of this.hashes.keys()) this.hashes.set(k, null);
-	}
-
-	private scheduleRebuild() {
-		if (this.rebuildScheduled) return;
-		this.rebuildScheduled = true;
-		const run = () => {
-			this.rebuildScheduled = false;
-			for (const [id, s] of this.sorted) if (!s.arr) this.sortedIndex(id, s.spec);
-			for (const [col, h] of this.hashes) if (!h) this.hashIndex(col);
-		};
-		const ric = (globalThis as any).requestIdleCallback as ((f: () => void, o?: object) => void) | undefined;
-		if (ric) ric(run, { timeout: 500 });
-		else setTimeout(run, 50);
 	}
 
 	private comparator(spec: OrderSpec) {
@@ -140,11 +128,30 @@ export class Mirror {
 	sortedIndex(id: string, spec: OrderSpec): Row[] {
 		let s = this.sorted.get(id);
 		if (!s) {
-			s = { spec, arr: null };
+			s = { spec, arr: null, pending: [] };
 			this.sorted.set(id, s);
 		}
-		if (!s.arr) s.arr = [...this.rows.values()].sort(this.comparator(spec));
+		if (!s.arr) {
+			s.arr = [...this.rows.values()].sort(this.comparator(spec));
+			s.pending = [];
+		} else if (s.pending.length) this.flush(s);
 		return s.arr;
+	}
+
+	private flush(s: { spec: OrderSpec; arr: Row[] | null; pending: Row[] }) {
+		if (!s.arr || !s.pending.length) return;
+		const cmp = this.comparator(s.spec);
+		const add = s.pending.sort(cmp);
+		const old = s.arr;
+		const out = new Array<Row>(old.length + add.length);
+		let i = 0;
+		let j = 0;
+		let k = 0;
+		while (i < old.length && j < add.length) out[k++] = cmp(old[i]!, add[j]!) <= 0 ? old[i++]! : add[j++]!;
+		while (i < old.length) out[k++] = old[i++]!;
+		while (j < add.length) out[k++] = add[j++]!;
+		s.arr = out;
+		s.pending = [];
 	}
 
 	/** Rows whose `col` equals `v`. */
@@ -166,10 +173,15 @@ export class Mirror {
 		return h;
 	}
 
-	private index(r: Row) {
+	private index(r: Row, bulk: boolean) {
 		for (const [col, h] of this.hashes) if (h) addTo(h, r[col], r);
 		for (const s of this.sorted.values()) {
 			if (!s.arr) continue;
+			if (bulk) {
+				s.pending.push(r);
+				continue;
+			}
+			this.flush(s);
 			const cmp = this.comparator(s.spec);
 			s.arr.splice(lowerBound(s.arr, r, cmp), 0, r);
 		}
@@ -179,6 +191,11 @@ export class Mirror {
 		for (const [col, h] of this.hashes) h?.get(r[col])?.delete(r);
 		for (const s of this.sorted.values()) {
 			if (!s.arr) continue;
+			const p = s.pending.indexOf(r);
+			if (p >= 0) {
+				s.pending.splice(p, 1);
+				continue;
+			}
 			let i = lowerBound(s.arr, r, this.comparator(s.spec));
 			if (s.arr[i] !== r) i = s.arr.indexOf(r);
 			if (i >= 0) s.arr.splice(i, 1);

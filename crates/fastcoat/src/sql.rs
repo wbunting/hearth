@@ -109,15 +109,27 @@ fn flip(op: &'static str) -> &'static str {
     }
 }
 
-pub fn order<C: SqlColumns>(q: &Query, params: &[Value]) -> Vec<toasty::stmt::OrderByExpr> {
+/// Order-by for the base table. A total order: ties are broken by the
+/// primary key (ascending), exactly like the browser engine and the SSR
+/// evaluator, so the first page is identical everywhere (otherwise equal
+/// sort keys come back in arbitrary SQL order and the list reshuffles on
+/// hydration).
+pub fn order<C: SqlColumns>(q: &Query, params: &[Value], key: &str) -> Vec<toasty::stmt::OrderByExpr> {
     let _ = params;
-    q.order
+    let mut out: Vec<_> = q
+        .order
         .iter()
         .map_while(|o| match &o.expr {
             Expr::Col { col: (a, c) } if *a == q.from.alias => C::order(c, o.desc),
             _ => None,
         })
-        .collect()
+        .collect();
+    let complete = out.len() == q.order.len();
+    let by_key = q.order.iter().any(|o| matches!(&o.expr, Expr::Col { col: (a, c) } if *a == q.from.alias && *c == key));
+    if complete && !by_key && !out.is_empty() {
+        out.extend(C::order(key, false));
+    }
+    out
 }
 
 /// `%text%` with LIKE metacharacters escaped by `\`.

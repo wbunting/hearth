@@ -121,7 +121,7 @@ export class LocalDb {
 		delete this.seeds[name];
 		// A table first used after the initial backfill (e.g. comments, when
 		// the session started on the list page) still needs its full rows.
-		if (this.backfillStarted && seeded) void this.fetchTable(t).then((rows) => this.apply(name, rows, true));
+		if (this.backfillStarted && seeded) void this.fetchTable(t).then((rows) => this.applyChunked(name, rows));
 		if (!this.backfillScheduled) {
 			this.backfillScheduled = true;
 			// After the first view is interactive, pull full tables.
@@ -150,11 +150,11 @@ export class LocalDb {
 						this.apply(t.name, initial, false);
 						params.markReady();
 					} else {
+						// Unseeded table: applied in slices (no long task), ready
+						// once complete so queries never see a partial table.
 						this.fetchTable(t)
-							.then((rows) => {
-								this.apply(t.name, rows, true);
-								params.markReady();
-							})
+							.then((rows) => this.applyChunked(t.name, rows))
+							.then(() => params.markReady())
 							.catch((e) => params.markError(e));
 					}
 				},
@@ -192,7 +192,8 @@ export class LocalDb {
 	private fetchTable(t: TableDesc): Promise<Row[]> {
 		let p = this.inflight.get(t.name);
 		if (!p) {
-			p = (get(t.load) as Promise<Row[]>).finally(() => this.inflight.delete(t.name));
+			p = (get(t.load) as Promise<Row[]>)
+.finally(() => this.inflight.delete(t.name));
 			this.inflight.set(t.name, p);
 		}
 		return p;
@@ -242,7 +243,32 @@ export class LocalDb {
 	async backfill() {
 		this.backfillStarted = true;
 		const seeded = [...this.desc.values()];
-		await Promise.all(seeded.map(async (t) => this.apply(t.name, await this.fetchTable(t), true)));
+		await Promise.all(seeded.map(async (t) => this.applyChunked(t.name, await this.fetchTable(t))));
+	}
+
+	/**
+	 * Full-table apply in slices that yield to the browser between them, so a
+	 * 50k-row backfill never blocks input or paint for more than a few ms.
+	 * Deletions (rows the server no longer has) are diffed at the end.
+	 */
+	private async applyChunked(table: string, rows: Row[]) {
+		// ~1000 rows ≈ 6-8 ms of TanStack + index work: well inside a frame.
+		const CHUNK = 1000;
+		if (rows.length <= CHUNK) {
+			this.apply(table, rows, true);
+			return;
+		}
+		const key = this.desc.get(table)!.key;
+		const seen = new Set<string>();
+		for (let i = 0; i < rows.length; i += CHUNK) {
+			const slice = rows.slice(i, i + CHUNK);
+			for (const r of slice) seen.add(String(r[key]));
+			this.apply(table, slice, false);
+			await yieldToBrowser();
+		}
+		const server = this.servers.get(table);
+		const gone = server ? [...server.keys()].filter((k) => !seen.has(k)) : [];
+		if (gone.length) this.apply(table, [], false, gone);
 	}
 	private seededTables = new Set<string>();
 
@@ -645,4 +671,12 @@ export function simplify(e: Expr | null, params: unknown[]): Expr | null {
 		return { ...e, args };
 	}
 	return e;
+}
+
+/** Yields to input and rendering (scheduler.yield where supported). */
+function yieldToBrowser(): Promise<void> {
+	// Background priority: input and rendering always go first.
+	const sched = (globalThis as any).scheduler;
+	if (sched?.postTask) return sched.postTask(() => {}, { priority: "background" });
+	return new Promise((r) => setTimeout(r, 0));
 }

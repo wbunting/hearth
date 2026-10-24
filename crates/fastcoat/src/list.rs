@@ -220,7 +220,9 @@ where
                 }
             }
         }
-        let rows = evaluate(&ir, &tables, &param_values);
+        // TODO(ir): carry the base table's key in the IR; every synced table
+        // is keyed by `id` today (seed_rows assumes the same).
+        let rows = evaluate(&ir, &tables, &param_values, "id");
         // First-view seed: base rows that made the cut + the joined rows they
         // reference, keyed by table name, so the browser's collections are
         // ready immediately and the full tables backfill afterwards.
@@ -287,7 +289,7 @@ where
 }
 
 /// Evaluate the IR over loaded rows: base filter/order/limit, then joins.
-fn evaluate<'t>(q: &Query, tables: &'t HashMap<&str, Vec<JsonRow>>, params: &[Value]) -> Vec<JsonRow> {
+fn evaluate<'t>(q: &Query, tables: &'t HashMap<&str, Vec<JsonRow>>, params: &[Value], base_key: &str) -> Vec<JsonRow> {
     static EMPTY: Vec<JsonRow> = Vec::new();
     let empty: &'t [JsonRow] = &EMPTY;
     let base: &'t [JsonRow] = tables.get(q.from.alias).map_or(empty, Vec::as_slice);
@@ -338,7 +340,10 @@ fn evaluate<'t>(q: &Query, tables: &'t HashMap<&str, Vec<JsonRow>>, params: &[Va
                 return ord;
             }
         }
-        std::cmp::Ordering::Equal
+        // Tie-break by the base row's key, like SQL (`sql::order`) and the
+        // browser engine, so all three agree on the first page.
+        let k = |e: &HashMap<&str, &JsonRow>| e.get(q.from.alias).and_then(|r| r.get(base_key)).map(json_key).unwrap_or_default();
+        k(a).cmp(&k(b))
     };
 
     let envs: Vec<HashMap<&'static str, &'t JsonRow>> = if early {
