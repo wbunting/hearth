@@ -21,6 +21,7 @@ pub async fn script(cx: &topcoat::context::Cx) -> topcoat::Result<impl topcoat::
             type="module"
             src=(topcoat::runtime::SCRIPT)
             data-topcoat-usize-bits=(usize::BITS)
+            data-topcoat-persistence=(topcoat::runtime::PERSISTENCE)
         ></script>
     })
 }

@@ -1374,9 +1374,11 @@ name = "hearth"
 version = "0.10.0"
 dependencies = [
  "hearth-macro",
+ "http",
  "serde",
  "serde_json",
  "toasty",
+ "tokio",
  "topcoat",
 ]
 

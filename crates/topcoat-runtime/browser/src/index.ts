@@ -11,6 +11,13 @@ if (boot) {
 	localDb().init(b.schema, b.snapshot ?? {});
 	route.init();
 	(window as any).__hearth = { db: localDb(), boot: b, route };
+} else {
+	// Pages outside the authenticated shell (including logout/login) must not
+	// retain the previous viewer's durable rows. Keep cleanup off first paint.
+	setTimeout(() => {
+		try { globalThis.indexedDB?.deleteDatabase("hearth-sync-v1"); }
+		catch { /* Storage may be blocked. */ }
+	}, 0);
 }
 
 const runtime = new Runtime();
