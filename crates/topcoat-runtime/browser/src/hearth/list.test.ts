@@ -24,7 +24,7 @@ it("adopts SSR nodes from a trailing seed and finds nested templates", async () 
 	}] }, {});
 	const marker = {
 		query: {
-			from: { table: "trailing", alias: "t" }, joins: [], where: null,
+			from: { table: "trailing", alias: "t", key: "id" }, joins: [], where: null,
 			order: [], limit: null, key: "id",
 			select: { id: { col: ["t", "id"] }, title: { col: ["t", "title"] } },
 			types: { id: "string", title: "string" },
