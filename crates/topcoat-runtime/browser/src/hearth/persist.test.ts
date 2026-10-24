@@ -75,7 +75,7 @@ describe("durable server checkpoints", () => {
 		});
 		expect(await read(p)).toEqual({ rows: [], cursor: "2" });
 	});
-	it("schema, user and role namespace changes remove previous data", async () => {
+	it("schema/user namespaces are isolated even when an old tab reopens", async () => {
 		const p = await open("schema1:user1:crew");
 		await p.save("items", "id", {
 			full: true,
@@ -85,15 +85,25 @@ describe("durable server checkpoints", () => {
 		});
 		const q = await open("schema2:user2:public");
 		expect(await read(q)).toEqual({ rows: [], cursor: undefined });
-		// An old tab must neither read nor overwrite the new namespace.
+		await q.save("items", "id", {
+			full: true,
+			rows: [{ id: "new-viewer" }],
+			deleted: [],
+			cursor: "q1",
+		});
+		// A stale opener must not clear the newer viewer's checkpoint.
+		const stale = await open("schema1:user1:crew");
 		await p.save("items", "id", {
 			full: true,
 			rows: [{ id: "leak" }],
 			deleted: [],
 			cursor: "2",
 		});
-		expect(await read(p)).toEqual({ rows: [], cursor: undefined });
-		expect(await read(q)).toEqual({ rows: [], cursor: undefined });
+		expect(await read(stale)).toEqual({ rows: [{ id: "leak" }], cursor: "2" });
+		expect(await read(q)).toEqual({
+			rows: [{ id: "new-viewer" }],
+			cursor: "q1",
+		});
 	});
 	it("a mismatched cross-tab delta base invalidates rather than corrupts rows", async () => {
 		const p = await open();

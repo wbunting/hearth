@@ -8,7 +8,7 @@ export type Delta = {
 	cursor: string;
 	full: boolean;
 };
-type Bucket = { table: string; bucket: number; rows: Row[] };
+type Bucket = { namespace: string; table: string; bucket: number; rows: Row[] };
 const BUCKETS = 128;
 const DATABASE = "hearth-sync-v1";
 
@@ -39,22 +39,19 @@ export class LocalPersistence {
 		private namespace: string,
 	) {}
 	static async open(namespace: string): Promise<LocalPersistence> {
-		const req = indexedDB.open(DATABASE, 1);
+		const req = indexedDB.open(DATABASE, 2);
 		req.onupgradeneeded = () => {
-			req.result.createObjectStore("rows", { keyPath: ["table", "bucket"] });
+			if (req.result.objectStoreNames.contains("rows"))
+				req.result.deleteObjectStore("rows");
+			if (req.result.objectStoreNames.contains("meta"))
+				req.result.deleteObjectStore("meta");
+			req.result.createObjectStore("rows", {
+				keyPath: ["namespace", "table", "bucket"],
+			});
 			req.result.createObjectStore("meta");
 		};
 		const db = await request(req);
 		db.onversionchange = () => db.close();
-		const tx = db.transaction(["rows", "meta"], "readwrite");
-		const done = complete(tx);
-		const meta = tx.objectStore("meta");
-		if ((await request(meta.get("namespace"))) !== namespace) {
-			tx.objectStore("rows").clear();
-			meta.clear();
-			meta.put(namespace, "namespace");
-		}
-		await done;
 		return new LocalPersistence(db, namespace);
 	}
 
@@ -66,20 +63,19 @@ export class LocalPersistence {
 		const tx = this.db.transaction(["rows", "meta"], "readonly");
 		const done = complete(tx);
 		const meta = tx.objectStore("meta");
-		// An old tab cannot read a newly signed-in user's cache.
-		const namespace = await request(meta.get("namespace"));
-		if (namespace !== this.namespace) {
-			await done;
-			return;
-		}
-		const cursor = (await request(meta.get(["table", table]))) as
+		const cursor = (await request(meta.get([this.namespace, table]))) as
 			| string
 			| undefined;
 		if (cursor) {
 			await new Promise<void>((resolve, reject) => {
 				const req = tx
 					.objectStore("rows")
-					.openCursor(IDBKeyRange.bound([table, 0], [table, BUCKETS]));
+					.openCursor(
+						IDBKeyRange.bound(
+							[this.namespace, table, 0],
+							[this.namespace, table, BUCKETS],
+						),
+					);
 				req.onerror = () => reject(req.error);
 				req.onsuccess = () => {
 					const c = req.result;
@@ -122,39 +118,46 @@ export class LocalPersistence {
 		const tx = this.db.transaction(["rows", "meta"], "readwrite");
 		const done = complete(tx);
 		const meta = tx.objectStore("meta");
-		if ((await request(meta.get("namespace"))) !== this.namespace) {
-			await done;
-			return;
-		}
 		// Other tabs may have committed a different checkpoint. Never attach a
 		// delta cursor to rows from a different base. Invalidate instead.
-		if (!delta.full && (await request(meta.get(["table", table]))) !== base) {
-			meta.delete(["table", table]);
+		if (
+			!delta.full &&
+			(await request(meta.get([this.namespace, table]))) !== base
+		) {
+			meta.delete([this.namespace, table]);
 			await done;
 			return;
 		}
 		const store = tx.objectStore("rows");
 		if (delta.full)
-			store.delete(IDBKeyRange.bound([table, 0], [table, BUCKETS]));
+			store.delete(
+				IDBKeyRange.bound(
+					[this.namespace, table, 0],
+					[this.namespace, table, BUCKETS],
+				),
+			);
 		try {
 			await Promise.all(
 				[...changes].map(async ([b, change]) => {
 					const old = delta.full
 						? undefined
-						: ((await request(store.get([table, b]))) as Bucket | undefined);
+						: ((await request(store.get([this.namespace, table, b]))) as
+								| Bucket
+								| undefined);
 					const rows = new Map(
 						(old?.rows ?? []).map((r) => [String(r[key]), r]),
 					);
 					for (const id of change.deleted) rows.delete(id);
 					for (const row of change.rows) rows.set(String(row[key]), row);
 					store.put({
+						namespace: this.namespace,
 						table,
 						bucket: b,
 						rows: [...rows.values()],
 					} satisfies Bucket);
 				}),
 			);
-			meta.put(delta.cursor, ["table", table]);
+			meta.put(delta.cursor, [this.namespace, table]);
 		} catch (error) {
 			tx.abort();
 			await done.catch(() => {});
