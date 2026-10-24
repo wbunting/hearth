@@ -40,6 +40,57 @@ afterEach(() => {
 });
 
 describe("delta synchronization", () => {
+	it("preserves fresh SSR keys while restoring stale cache before validation", async () => {
+		vi.useFakeTimers();
+		let release!: (response: Response) => void;
+		let loading!: () => void;
+		const started = new Promise<void>((r) => {
+			loading = r;
+		});
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(() => {
+				loading();
+				return new Promise<Response>((r) => {
+					release = r;
+				});
+			}),
+		);
+		const d = new LocalDb();
+		vi.spyOn(
+			d as unknown as { cache(): Promise<unknown> },
+			"cache",
+		).mockResolvedValue({
+			restore: async (_name: string, apply: (rows: object[]) => void) => {
+				apply([
+					{ id: "a", value: "stale" },
+					{ id: "b", value: "cached" },
+				]);
+				return "checkpoint";
+			},
+			save: async () => {},
+		} as never);
+		d.init(schema, { items: [{ id: "a", value: "fresh SSR" }] });
+		d.live(query, []);
+		const syncing = d.backfill();
+		await started;
+		expect(d.get("items", "a")?.value).toBe("fresh SSR");
+		expect(d.get("items", "b")?.value).toBe("cached");
+		release(
+			new Response(
+				JSON.stringify({
+					rows: [{ id: "a", value: "validated" }],
+					deleted: ["b"],
+					full: false,
+					cursor: "next",
+				}),
+			),
+		);
+		await syncing;
+		expect(d.get("items", "a")?.value).toBe("validated");
+		expect(d.get("items", "b")).toBeUndefined();
+		vi.restoreAllMocks();
+	});
 	it("applies inserts, updates, scoped deletions and full reset, serializes refreshes", async () => {
 		vi.useFakeTimers();
 		const fetch = vi

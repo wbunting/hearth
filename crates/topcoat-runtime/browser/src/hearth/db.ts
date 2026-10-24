@@ -159,8 +159,12 @@ export class LocalDb {
 			this.restored.add(t.name);
 			try {
 				const epoch = this.mutationEpoch;
+				const table = this.tables.get(t.name)!;
+				// SSR was fetched after the durable checkpoint. Never roll its rows
+				// back while filling in rows outside the first-view seed.
+				const seeded = new Set(table.serverKeys());
 				const cursor = await cache?.restore(t.name, (rows) => {
-					if (epoch === this.mutationEpoch) this.tables.get(t.name)!.applyServer(rows, [], false);
+					if (epoch === this.mutationEpoch) table.applyServer(rows.filter(row => !seeded.has(String(row[t.key]))), [], false);
 				});
 				this.tables.get(t.name)!.notify();
 				if (cursor && epoch === this.mutationEpoch) {

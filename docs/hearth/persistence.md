@@ -12,11 +12,11 @@ The server retains sorted keys and 128-bit row hashes, not complete rows. It kee
 
 ## Cache lifetime and correctness
 
-The browser namespace is the server-emitted schema fingerprint plus viewer scope. Include the user and any role or authorization generation in that scope. Changing either selects a separate durable namespace and invalidates the previous checkpoint for that client. Pages without an authenticated Hearth boot clear the cache, including the tracker login/logout page. Browser storage is not an authorization boundary and does not encrypt rows.
+The browser namespace is the server-emitted schema fingerprint plus viewer scope. Include the user and any role or authorization generation in that scope. Changing either selects a separate durable namespace. Previous namespaces are not read by that client, but remain on disk until logout or a non-Hearth page deletes the database. This deliberately avoids stale tabs evicting another namespace; automatic retention pruning is not implemented. Pages without an authenticated Hearth boot clear the cache, including the tracker login/logout page. Browser storage is not an authorization boundary and does not encrypt rows.
 
 Rows are partitioned into 128 key-hash buckets. A lazy module worker owns IndexedDB. The main thread sends at most 1,000 rows per message; restores arrive one bucket at a time. Server rows and the cursor commit in one transaction. Failed transactions leave the previous checkpoint intact. Competing tab checkpoints with different bases invalidate the durable cursor rather than combine incompatible histories. Namespace is part of every row and cursor key, so an old tab cannot read, overwrite, or evict a different viewer's namespace.
 
-The store applies server deltas underneath pending optimistic writes. A fetch captured before a mutation is discarded and retried after writes settle. Persistence receives only load-response rows, never the store's visible optimistic rows. A rejected mutation still rolls back through the normal store handler.
+Restore fills rows missing from the first-view seed without overwriting fresher SSR values. Cached rows outside that seed can be stale until validation, including rows that have since been deleted or revoked. The store applies server deltas underneath pending optimistic writes. A fetch captured before a mutation is discarded and retried after writes settle. Persistence receives only load-response rows, never the store's visible optimistic rows. A rejected mutation still rolls back through the normal store handler.
 
 ## Storage choice
 
