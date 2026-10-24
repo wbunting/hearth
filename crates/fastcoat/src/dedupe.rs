@@ -12,6 +12,8 @@ const EXPR: &str = "<!--::topcoat::expr::start(\"";
 const EXPR_END: &str = "\")-->";
 const ON: &str = " data-topcoat-on:";
 const BIND: &str = " data-topcoat-bind:";
+const NESTED_START: &str = "<!--::fastcoat::list::start(";
+const NESTED_END: &str = "<!--::fastcoat::list::end";
 
 #[derive(Default)]
 pub struct Dedupe {
@@ -30,14 +32,37 @@ impl Dedupe {
         i
     }
 
-    /// Rewrites one row's HTML into `out`.
+    /// Rewrites one row's HTML into `out`. Nested list regions are copied
+    /// verbatim: they carry their own JS table, and the browser resolves
+    /// `@N` inside them against that one.
     pub fn rewrite_into(&mut self, html: &str, out: &mut String) {
         let bytes = html.as_bytes();
         let mut copied = 0;
         let mut i = 0;
         while i < bytes.len() {
             let b = bytes[i];
-            if b == b'<' && html[i..].starts_with(EXPR) {
+            if b == b'<' && bytes[i..].starts_with(NESTED_START.as_bytes()) {
+                // Skip to the matching end marker (regions nest).
+                let mut depth = 0usize;
+                let mut j = i;
+                while j < bytes.len() {
+                    if bytes[j..].starts_with(NESTED_START.as_bytes()) {
+                        depth += 1;
+                        j += NESTED_START.len();
+                    } else if bytes[j..].starts_with(NESTED_END.as_bytes()) {
+                        depth -= 1;
+                        j += NESTED_END.len();
+                        if depth == 0 {
+                            break;
+                        }
+                    } else {
+                        j += 1;
+                    }
+                }
+                i = j;
+                continue;
+            }
+            if b == b'<' && bytes[i..].starts_with(EXPR.as_bytes()) {
                 let start = i + EXPR.len();
                 if let Some(end) = html[start..].find(EXPR_END) {
                     let id = self.id(&html[start..start + end]);
@@ -50,7 +75,7 @@ impl Dedupe {
                     copied = i;
                     continue;
                 }
-            } else if b == b' ' && (html[i..].starts_with(ON) || html[i..].starts_with(BIND)) {
+            } else if b == b' ' && (bytes[i..].starts_with(ON.as_bytes()) || bytes[i..].starts_with(BIND.as_bytes())) {
                 if let Some(eq) = html[i..].find("=\"") {
                     let vstart = i + eq + 2;
                     if let Some(close) = html[vstart..].find('"') {
@@ -109,5 +134,16 @@ mod tests {
         assert!(out.contains(r#"data-topcoat-on:click="@0""#));
         assert!(out.contains(r#"<!--::topcoat::expr::start("@1")-->T"#));
         assert_eq!(out.matches("@1").count(), 2);
+    }
+
+    #[test]
+    fn leaves_nested_lists_alone() {
+        let mut d = Dedupe::default();
+        let row = r#"<li>🎉<!--::topcoat::expr::start("outer")-->x<!--::topcoat::expr::end--><!--::fastcoat::list::start({})--><b data-topcoat-on:click="inner"></b><!--::fastcoat::list::start({})--><i data-topcoat-on:click="deep"></i><!--::fastcoat::list::end--><!--::fastcoat::list::end--><!--::topcoat::expr::start("outer2")-->y<!--::topcoat::expr::end--></li>"#;
+        let mut out = String::new();
+        d.rewrite_into(row, &mut out);
+        assert_eq!(d.table, vec!["outer", "outer2"]);
+        assert!(out.contains(r#"data-topcoat-on:click="inner""#));
+        assert!(out.contains(r#"data-topcoat-on:click="deep""#));
     }
 }

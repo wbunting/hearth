@@ -30,6 +30,18 @@ pub fn router() -> RouterBuilder {
         .runtime()
 }
 
+/// The app stylesheet (shared with the React benchmark shell).
+pub const TAILWIND: topcoat::asset::Asset = tailwind::stylesheet!();
+
+/// Hashed URL of the app stylesheet.
+pub fn tailwind_url(cx: &Cx) -> String {
+    let mut out = String::new();
+    if let Some(cfg) = topcoat::context::try_app_context::<topcoat::asset::AssetConfig>(cx) {
+        let _ = cfg.fmt_url(TAILWIND, &mut out);
+    }
+    out
+}
+
 #[layout]
 async fn root(slot: Slot<'_>) -> Result<impl View> {
     Ok(view! {
@@ -39,7 +51,7 @@ async fn root(slot: Slot<'_>) -> Result<impl View> {
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>"fastissuetracker"</title>
-                <link rel="stylesheet" href=(tailwind::stylesheet!())>
+                <link rel="stylesheet" href=(TAILWIND)>
                 topcoat::runtime::script()
                 topcoat::dev::script()
             </head>

@@ -103,10 +103,15 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 			parentOf().insertBefore(frag, end);
 		}
 		// SSR items: text already rendered; cloned items: render on first run.
+		// SSR rows reference this list's JS table; nested lists set their
+		// own while they hydrate and restore ours after.
 		const table = listTables.get(start);
-		if (at && table) setJsTable(table);
-		hydrate(parentOf(), s, e, itemScope, new Set(), at === null);
-		if (at && table) setJsTable([]);
+		const prevTable = at && table ? setJsTable(table) : null;
+		try {
+			hydrate(parentOf(), s, e, itemScope, new Set(), at === null);
+		} finally {
+			if (prevTable) setJsTable(prevTable);
+		}
 		return { key, start: s, end: e, scope: itemScope, row, raw };
 	};
 

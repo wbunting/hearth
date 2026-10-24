@@ -321,3 +321,42 @@ fastcoat::routes!(
     comments: CommentRow,
     emojis: EmojiRow,
 );
+
+// ---------------------------------------------------------------- plain-topcoat baseline
+// The `/bench/topcoat` procedures write through the same authorization as
+// the synced tables above.
+
+pub async fn write_issue(cx: &Cx, id: String, open: Option<bool>, assignee: Option<String>) -> Result<()> {
+    let assignee_id = assignee.map(|a| if a.is_empty() { None } else { Some(a) });
+    update_issue(cx, id, IssueRowPatch { open, title: None, assignee_id }).await.map(|_| ())
+}
+
+pub async fn write_label(cx: &Cx, issue_id: String, label_id: String, on: bool) -> Result<()> {
+    if on {
+        add_label(cx, IssueLabelRow { id: String::new(), label_id, issue_id }).await.map(|_| ())
+    } else {
+        remove_label(cx, format!("{label_id}:{issue_id}")).await
+    }
+}
+
+pub async fn toggle_reaction(cx: &Cx, subject: String, value: String) -> Result<()> {
+    let v = viewer(cx).await?;
+    let id = format!("{subject}:{}:{value}", v.id);
+    if Emoji::filter_by_id(id.clone()).first().exec(&mut fastcoat::db(cx)).await?.is_some() {
+        remove_reaction(cx, id).await
+    } else {
+        add_reaction(cx, EmojiRow { id, value, subject_id: subject, creator_id: v.id, created: 0 }).await.map(|_| ())
+    }
+}
+
+pub async fn write_comment(cx: &Cx, issue_id: String, body: String) -> Result<()> {
+    let id = nanoid_like();
+    add_comment(cx, CommentRow { id, issue_id, created: 0, body, creator_id: String::new() }).await.map(|_| ())
+}
+
+fn nanoid_like() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static N: AtomicU64 = AtomicU64::new(0);
+    let t = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+    format!("tc-{t:x}-{}", N.fetch_add(1, Ordering::Relaxed))
+}
