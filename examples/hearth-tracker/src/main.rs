@@ -6,6 +6,7 @@
 
 mod app;
 mod auth;
+mod components;
 mod db;
 mod model;
 mod seed;
@@ -27,5 +28,7 @@ async fn main() {
         return;
     }
     let db = db::connect().await.unwrap();
-    topcoat::start(app::router().app_context(db).build()).await.unwrap();
+    topcoat::start(app::router().app_context(db).build())
+        .await
+        .unwrap();
 }

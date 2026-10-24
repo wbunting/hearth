@@ -1,5 +1,7 @@
 @import "tailwindcss" source(none);
-@source "./**/*.rs";
+@source "./app";
+/* The benchmark body lives in app.rs, outside the page directory. */
+@source inline("bg-white text-sm text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100");
 
 /* Toasts are created by the hearth runtime (not in Rust source). */
 @layer components {

@@ -14,6 +14,8 @@ const ON: &str = " data-topcoat-on:";
 const BIND: &str = " data-topcoat-bind:";
 const NESTED_START: &str = "<!--::hearth::list::start(";
 const NESTED_END: &str = "<!--::hearth::list::end";
+const TEMPLATE_START: &str = "<template";
+const TEMPLATE_END: &str = "</template>";
 
 #[derive(Default)]
 pub struct Dedupe {
@@ -53,6 +55,29 @@ impl Dedupe {
                     } else if bytes[j..].starts_with(NESTED_END.as_bytes()) {
                         depth -= 1;
                         j += NESTED_END.len();
+                        if depth == 0 {
+                            break;
+                        }
+                    } else {
+                        j += 1;
+                    }
+                }
+                i = j;
+                continue;
+            }
+            // Nested regions put their clone template after their end marker.
+            // It is not part of this list's JS table. Rewriting it would leave
+            // cloned children with references to the enclosing list's table.
+            if b == b'<' && bytes[i..].starts_with(TEMPLATE_START.as_bytes()) {
+                let mut depth = 0usize;
+                let mut j = i;
+                while j < bytes.len() {
+                    if bytes[j..].starts_with(TEMPLATE_START.as_bytes()) {
+                        depth += 1;
+                        j += TEMPLATE_START.len();
+                    } else if bytes[j..].starts_with(TEMPLATE_END.as_bytes()) {
+                        depth -= 1;
+                        j += TEMPLATE_END.len();
                         if depth == 0 {
                             break;
                         }
@@ -135,6 +160,25 @@ mod tests {
         assert!(out.contains(r#"data-topcoat-on:click="@0""#));
         assert!(out.contains(r#"<!--::topcoat::expr::start("@1")-->T"#));
         assert_eq!(out.matches("@1").count(), 2);
+    }
+
+    #[test]
+    fn leaves_nested_templates_alone() {
+        let template = concat!(
+            r#"<template id="inner"><button data-topcoat-on:click="inner()">"#,
+            r#"<!--::topcoat::expr::start("inner.text")-->x<!--::topcoat::expr::end-->"#,
+            r#"<template id="deep"><i data-topcoat-bind:title="deep.title"></i></template>"#,
+            "</button></template>",
+        );
+        let row = format!(
+            r#"<li><!--::hearth::list::start({{}})--><!--::hearth::list::end-->{template}<b data-topcoat-on:click="outer()"></b></li>"#,
+        );
+        let mut d = Dedupe::default();
+        let mut out = String::new();
+        d.rewrite_into(&row, &mut out);
+        assert!(out.contains(template));
+        assert_eq!(d.table, vec!["outer()"]);
+        assert!(out.contains(r#"data-topcoat-on:click="@0""#));
     }
 
     #[test]

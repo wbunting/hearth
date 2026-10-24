@@ -13,11 +13,22 @@ use topcoat::{
     context::Cx,
     router::page,
     runtime::{Event, signal},
-    view::{View, component, view},
+    view::{View, attributes, class, component, view},
 };
 
 use crate::{
     auth::viewer,
+    components::{
+        badge::{BadgeVariant, badge, badge_variants},
+        button::{ButtonSize, ButtonVariant, button},
+        card::{card, card_content, card_header},
+        dropdown_menu::{
+            dropdown_menu, dropdown_menu_content, dropdown_menu_item, dropdown_menu_trigger,
+        },
+        input::input,
+        select::select,
+        textarea::textarea,
+    },
     tables::{CommentRow, EmojiRow, IssueLabelRow, IssueRow, LabelRow, UserRow, client_schema},
 };
 
@@ -139,43 +150,45 @@ async fn tracker(cx: &Cx) -> Result<impl View> {
 
     Ok(view! {
         <div class="min-h-screen">
-            <header class="sticky top-0 z-10 flex items-center gap-3 border-b border-zinc-200 bg-white/80 px-4 py-2 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
-                <a class="mr-auto font-semibold tracking-tight" data-hearth-link="" href="/issues">"hearth tracker"</a>
-                <span class="text-zinc-500">(&me.login) if crew { " · crew" }</span>
-                <form method="post" action="/logout"><button class="rounded-md border border-zinc-300 px-2 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900">"Sign out"</button></form>
-            </header>
+            super::tracker_header(login: &me.login, crew: crew)
 
             // ================================================= list
             if $(path.starts_with("/issues")) {
-                <section class="flex flex-wrap items-center gap-2 border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
-                    <select class="rounded-md border border-zinc-300 bg-transparent px-2 py-1 dark:border-zinc-700" @change=$(|e: Event| show.set(e.target.value))>
+                let show = show.clone();
+                let creator = creator.clone();
+                let assignee = assignee.clone();
+                let text = text.clone();
+                <section aria-label="Issue filters" class="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2">
+                    select(attrs: attributes! { aria-label="Status" @change=$(|e: Event| show.set(e.target.value)) },
                         <option value="open" selected="">"Open"</option>
                         <option value="closed">"Closed"</option>
                         <option value="all">"All"</option>
-                    </select>
-                    <select class="rounded-md border border-zinc-300 bg-transparent px-2 py-1 dark:border-zinc-700" @change=$(|e: Event| creator.set(e.target.value))>
+                    )
+                    select(attrs: attributes! { aria-label="Creator" @change=$(|e: Event| creator.set(e.target.value)) },
                         <option value="">"Any creator"</option>
                         for u in $(people) { <option :value=$(u.id.clone())>$(u.login.clone())</option> }
-                    </select>
-                    <select class="rounded-md border border-zinc-300 bg-transparent px-2 py-1 dark:border-zinc-700" @change=$(|e: Event| assignee.set(e.target.value))>
+                    )
+                    select(attrs: attributes! { aria-label="Assignee filter" @change=$(|e: Event| assignee.set(e.target.value)) },
                         <option value="">"Any assignee"</option>
                         for u in $(people) { <option :value=$(u.id.clone())>$(u.login.clone())</option> }
-                    </select>
-                    <input type="search" placeholder="Filter title…" class="w-56 rounded-md border border-zinc-300 bg-transparent px-2 py-1 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700" @input=$(|e: Event| text.set(e.target.value))>
+                    )
+                    <div class="w-56">
+                        input(attrs: attributes! { type="search" aria-label="Filter title" placeholder="Filter title…" @input=$(|e: Event| text.set(e.target.value)) })
+                    </div>
                 </section>
-                <ul class="divide-y divide-zinc-100 dark:divide-zinc-900">
+                <ul class="divide-y divide-border">
                     for issue in $(issues) {
-                        <li class="grid grid-cols-[1.5rem_4rem_1fr_auto] items-center gap-2 px-4 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-900/60">
-                            // A class computed in the browser: both literals are in the source,
-                            // so Tailwind generates them; the binding swaps them locally.
+                        <li class="grid grid-cols-[1.5rem_4rem_1fr_auto] items-center gap-2 px-4 py-1.5 hover:bg-foreground/5">
+                            // Keep this dense native control: :class replaces the whole class
+                            // attribute, while button merges a static base with attrs.class.
                             <button title="Close / reopen"
-                                :class=$(if issue.open { "cursor-pointer text-indigo-600 hover:scale-110" } else { "cursor-pointer text-zinc-400 hover:scale-110" })
-                                @click=$(|_e| issue_t.set(issue.id.clone(), "open", !issue.open))>
+                                :class=$(if issue.open { "cursor-pointer text-primary hover:opacity-80" } else { "cursor-pointer text-muted-foreground hover:opacity-80" })
+                                @click=$(|_e: Event| issue_t.set(issue.id.clone(), "open", !issue.open))>
                                 $(if issue.open { "○" } else { "●" })
                             </button>
-                            <a class="font-mono text-xs text-zinc-500" data-hearth-link="" :href=$("/issue/".to_owned() + issue.short_id.to_text())>$(issue.short_id)</a>
+                            <a class="font-mono text-xs text-muted-foreground" data-hearth-link="" :href=$("/issue/".to_owned() + issue.short_id.to_text())>$(issue.short_id)</a>
                             <a class="truncate hover:underline" data-hearth-link="" :href=$("/issue/".to_owned() + issue.short_id.to_text())>$(issue.title.clone())</a>
-                            <span class="truncate text-right text-zinc-500">
+                            <span class="truncate text-right text-muted-foreground">
                                 $(issue.creator.clone().unwrap_or("?".to_owned()))
                                 $(if issue.assignee.is_some() { " → ".to_owned() } else { "".to_owned() })
                                 $(issue.assignee.clone().unwrap_or("".to_owned()))
@@ -189,23 +202,23 @@ async fn tracker(cx: &Cx) -> Result<impl View> {
             if $(path.starts_with("/issue/")) {
                 <article class="mx-auto max-w-3xl px-6 pt-4 pb-20">
                     for issue in $(detail) {
+                        let issue_t = issue_t.clone();
                         <nav class="flex items-center gap-2 text-xs">
-                            <a class="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100" data-hearth-link="" href="/issues">"← Issues"</a>
-                            <span class="font-mono text-zinc-400">" #" $(issue.short_id)</span>
+                            <a class="text-muted-foreground hover:text-foreground" data-hearth-link="" href="/issues">"← Issues"</a>
+                            <span class="font-mono text-muted-foreground">" #" $(issue.short_id)</span>
                         </nav>
                         <h1 class="mt-3 mb-2 text-2xl font-semibold tracking-tight">$(issue.title.clone())</h1>
                         <div class="mb-4 flex flex-wrap items-center gap-2">
-                            <button class="rounded-md bg-indigo-600 px-3 py-1 font-medium text-white hover:bg-indigo-500"
-                                @click=$(|_e| issue_t.set(issue.id.clone(), "open", !issue.open))>
+                            button(size: ButtonSize::Sm, attrs: attributes! { @click=$(|_e: Event| issue_t.set(issue.id.clone(), "open", !issue.open)) },
                                 $(if issue.open { "Close issue" } else { "Reopen issue" })
-                            </button>
-                            <span class="text-zinc-500">
+                            )
+                            <span class="text-muted-foreground">
                                 $(if issue.open { "Open" } else { "Closed" }) " · by "
                                 $(issue.creator.clone().unwrap_or("?".to_owned()))
                             </span>
-                            if $(issue.visibility == "internal") { <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">"internal"</span> }
-                            <label class="ml-auto text-zinc-500">"Assignee "
-                                <select class="ml-1 rounded-md border border-zinc-300 bg-transparent px-2 py-1 text-zinc-900 dark:border-zinc-700 dark:text-zinc-100" @change=$(|e: Event| issue_t.set(issue.id.clone(), "assigneeId", e.target.value))>
+                            if $(issue.visibility == "internal") { badge(variant: BadgeVariant::Secondary, "internal") }
+                            <label class="ml-auto flex items-center gap-2 text-muted-foreground">"Assignee "
+                                select(attrs: attributes! { aria-label="Assignee" @change=$(|e: Event| issue_t.set(issue.id.clone(), "assigneeId", e.target.value)) },
                                     <option value="">"Unassigned"</option>
                                     for u in $(people) {
                                         <option :value=$(u.id.clone())
@@ -213,7 +226,7 @@ async fn tracker(cx: &Cx) -> Result<impl View> {
                                             $(u.login.clone())
                                         </option>
                                     }
-                                </select>
+                                )
                             </label>
                         </div>
                         issue_labels(issue_id: $(issue.id.clone()), labels_t: labels_t.clone())
@@ -227,12 +240,14 @@ async fn tracker(cx: &Cx) -> Result<impl View> {
     })
 }
 
-
 // ------------------------------------------------------------- detail parts
 
 /// Labels on an issue: chips you can toggle (membership rows).
 #[component]
-async fn issue_labels( issue_id: topcoat::runtime::Expr<String>, labels_t: topcoat::runtime::Expr<hearth::mutate::TableHandle<IssueLabelRow>>) -> Result<impl View> {
+async fn issue_labels(
+    issue_id: topcoat::runtime::Expr<String>,
+    labels_t: topcoat::runtime::Expr<hearth::mutate::TableHandle<IssueLabelRow>>,
+) -> Result<impl View> {
     let all = live_query! {
         LabelItem from l in LabelRow
         order by l.name
@@ -248,29 +263,39 @@ async fn issue_labels( issue_id: topcoat::runtime::Expr<String>, labels_t: topco
     Ok(view! {
         <div class="flex flex-wrap items-center gap-1">
             for l in $(on) {
-                <button class="rounded-full bg-indigo-600 px-2 py-0.5 text-xs text-white hover:bg-indigo-500" title="Remove label"
-                    @click=$(|_e| labels_t.remove(l.id.clone() + ":" + issue_id.clone()))>
+                <button class=(class!(badge_variants(BadgeVariant::Primary), "cursor-pointer hover:opacity-80")) title="Remove label" type="button"
+                    @click=$(|_e: Event| labels_t.remove(l.id.clone() + ":" + issue_id.clone()))>
                     $(l.name.clone())
                 </button>
             }
-            <details class="relative">
-                <summary class="cursor-pointer list-none rounded-full border border-dashed border-zinc-300 px-2 py-0.5 text-xs text-zinc-500 hover:border-indigo-400 dark:border-zinc-700">"+ label"</summary>
-                <div class="absolute z-20 mt-1 flex w-72 flex-wrap gap-1 rounded-lg border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-800 dark:bg-zinc-900">
+            dropdown_menu(
+                dropdown_menu_trigger(
+                    attrs: attributes! { class=(badge_variants(BadgeVariant::Outline)) },
+                    "+ label"
+                )
+                dropdown_menu_content(
+                    attrs: attributes! { class="max-h-64 w-64 overflow-y-auto" },
                     for l in $(all) {
-                        <button class="rounded-full border border-zinc-200 px-2 py-0.5 text-xs hover:border-indigo-400 dark:border-zinc-700"
-                            @click=$(|_e| labels_t.insert2("labelId", l.id.clone(), "issueId", issue_id.clone()))>
+                        let labels_t = labels_t.clone();
+                        let issue_id = issue_id.clone();
+                        dropdown_menu_item(
+                            attrs: attributes! { type="button" @click=$(|_e: Event| labels_t.insert2("labelId", l.id.clone(), "issueId", issue_id.clone())) },
                             $(l.name.clone())
-                        </button>
+                        )
                     }
-                </div>
-            </details>
+                )
+            )
         </div>
     })
 }
 
 /// Reaction bar for an issue or comment.
 #[component]
-async fn reactions( subject: topcoat::runtime::Expr<String>, me: String, emojis_t: topcoat::runtime::Expr<hearth::mutate::TableHandle<EmojiRow>>) -> Result<impl View> {
+async fn reactions(
+    subject: topcoat::runtime::Expr<String>,
+    me: String,
+    emojis_t: topcoat::runtime::Expr<hearth::mutate::TableHandle<EmojiRow>>,
+) -> Result<impl View> {
     let mine = live_query! {
         ReactionItem from e in EmojiRow
         where e.subject_id == $(subject.clone()) && e.creator_id == $(me.clone())
@@ -287,13 +312,16 @@ async fn reactions( subject: topcoat::runtime::Expr<String>, me: String, emojis_
         <div class="mt-2 flex flex-wrap items-center gap-1">
             for e in $(all) { <span class="text-base">$(e.value.clone())</span> }
             for v in ["👍", "🎉", "❤️", "👀", "🚀"] {
-                <button class="rounded-full border border-zinc-200 px-1.5 text-sm opacity-60 hover:opacity-100 hover:border-indigo-400 dark:border-zinc-700" title="React"
-                    @click=$(|_e| emojis_t.toggle3(subject.clone() + ":" + me.clone() + ":" + v,
-                        "value", v, "subjectId", subject.clone(), "creatorId", me.clone()))>
+                button(
+                    variant: ButtonVariant::Outline,
+                    size: ButtonSize::Icon,
+                    attrs: attributes! { type="button" title="React" aria-label=(format!("React {v}"))
+                        @click=$(|_e: Event| emojis_t.toggle3(subject.clone() + ":" + me.clone() + ":" + v,
+                            "value", v, "subjectId", subject.clone(), "creatorId", me.clone())) },
                     (v)
-                </button>
+                )
             }
-            <span class="ml-1 text-xs text-zinc-400">for e in $(mine) { $(e.value.clone()) }</span>
+            <span class="ml-1 text-xs text-muted-foreground">for e in $(mine) { $(e.value.clone()) }</span>
         </div>
     })
 }
@@ -301,7 +329,6 @@ async fn reactions( subject: topcoat::runtime::Expr<String>, me: String, emojis_
 /// Comments with their own reactions, and an optimistic composer.
 #[component]
 async fn comments(
-
     issue_id: topcoat::runtime::Expr<String>,
     me: String,
     comments_t: topcoat::runtime::Expr<hearth::mutate::TableHandle<CommentRow>>,
@@ -319,10 +346,14 @@ async fn comments(
         <h2 class="mt-8 mb-3 text-lg font-semibold">"Comments"</h2>
         <ul class="grid gap-3">
             for c in $(list) {
-                <li class="rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-                    <div class="mb-1 text-xs"><strong>$(c.author.clone().unwrap_or("?".to_owned()))</strong></div>
-                    <div class="whitespace-pre-wrap break-words">$(c.body.clone())</div>
-                    reactions(subject: $(c.id.clone()), me: me.clone(), emojis_t: emojis_t.clone())
+                <li class="min-w-0">
+                    card(
+                        card_header(<strong class="text-xs">$(c.author.clone().unwrap_or("?".to_owned()))</strong>)
+                        card_content(
+                            <div class="whitespace-pre-wrap break-words">$(c.body.clone())</div>
+                            reactions(subject: $(c.id.clone()), me: me.clone(), emojis_t: emojis_t.clone())
+                        )
+                    )
                 </li>
             }
         </ul>
@@ -333,8 +364,8 @@ async fn comments(
                 draft.set("".to_owned());
             }
         })>
-            <textarea class="min-h-20 w-full rounded-lg border border-zinc-300 bg-transparent p-2 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700" placeholder="Leave a comment…" :value=$(draft.get()) @input=$(|e: Event| draft.set(e.target.value))></textarea>
-            <button class="justify-self-start rounded-md bg-indigo-600 px-3 py-1.5 font-medium text-white hover:bg-indigo-500">"Comment"</button>
+            textarea(attrs: attributes! { aria-label="Comment" placeholder="Leave a comment…" :value=$(draft.get()) @input=$(|e: Event| draft.set(e.target.value)) })
+            button(size: ButtonSize::Sm, attrs: attributes! { class="justify-self-start" type="submit" }, "Comment")
         </form>
     })
 }

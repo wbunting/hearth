@@ -1,0 +1,43 @@
+/* Topcoat neutral theme. System colors by default, .dark/.light override.
+   System fonts and native controls avoid extra network requests. */
+@import "tailwindcss" source(none);
+@source "./src";
+@source not "./src/app/baseline.rs";
+@theme inline {
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+}
+:root {
+  color-scheme: light dark;
+  --background: light-dark(oklch(0.9875 0.003 260), oklch(0.17 0.012 260));
+  --foreground: light-dark(oklch(0.24 0.012 260), oklch(0.93 0.006 260));
+  --card: light-dark(oklch(0.995 0.003 260), oklch(0.22 0.012 260));
+  --card-foreground: light-dark(oklch(0.24 0.012 260), oklch(0.93 0.006 260));
+  --popover: light-dark(oklch(0.995 0.003 260), oklch(0.22 0.012 260));
+  --popover-foreground: light-dark(oklch(0.24 0.012 260), oklch(0.93 0.006 260));
+  --muted-foreground: light-dark(oklch(0.51 0.014 260), oklch(0.68 0.012 260));
+  --primary: light-dark(oklch(0.21 0.02 260), oklch(0.92 0.008 260));
+  --primary-foreground: light-dark(oklch(0.985 0.003 260), oklch(0.21 0.015 260));
+  --border: light-dark(oklch(0.9 0.008 260), oklch(0.3 0.012 260));
+  --ring: light-dark(oklch(0.32 0.02 260), oklch(0.6 0.02 260));
+}
+.dark { color-scheme: dark; }
+.light { color-scheme: light; }
+@layer base {
+  body { @apply bg-background font-sans text-foreground; }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+}
+@layer components {
+  .tracker-header { backdrop-filter: blur(8px); }
+  .hearth-toast { @apply fixed right-4 bottom-4 rounded-md bg-red-600 px-3 py-2 text-sm text-white; box-shadow: 0 4px 12px #0003; }
+}
