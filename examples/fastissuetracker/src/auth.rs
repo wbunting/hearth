@@ -66,6 +66,8 @@ impl Viewer {
 }
 
 pub async fn viewer(cx: &Cx) -> Result<Viewer> {
+    // `current_user` is memoized per request, so every table scope and list
+    // region shares one session lookup.
     let user = current_user(cx).await.map_err(Clone::clone)?.as_ref().ok_or_redirect("/login")?;
     Ok(Viewer { id: user.id.clone(), login: user.login.clone(), crew: user.role == "crew" })
 }

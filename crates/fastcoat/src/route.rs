@@ -54,8 +54,11 @@ pub fn when<'a>(cx: &'a Cx, cond: Expr<bool>, body: impl Fn(Cx) -> BoxView<'stat
         );
         let marker = serde_json::json!({ "cond": src, "template": id }).to_string();
         let marker = marker.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
-        let tpl = body(cx.clone()).single().await?.render(&cx);
-        let content = if on { body(cx.clone()).single().await?.render(&cx) } else { String::new() };
+        // Template = structure only (no SSR rows/seeds inside nested lists).
+        let tcx = cx.with(crate::row::TemplateRender);
+        let tpl = body(tcx.clone()).single().await?.render(&tcx);
+        let in_tpl = crate::row::in_template(&cx);
+        let content = if on && !in_tpl { body(cx.clone()).single().await?.render(&cx) } else { String::new() };
         let html = format!(
             "<!--::fastcoat::when::start({marker})-->{content}<!--::fastcoat::when::end--><template id=\"{id}\">{tpl}</template>"
         );

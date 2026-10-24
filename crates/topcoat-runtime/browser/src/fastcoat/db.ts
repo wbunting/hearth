@@ -120,7 +120,7 @@ export class LocalDb {
 		delete this.seeds[name];
 		// A table first used after the initial backfill (e.g. comments, when
 		// the session started on the list page) still needs its full rows.
-		if (this.backfillScheduled && seeded) void this.fetchTable(t).then((rows) => this.apply(name, rows, true));
+		if (this.backfillStarted && seeded) void this.fetchTable(t).then((rows) => this.apply(name, rows, true));
 		if (!this.backfillScheduled) {
 			this.backfillScheduled = true;
 			// After the first view is interactive, pull full tables.
@@ -185,8 +185,16 @@ export class LocalDb {
 		this.tables.set(t.name, coll);
 	}
 
-	private async fetchTable(t: TableDesc): Promise<Row[]> {
-		return (await get(t.load)) as Row[];
+	// One in-flight full-table fetch per table: `backfill()` and a late
+	// `ensure()` must not both pull a 12 MB table.
+	private inflight = new Map<string, Promise<Row[]>>();
+	private fetchTable(t: TableDesc): Promise<Row[]> {
+		let p = this.inflight.get(t.name);
+		if (!p) {
+			p = (get(t.load) as Promise<Row[]>).finally(() => this.inflight.delete(t.name));
+			this.inflight.set(t.name, p);
+		}
+		return p;
 	}
 
 	/** Apply server rows; `full` = the complete table (diff out deletions). */
@@ -229,7 +237,9 @@ export class LocalDb {
 	}
 
 	/** Backfill every created table with its full scoped rows. */
+	private backfillStarted = false;
 	async backfill() {
+		this.backfillStarted = true;
 		const seeded = [...this.desc.values()];
 		await Promise.all(seeded.map(async (t) => this.apply(t.name, await this.fetchTable(t), true)));
 	}
@@ -254,7 +264,10 @@ export class LocalDb {
 		// for "sel"); an unlimited scan is the opposite (160ms / 16ms). Pick
 		// by measured selectivity: sample the base table and estimate how far
 		// top-K would have to walk.
-		if (q.limit != null && q.order.length && hasContains(q.where)) {
+		// Plan on the *active* predicate: an optional search filter that's
+		// currently off must not trigger this rule (it removed `limit` from
+		// the default list: 15k live rows, ~20ms per toArray).
+		if (q.limit != null && q.order.length && hasContains(simplify(q.where, params))) {
 			const rate = this.sampleMatchRate(q, params);
 			const expectedWalk = rate > 0 ? q.limit / rate : Number.POSITIVE_INFINITY;
 			const size = this.tables.get(q.from.table)?.size ?? 0;
@@ -293,7 +306,8 @@ export class LocalDb {
 				const baseOnly = (e: Expr | null) => [...aliasesOf(e)].every((a) => a === q.from.alias);
 				const early = q.joins.length === 0 || (baseOnly(q.where) && q.order.every((o) => baseOnly(o.expr)));
 				const applyFilters = () => {
-					const where = q.where && lower(q.where, params);
+					const simple = simplify(q.where, params);
+					const where = simple && lower(simple, params);
 					if (where) b = b.where((refs: any) => where(refs));
 					for (const o of q.order) {
 						const ex = lower(o.expr, params);
@@ -587,4 +601,28 @@ function toast(msg: string) {
 	const el = Object.assign(document.createElement("div"), { className: "fastcoat-toast", textContent: msg });
 	document.body.append(el);
 	setTimeout(() => el.remove(), 3500);
+}
+
+/**
+ * Resolves optional filters (`if`) against the current params and flattens
+ * `and`, so TanStack sees `eq(i.open, true)` rather than
+ * `and(eq(i.open, true), eq(1,1), eq(1,1), eq(1,1))`. The latter defeats
+ * index selection and ordered top-K (measured: 35-65ms → see perf-gaps.md).
+ */
+export function simplify(e: Expr | null, params: unknown[]): Expr | null {
+	if (!e || "col" in e || "lit" in e || "param" in e) return e;
+	if (e.op === "if") return plain(evalParam(e.cond, params)) ? simplify(e.then, params) : null;
+	if (e.op === "and") {
+		const args: Expr[] = [];
+		for (const a of e.args) {
+			const x = simplify(a, params);
+			if (!x) continue;
+			if (!("col" in x) && !("lit" in x) && !("param" in x) && x.op === "and") args.push(...x.args);
+			else args.push(x);
+		}
+		if (args.length === 0) return null;
+		if (args.length === 1) return args[0]!;
+		return { ...e, args };
+	}
+	return e;
 }

@@ -5,7 +5,10 @@
 // (`cx.row(0)`) instead of a frozen capture.
 
 import { hydrate } from "../dom/hydrate";
-import { compile } from "../expression/compile";
+import { compile, setJsTable } from "../expression/compile";
+
+/** Per-list `$()` JS tables keyed by the list's start marker. */
+const listTables = new WeakMap<Comment, string[]>();
 import { signal, untrack, type WriteSignal } from "../reactivity";
 import { Scope } from "../scope";
 import { localDb, plain, type Query } from "./db";
@@ -28,15 +31,31 @@ export type ListMarker = { query: Query; params: string[]; template: string; see
 export function mountList(start: Comment, end: Comment, marker: ListMarker, scope: Scope) {
 	const db = localDb();
 	for (const [table, rows] of Object.entries(marker.seed ?? {})) db.seed(table, rows);
-	const tpl = document.getElementById(marker.template) as HTMLTemplateElement | null;
+	const tpl = findTemplate(marker.template);
 	if (!tpl) throw new Error(`[fastcoat] missing template ${marker.template}`);
 	const params = marker.params.map((js) => compile(js, "list param"));
 	const items = new Map<string, Item>();
+	// Detached, still-hydrated items from previous reconciles. A filter swap
+	// replaces most keys; retargeting a pooled item's row signal (its `$()`
+	// effects patch text/attrs in place) is ~10x cheaper than clone+hydrate.
+	const pool: { it: Item; frag: DocumentFragment }[] = [];
+	const POOL_MAX = 256;
 	const parent = start.parentNode!;
 
 	// Adopt server-rendered items (already hydrated by the parent pass into
 	// the parent scope, so their effects read a frozen capture). Re-hydrate
 	// them under item scopes, with the server nodes in place (no flicker).
+	// Per-list JS table (`<!--::fastcoat::js(a\u0001b…)-->`), referenced by
+	// SSR rows as `@N`. Merge into the global table with an offset.
+	for (let n: ChildNode | null = end.previousSibling; n && n !== start; n = n.previousSibling) {
+		if (n.nodeType === Node.COMMENT_NODE && (n as Comment).data.startsWith("::fastcoat::js(")) {
+			const raw = (n as Comment).data.slice("::fastcoat::js(".length, -1);
+			const table = raw.split("\u0001").map(decode);
+			listTables.set(start, table);
+			break;
+		}
+		if (n.nodeType === Node.COMMENT_NODE && (n as Comment).data.trim() === "::fastcoat::item-end") break;
+	}
 	let node: ChildNode | null = start.nextSibling;
 	const ssr: { key: string; start: Comment; end: Comment }[] = [];
 	while (node && node !== end) {
@@ -55,7 +74,9 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 		node = node.nextSibling;
 	}
 
-	let live: ReturnType<typeof db.live> | null = null;
+	type LiveCollection = ReturnType<typeof db.live>;
+	let live: LiveCollection | null = null;
+	let liveKey: string | null = null;
 	let unsub: (() => void) | null = null;
 	let adopted = false;
 
@@ -77,7 +98,10 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 			parent.insertBefore(frag, end);
 		}
 		// SSR items: text already rendered; cloned items: render on first run.
+		const table = listTables.get(start);
+		if (at && table) setJsTable(table);
 		hydrate(parent, s, e, itemScope, new Set(), at === null);
+		if (at && table) setJsTable([]);
 		return { key, start: s, end: e, scope: itemScope, row, raw };
 	};
 
@@ -127,16 +151,31 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 		}
 		const seen = new Set<string>();
 		let cursor: ChildNode | null = start.nextSibling;
+		let lastEnd: ChildNode = start;
 		for (const raw of rows) {
 			const key = String(raw[keyField]);
 			seen.add(key);
 			let it = items.get(key);
 			if (!it) {
-				it = makeItem(key, raw, null);
+				const recycled = pool.pop();
+				if (recycled) {
+					it = recycled.it;
+					it.key = key;
+					it.start.data = `::fastcoat::item(${JSON.stringify(key)})`;
+					it.raw = raw;
+					parent.insertBefore(recycled.frag, cursor);
+					it.row.set(db.surrogate(raw as any, marker.query.types));
+				} else {
+					it = makeItem(key, raw, null);
+				}
 				items.set(key, it);
 			} else if (it.raw !== raw) {
+				// A rebuilt query returns new objects for unchanged rows:
+				// compare field values so unchanged rows do no work.
+				if (!sameRow(it.raw as Row, raw as Row, marker.query.types)) {
+					it.row.set(db.surrogate(raw as any, marker.query.types));
+				}
 				it.raw = raw;
-				it.row.set(db.surrogate(raw as any, marker.query.types));
 			}
 			if (it.start !== cursor) {
 				const frag = document.createDocumentFragment();
@@ -144,18 +183,27 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 				parent.insertBefore(frag, cursor);
 			}
 			cursor = it.end.nextSibling;
+			lastEnd = it.end;
 		}
 		for (const [key, it] of items) {
 			if (seen.has(key)) continue;
-			it.scope.dispose();
-			for (const n of nodesOf(it)) n.remove();
 			items.delete(key);
+			const nodes = nodesOf(it);
+			if (pool.length < POOL_MAX) {
+				const frag = document.createDocumentFragment();
+				frag.append(...nodes);
+				pool.push({ it, frag });
+			} else {
+				it.scope.dispose();
+				for (const n of nodes) n.remove();
+			}
 		}
-		// Anything else between start/end (unadopted SSR leftovers) goes.
-		while (cursor && cursor !== end) {
-			const next: ChildNode | null = cursor.nextSibling;
-			cursor.remove();
-			cursor = next;
+		// Kept items now sit contiguously after `start`, ending at lastEnd.
+		let rest: ChildNode | null = lastEnd.nextSibling;
+		while (rest && rest !== end) {
+			const next: ChildNode | null = rest.nextSibling;
+			rest.remove();
+			rest = next;
 		}
 		(window as any).__fastcoatListMs = performance.now() - t0;
 	};
@@ -170,6 +218,11 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 	//  - `scheduler.postTask(…, {priority: "user-visible"})` where available
 	//    (yields to pending input), else rAF→setTimeout.
 	// The first run is synchronous so SSR adoption happens during hydration.
+	// Warm queries: the last few param sets stay live (incrementally
+	// maintained by TanStack) so flipping back to a recent filter is just a
+	// reconcile, no rebuild. Bounded; the oldest is cleaned up.
+	const WARM = 4;
+	const warm = new Map<string, LiveCollection>();
 	let pending: unknown[] | null = null;
 	let scheduled = false;
 	let lastChange = 0;
@@ -210,21 +263,32 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 		lastChange = performance.now();
 		if (!scheduled) {
 			scheduled = true;
-			scheduleAfterPaint(flushWhenIdle);
+			// A discrete change (select, click, route) runs in a microtask:
+			// the user expects the result in the very next frame. Bursts
+			// (typing) go after paint + quiet gap so keys never wait.
+			if (burst <= 1) queueMicrotask(flushWhenIdle);
+			else scheduleAfterPaint(flushWhenIdle);
 		}
 	});
 	function runQuery(values: unknown[], gen: number) {
-		const tq = performance.now();
-		const next = db.live(marker.query, values);
-		if (gen !== generation || pending) {
-			// Superseded while building: discard; the newer run is queued.
-			next.cleanup();
-			return;
+		const k = JSON.stringify(values);
+		let next = warm.get(k);
+		if (next) {
+			warm.delete(k);
+		} else {
+			next = db.live(marker.query, values);
+			if (gen !== generation || pending) {
+				// Superseded while building: keep it warm, the newer run is queued.
+				remember(k, next);
+				return;
+			}
 		}
 		unsub?.();
-		live?.cleanup();
+		if (live && liveKey !== null) remember(liveKey, live);
 		live = next;
+		liveKey = k;
 		const sub = live.subscribeChanges(() => queueMicrotask(reconcile));
+		const tq = performance.now();
 		live.onFirstReady(() => {
 			reconcile();
 			(window as any).__fastcoatQueryMs = performance.now() - tq;
@@ -232,9 +296,21 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 		unsub = () => sub.unsubscribe();
 		reconcile();
 	}
+	function remember(k: string, c: LiveCollection) {
+		warm.set(k, c);
+		while (warm.size > WARM) {
+			const [oldK, old] = warm.entries().next().value!;
+			warm.delete(oldK);
+			old.cleanup();
+		}
+	}
 	scope.abortSignal.addEventListener("abort", () => {
 		unsub?.();
 		live?.cleanup();
+		for (const c of warm.values()) c.cleanup();
+		for (const { it } of pool) it.scope.dispose();
+		pool.length = 0;
+		warm.clear();
 	});
 }
 
@@ -246,7 +322,7 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
  * arm keep running but their params only change when their signals do.
  */
 export function mountWhen(start: Comment, end: Comment, cond: string, template: string, scope: Scope) {
-	const found = document.getElementById(template) as HTMLTemplateElement | null;
+	const found = findTemplate(template);
 	if (!found) throw new Error(`[fastcoat] missing template ${template}`);
 	const tpl: HTMLTemplateElement = found;
 	const compute = compile(cond, "when condition");
@@ -301,4 +377,34 @@ export function scheduleAfterPaint(fn: () => void) {
 		sched?.postTask ? sched.postTask(fn, { priority: "user-visible" }) : setTimeout(fn, 0);
 	if (document.visibilityState === "visible") requestAnimationFrame(post);
 	else post();
+}
+
+type Row = { [k: string]: unknown };
+function sameRow(a: Row, b: Row, types: { [k: string]: unknown }): boolean {
+	for (const k in types) if (a[k] !== b[k]) return false;
+	return true;
+}
+
+
+/**
+ * Template registry. Region templates nest (a list inside an `if $()` arm,
+ * inside a list row…), and a nested `<template>` lives in its parent's
+ * content fragment where `getElementById` can't see it. On first lookup,
+ * walk every template (depth-first, including nested content) and index by
+ * id. The first definition wins; definitions of the same id are identical
+ * (ids are hashes of the query/condition).
+ */
+let registry: Map<string, HTMLTemplateElement> | null = null;
+function index(root: ParentNode, into: Map<string, HTMLTemplateElement>) {
+	for (const t of root.querySelectorAll("template")) {
+		if (t.id && !into.has(t.id)) into.set(t.id, t);
+		index(t.content, into);
+	}
+}
+export function findTemplate(id: string): HTMLTemplateElement | null {
+	if (!registry || !registry.has(id)) {
+		registry = new Map();
+		index(document, registry);
+	}
+	return registry.get(id) ?? null;
 }

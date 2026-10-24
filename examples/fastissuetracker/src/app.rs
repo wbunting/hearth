@@ -66,5 +66,16 @@ async fn simulated_latency(
     if let Some(ms) = std::env::var("SIMULATED_RTT_MS").ok().and_then(|v| v.parse::<u64>().ok()) {
         tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
     }
-    next.run(cx, body).await
+    let mut res = next.run(cx, body).await?;
+    // Pages embed hashed asset URLs and per-user data: never reuse a cached
+    // page (otherwise a rebuilt runtime is silently ignored).
+    let html = res
+        .headers()
+        .get(topcoat::router::header::CONTENT_TYPE)
+        .is_some_and(|v| v.as_bytes().starts_with(b"text/html"));
+    if html {
+        res.headers_mut()
+            .insert(topcoat::router::header::CACHE_CONTROL, topcoat::router::HeaderValue::from_static("no-store"));
+    }
+    Ok(res)
 }

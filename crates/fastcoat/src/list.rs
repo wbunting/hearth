@@ -88,11 +88,42 @@ where
     let fut = async move {
         let LiveQuery { ir, params, loaders, .. } = query;
         let param_values: Vec<Value> = params.iter().map(|(v, _)| plain_json(v)).collect();
+        // Inside a `<template>`: structure only. No SQL, no rows, no seed.
+        let in_template = crate::row::in_template(&cx);
 
         // --- SSR rows: load scoped tables, then evaluate the IR in memory.
+        // Load base + joined tables concurrently; a table joined under several
+        // aliases (users as creator *and* assignee) is loaded once.
         let mut tables: HashMap<&str, Vec<JsonRow>> = HashMap::new();
-        for (alias, load) in &loaders {
-            tables.insert(alias, load(&cx, &ir, &param_values).await?);
+        if !in_template {
+            let table_of = |alias: &'static str| -> &'static str {
+                if alias == ir.from.alias {
+                    ir.from.table
+                } else {
+                    ir.joins.iter().find(|j| j.alias == alias).map_or(alias, |j| j.table)
+                }
+            };
+            let mut first_alias: HashMap<&str, &str> = HashMap::new();
+            let mut futs = Vec::new();
+            for (alias, load) in &loaders {
+                let t = table_of(alias);
+                if first_alias.contains_key(t) {
+                    continue;
+                }
+                first_alias.insert(t, alias);
+                futs.push(async { (*alias, load(&cx, &ir, &param_values).await) });
+            }
+            for (alias, rows) in futures_join_all(futs).await {
+                tables.insert(alias, rows?);
+            }
+            for (alias, _) in &loaders {
+                let t = table_of(alias);
+                let first = first_alias[t];
+                if first != *alias {
+                    let rows = tables[first].clone();
+                    tables.insert(alias, rows);
+                }
+            }
         }
         let rows = evaluate(&ir, &tables, &param_values);
         // First-view seed: base rows that made the cut + the joined rows they
@@ -121,16 +152,30 @@ where
         let inner_cx = cx.clone();
         let mut html = String::new();
         html.push_str(&format!("<!--::fastcoat::list::start({marker})-->"));
-        for row in &rows {
+        // Every SSR row repeats the same `$()` JS (only the row data differs,
+        // and that comes from `cx.row(..)`). Dedupe: each distinct JS string
+        // is emitted once in a per-list table, rows reference it by index.
+        let mut dedupe = crate::dedupe::Dedupe::default();
+        // Build every row's view first, then drive them concurrently (row
+        // bodies may contain components that await).
+        let views: Vec<_> = rows
+            .iter()
+            .map(|row| {
+                let r: R = serde_json::from_value(Value::Object(row.clone())).unwrap_or_default();
+                body(inner_cx.clone(), Row::bind(r, &id)).single()
+            })
+            .collect();
+        let handles = futures_join_all(views).await;
+        for (row, handle) in rows.iter().zip(handles) {
             let key = row.get(ir.key).map(json_key).unwrap_or_default();
-            let r: R = serde_json::from_value(Value::Object(row.clone())).unwrap_or_default();
-            let handle = body(inner_cx.clone(), Row::bind(r, &id)).single().await?;
             html.push_str(&format!("<!--::fastcoat::item({})-->", comment_escape(&serde_json::to_string(&key).unwrap())));
-            html.push_str(&handle.render(&cx));
+            dedupe.rewrite_into(&handle?.render(&cx), &mut html);
             html.push_str("<!--::fastcoat::item-end-->");
         }
+        html.push_str(&dedupe.table_comment());
         html.push_str("<!--::fastcoat::list::end-->");
-        let tpl = body(inner_cx.clone(), Row::bind(R::default(), &id)).single().await?.render(&cx);
+        let tcx = inner_cx.with(crate::row::TemplateRender);
+        let tpl = body(tcx.clone(), Row::bind(R::default(), &id)).single().await?.render(&tcx);
         html.push_str(&format!(r#"<template id="{id}">{tpl}</template>"#));
         Ok::<_, topcoat::Error>(Unescaped::new_unchecked(html))
     };
@@ -298,3 +343,24 @@ fn comment_escape(s: &str) -> String {
     s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
 }
 
+
+/// Minimal join_all (no extra dependency): polls all futures concurrently.
+async fn futures_join_all<F: std::future::Future>(futs: Vec<F>) -> Vec<F::Output> {
+    use std::{pin::Pin, task::Poll};
+    let mut futs: Vec<Pin<Box<F>>> = futs.into_iter().map(Box::pin).collect();
+    let mut out: Vec<Option<F::Output>> = futs.iter().map(|_| None).collect();
+    std::future::poll_fn(|cx| {
+        let mut done = true;
+        for (i, f) in futs.iter_mut().enumerate() {
+            if out[i].is_none() {
+                match f.as_mut().poll(cx) {
+                    Poll::Ready(v) => out[i] = Some(v),
+                    Poll::Pending => done = false,
+                }
+            }
+        }
+        if done { Poll::Ready(()) } else { Poll::Pending }
+    })
+    .await;
+    out.into_iter().map(|o| o.expect("all futures completed")).collect()
+}

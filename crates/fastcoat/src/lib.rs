@@ -7,6 +7,7 @@
 //!   whose body is a row template. `$()` inside reads the live row.
 //! - [`mutate`]: optimistic writes from `$()` event handlers.
 
+mod dedupe;
 pub mod ir;
 pub mod sql;
 mod list;

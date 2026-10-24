@@ -51,3 +51,14 @@ impl RowField for Option<i64> {
 }
 
 
+
+/// Request-context marker: we're rendering a `<template>` (structure only).
+/// Client lists inside it emit no SSR rows, seeds or nested templates beyond
+/// their own row template; the browser fills them from the local DB.
+#[derive(Debug, Clone, Copy)]
+pub struct TemplateRender;
+
+#[must_use]
+pub fn in_template(cx: &topcoat::context::Cx) -> bool {
+    topcoat::context::try_request_context::<TemplateRender>(cx).is_some()
+}
