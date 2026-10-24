@@ -15,9 +15,9 @@ use crate::{
 /// A view loop with an optional `#[key(expr)]` iteration key.
 pub struct ForLoop {
     pub template: TemplateForLoop<Nodes>,
-    /// [fastcoat] Tokens of `$(...)` when the iterable is a client query.
+    /// [hearth] Tokens of `$(...)` when the iterable is a client query.
     pub client: Option<proc_macro2::TokenStream>,
-    /// [fastcoat] Raw body tokens (for capture analysis).
+    /// [hearth] Raw body tokens (for capture analysis).
     pub client_body: proc_macro2::TokenStream,
 }
 
@@ -39,7 +39,7 @@ impl ForLoop {
 
 impl Parse for ForLoop {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        // [fastcoat] `for pat in $(query) { ... }`: parse the `$(...)` iterable
+        // [hearth] `for pat in $(query) { ... }`: parse the `$(...)` iterable
         // ourselves (it isn't Rust syntax) and keep a placeholder expr.
         let fork = input.fork();
         if fork.call(syn::Attribute::parse_outer).is_ok()
@@ -103,7 +103,7 @@ impl ParseOption for ForLoop {
 }
 
 impl ForLoop {
-    /// [fastcoat] `for row in $(query) { ... }` is a *client* loop over a live
+    /// [hearth] `for row in $(query) { ... }` is a *client* loop over a live
     /// query: the body becomes a row template rendered on the server for the
     /// first view and cloned per row in the browser.
     fn client_iterable(&self) -> Option<proc_macro2::TokenStream> {
@@ -118,7 +118,7 @@ impl LowerView for ForLoop {
             let mut body_builder = ViewBuilder::new();
             self.template.body.lower(&mut body_builder);
             let body_owned = body_builder.finish().emit_view(true);
-            let fastcoat = quote::quote! { ::fastcoat };
+            let hearth = quote::quote! { ::hearth };
             // The body runs once per SSR row + once for the template, so it
             // must be `Fn`: every capture is cloned into each invocation
             // (captures are cheap: signals/handles/Exprs are Arc-like).
@@ -131,7 +131,7 @@ impl LowerView for ForLoop {
             });
             let clones2: Vec<_> = clones2.collect();
             let tokens = quote::quote! {
-                #fastcoat::client_for(__cx, ::core::clone::Clone::clone(&(#query)), {
+                #hearth::client_for(__cx, ::core::clone::Clone::clone(&(#query)), {
                     #(#clones2)*
                     move |__cx_owned: ::topcoat::context::Cx, #pat| {
                         #(#clones2)*
@@ -204,7 +204,7 @@ mod tests {
 
 
 
-/// [fastcoat] `if $(cond) { body }` in view position: rendered on the server
+/// [hearth] `if $(cond) { body }` in view position: rendered on the server
 /// when `cond` is true, and switched in the browser when it changes.
 pub struct ClientIf {
     pub cond: proc_macro2::TokenStream,
@@ -247,7 +247,7 @@ impl LowerView for ClientIf {
         let cond = &self.cond;
         // Clone captures once for this region (outer), then per invocation (inner).
         let tokens = quote::quote! {
-            ::fastcoat::route::when(__cx, ::topcoat::runtime::expr!(#cond), {
+            ::hearth::route::when(__cx, ::topcoat::runtime::expr!(#cond), {
                 #(#clones)*
                 move |__cx_owned: ::topcoat::context::Cx| {
                     #(#clones)*

@@ -1,4 +1,4 @@
-//! [fastcoat] Free-variable analysis for client regions.
+//! [hearth] Free-variable analysis for client regions.
 //!
 //! A client `for` / `if` body is rendered several times (once per SSR row,
 //! once into the `<template>`), so it is an `Fn` closure and each

@@ -6,12 +6,12 @@ import { setupBinding } from "./binding";
 import { setupEventHandler } from "./event";
 import { type CommentMarker, parseComment } from "./markers";
 import { setupTextExpression } from "./text";
-import { mountList, mountWhen, type ListMarker } from "../fastcoat/list";
+import { mountList, mountWhen, type ListMarker } from "../hearth/list";
 
-/** [fastcoat] Region markers: content between start/end is owned by the region. */
-const FC_LIST_RE = /^\s*::fastcoat::list::start\(([\s\S]*)\)\s*$/;
-const FC_WHEN_RE = /^\s*::fastcoat::when::start\(([\s\S]*)\)\s*$/;
-const FC_END_RE = /^\s*::fastcoat::(list|when)::end\s*$/;
+/** [hearth] Region markers: content between start/end is owned by the region. */
+const FC_LIST_RE = /^\s*::hearth::list::start\(([\s\S]*)\)\s*$/;
+const FC_WHEN_RE = /^\s*::hearth::when::start\(([\s\S]*)\)\s*$/;
+const FC_END_RE = /^\s*::hearth::(list|when)::end\s*$/;
 
 function decodeComment(s: string): string {
 	return s.replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
@@ -49,7 +49,7 @@ export function hydrate(
 	to: Node | null,
 	initialScope: Scope,
 	adoptable: Set<SignalId> = new Set(),
-	/** [fastcoat] Content was cloned from a template: render text on first run. */
+	/** [hearth] Content was cloned from a template: render text on first run. */
 	fresh = false,
 ): void {
 	const walker = document.createTreeWalker(
@@ -73,7 +73,7 @@ export function hydrate(
 		}
 
 		// COMMENT_NODE
-		// [fastcoat] Client list / when regions: skip their content here and
+		// [hearth] Client list / when regions: skip their content here and
 		// let the region mount and hydrate it (per item / per arm scopes).
 		const data = (node as Comment).data;
 		const fl = FC_LIST_RE.exec(data) ?? FC_WHEN_RE.exec(data);
@@ -93,7 +93,7 @@ export function hydrate(
 					depth--;
 				}
 			}
-			if (!end) throw new Error("[fastcoat] unterminated region");
+			if (!end) throw new Error("[hearth] unterminated region");
 			const payload = JSON.parse(decodeComment(fl[1]!));
 			if (FC_LIST_RE.test(data)) mountList(start, end as Comment, payload as ListMarker, current);
 			else mountWhen(start, end as Comment, payload.cond, payload.template, current);

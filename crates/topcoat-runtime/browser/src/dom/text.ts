@@ -7,7 +7,7 @@ export function setupTextExpression(
 	end: Comment,
 	js: string,
 	scope: Scope,
-	/** [fastcoat] Write on the first run too (cloned template content). */
+	/** [hearth] Write on the first run too (cloned template content). */
 	syncText = false,
 ): void {
 	const compute = compile(js, "text expression");

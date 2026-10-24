@@ -1,5 +1,5 @@
 // In-page probes for the local-first comparison. Each is an expression to
-// evaluate on the app's list page after navigation. All three apps (fastcoat,
+// evaluate on the app's list page after navigation. All three apps (hearth,
 // plain Topcoat, React + TanStack DB) are served by the same server against the
 // same 50,516-issue database. Run in a *visible* tab (rAF is throttled otherwise).
 //

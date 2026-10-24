@@ -1,4 +1,4 @@
-// Comparison app: the same issue tracker as `examples/fastissuetracker`
+// Comparison app: the same issue tracker as `examples/hearth-tracker`
 // (`/issues`), in React 19 + TanStack DB, the typical local-first stack.
 //
 // Equal work, idiomatic code:
@@ -11,7 +11,7 @@
 // - client routing on the same URLs (/issues, /issue/:shortId);
 // - `useDeferredValue` keeps typing responsive (React's recommended pattern).
 // Not equal by design: React renders on the client (empty server shell),
-// fastcoat server-renders the first view.
+// hearth server-renders the first view.
 import { and, BTreeIndex, createCollection, eq, ilike } from "@tanstack/db";
 import { useLiveQuery } from "@tanstack/react-db";
 import { StrictMode, useDeferredValue, useEffect, useState } from "react";
@@ -20,7 +20,7 @@ import { createRoot } from "react-dom/client";
 type Row = Record<string, any>;
 
 async function post(name: string, body: unknown): Promise<Row | null> {
-	const r = await fetch(`/_fastcoat/${name}/mutate`, {
+	const r = await fetch(`/_hearth/${name}/mutate`, {
 		method: "POST",
 		headers: { "content-type": "application/json", accept: "application/json" },
 		body: JSON.stringify(body),
@@ -45,7 +45,7 @@ function synced(name: string, indexes: string[]) {
 			rowUpdateMode: "full",
 			sync: (p: any) => {
 				writer = p;
-				fetch(`/_fastcoat/${name}/load`)
+				fetch(`/_hearth/${name}/load`)
 					.then((r) => r.json())
 					.then((rows: Row[]) => {
 						p.begin();
@@ -73,7 +73,7 @@ function synced(name: string, indexes: string[]) {
 	return c;
 }
 
-// Same client indexes as fastcoat's schema (#[key]/#[index] fields).
+// Same client indexes as hearth's schema (#[key]/#[index] fields).
 const issues = synced("issues", ["id", "shortId", "open", "modified", "created", "creatorId", "assigneeId"]);
 const users = synced("users", ["id", "login"]);
 const labels = synced("labels", ["id"]);
@@ -83,7 +83,7 @@ const emojis = synced("emojis", ["id", "subjectId"]);
 
 const me: { id: string } = (window as any).__me ?? { id: "" };
 const toast = (e: Error) => {
-	const el = Object.assign(document.createElement("div"), { className: "fastcoat-toast", textContent: `Rolled back: ${e.message}` });
+	const el = Object.assign(document.createElement("div"), { className: "hearth-toast", textContent: `Rolled back: ${e.message}` });
 	document.body.append(el);
 	setTimeout(() => el.remove(), 3500);
 };
@@ -434,7 +434,7 @@ function App() {
 		<div className="min-h-screen">
 			<header className="sticky top-0 z-10 flex items-center gap-3 border-b border-zinc-200 bg-white/80 px-4 py-2 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
 				<Link className="mr-auto font-semibold tracking-tight" to={BASE}>
-					fastissuetracker
+					hearth-tracker
 				</Link>
 				<span className="text-zinc-500">react + tanstack db</span>
 			</header>

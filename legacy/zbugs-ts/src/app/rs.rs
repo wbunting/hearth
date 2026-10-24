@@ -2,7 +2,7 @@
 //! No app JavaScript/TypeScript: queries, row templates, filters, writes
 //! and routing below all compile to JS via the framework.
 
-use fastcoat::{live_query, route, table_handle};
+use hearth::{live_query, route, table_handle};
 use topcoat::{
     Result,
     context::Cx,
@@ -18,7 +18,7 @@ use crate::{
 };
 
 /// What a list row exposes to the template (a Topcoat `#[record]`).
-#[fastcoat::row]
+#[hearth::row]
 pub struct IssueItem {
     pub id: String,
     pub short_id: i64,
@@ -110,7 +110,7 @@ async fn app(cx: &Cx) -> Result<impl View> {
                         $(if issue.open { "○" } else { "●" })
                     </button>
                     <span class="sid mono">$(issue.short_id)</span>
-                    <a class="title" data-fastcoat-link="" :href=$(issue.href.clone())>$(issue.title.clone())</a>
+                    <a class="title" data-hearth-link="" :href=$(issue.href.clone())>$(issue.title.clone())</a>
                     <span class="labels"></span>
                     <span class="who muted">
                         $(if issue.creator.is_some() { issue.creator.clone().unwrap() } else { "?".to_owned() })
@@ -122,7 +122,7 @@ async fn app(cx: &Cx) -> Result<impl View> {
         if $(path.starts_with("/rs/issue/")) {
         <article class="detail">
             for issue in $(detail) {
-                <nav class="crumbs"><a data-fastcoat-link="" href="/rs/issues">"← Issues"</a></nav>
+                <nav class="crumbs"><a data-hearth-link="" href="/rs/issues">"← Issues"</a></nav>
                 <h1 class="d-title">$(issue.title.clone())</h1>
                 <div class="d-meta">
                     <button @click=$(|_e| issues_table.set(issue.id.clone(), "open", !issue.open))>
@@ -135,30 +135,30 @@ async fn app(cx: &Cx) -> Result<impl View> {
             }
         </article>
         }
-        (json_script("fastcoat-boot", &boot))
+        (json_script("hearth-boot", &boot))
     })
 }
 
-// ---- generated-style endpoints (P1: a `fastcoat::routes!(Issues, Users, Labels)` macro)
+// ---- generated-style endpoints (P1: a `hearth::routes!(Issues, Users, Labels)` macro)
 mod endpoints {
-    use fastcoat::{Table, table::Mutation};
+    use hearth::{Table, table::Mutation};
     use topcoat::{Result, context::Cx, router::{content::Json, route}};
 
     use crate::tables::{IssueWire, Issues, LabelWire, Labels, UserWire, Users};
 
-    #[route(GET "/_fastcoat/issues/load")]
+    #[route(GET "/_hearth/issues/load")]
     async fn issues_load(cx: &Cx) -> Result<Json<Vec<IssueWire>>> {
         Ok(Json(Issues::load(cx).await?))
     }
-    #[route(POST "/_fastcoat/issues/mutate")]
+    #[route(POST "/_hearth/issues/mutate")]
     async fn issues_mutate(cx: &Cx, Json(m): Json<Mutation>) -> Result<Json<IssueWire>> {
-        Ok(Json(fastcoat::mutation_route::<Issues>(cx, m).await?))
+        Ok(Json(hearth::mutation_route::<Issues>(cx, m).await?))
     }
-    #[route(GET "/_fastcoat/users/load")]
+    #[route(GET "/_hearth/users/load")]
     async fn users_load(cx: &Cx) -> Result<Json<Vec<UserWire>>> {
         Ok(Json(Users::load(cx).await?))
     }
-    #[route(GET "/_fastcoat/labels/load")]
+    #[route(GET "/_hearth/labels/load")]
     async fn labels_load(cx: &Cx) -> Result<Json<Vec<LabelWire>>> {
         Ok(Json(Labels::load(cx).await?))
     }

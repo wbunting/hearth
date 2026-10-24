@@ -31,7 +31,7 @@ export class Option<T> implements AttributeValueViewParts, NodeViewParts {
 		return this.value;
 	}
 
-	/** [fastcoat] Rust `Option::unwrap_or`. */
+	/** [hearth] Rust `Option::unwrap_or`. */
 	unwrap_or(fallback: T): T {
 		return this.value === undefined ? fallback : this.value;
 	}

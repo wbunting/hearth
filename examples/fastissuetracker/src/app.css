@@ -1,7 +1,0 @@
-@import "tailwindcss" source(none);
-@source "./**/*.rs";
-
-/* Toasts are created by the fastcoat runtime (not in Rust source). */
-@layer components {
-  .fastcoat-toast { @apply fixed right-4 bottom-4 rounded-md bg-red-600 px-3 py-2 text-sm text-white shadow-lg; }
-}

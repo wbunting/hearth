@@ -1,9 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/fastcoat",
-    "crates/fastcoat-macro",
-    "examples/fastissuetracker",
+    "crates/hearth",
+    "crates/hearth-macro",
+    "examples/hearth-tracker",
     "crates/topcoat",
     "crates/topcoat-alpine-ajax",
     "crates/topcoat-asset",
@@ -111,8 +111,8 @@ debug = 1
 debug = false
 
 [workspace.dependencies]
-fastcoat = { path = "crates/fastcoat" }
-fastcoat-macro = { path = "crates/fastcoat-macro" }
+hearth = { path = "crates/hearth" }
+hearth-macro = { path = "crates/hearth-macro" }
 # The `topcoat` facade is only ever a dev-dependency of the publishable
 # sub-crates (and a normal dependency of the non-publishable examples), so it
 # deliberately carries NO version. A versioned dev-dependency would force cargo

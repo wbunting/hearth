@@ -187,7 +187,7 @@ export class Integer implements AttributeValueViewParts, NodeViewParts {
 		return this.v.toString();
 	}
 
-	/** [fastcoat] Decimal text (Rust `to_string`). */
+	/** [hearth] Decimal text (Rust `to_string`). */
 	to_text(): RString {
 		return new RString(this.v.toString());
 	}

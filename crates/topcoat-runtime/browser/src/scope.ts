@@ -42,7 +42,7 @@ export class Scope {
 	/** Aborted on release, removing listeners and cancelling owned requests. */
 	private readonly listenerController = new AbortController();
 	private disposed = false;
-	/** [fastcoat] Expression context; children inherit it (list items extend it). */
+	/** [hearth] Expression context; children inherit it (list items extend it). */
 	private ownContext: Context | null = null;
 
 	get context(): Context {

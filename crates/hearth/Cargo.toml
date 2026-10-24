@@ -1,0 +1,13 @@
+[package]
+name = "hearth"
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish = false
+
+[dependencies]
+topcoat.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+hearth-macro.workspace = true
+toasty = { workspace = true }

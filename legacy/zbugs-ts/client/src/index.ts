@@ -1,10 +1,10 @@
-// fastcoat browser entry. Loaded as a module after Topcoat's runtime.
+// hearth browser entry. Loaded as a module after Topcoat's runtime.
 import { mountApp } from "./apps/issues";
 import { AuthError, createStore } from "./runtime";
 import type { Boot } from "./schema";
 
 const t0 = performance.now();
-const bootEl = document.getElementById("fastcoat-boot");
+const bootEl = document.getElementById("hearth-boot");
 if (bootEl) {
   const boot = JSON.parse(bootEl.textContent!) as Boot;
   // Collections are ready immediately from the first-view snapshot (ssr) or
@@ -13,7 +13,7 @@ if (bootEl) {
   try {
     mountApp(store, boot);
   } catch (e) {
-    (window as any).__fastcoatError = String((e as Error)?.stack ?? e);
+    (window as any).__hearthError = String((e as Error)?.stack ?? e);
     throw e;
   }
   const marks: Record<string, number> = { mounted: performance.now() - t0 };
@@ -26,10 +26,10 @@ if (bootEl) {
     })
     .then(() => {
       marks.fullyLoaded = performance.now();
-      (window as any).__fastcoatMarks = { ...marks, navToReady: marks.fullyLoaded };
+      (window as any).__hearthMarks = { ...marks, navToReady: marks.fullyLoaded };
     })
     .catch((e) => {
       if (e instanceof AuthError) location.href = "/login";
-      else console.error("[fastcoat]", e);
+      else console.error("[hearth]", e);
     });
 }

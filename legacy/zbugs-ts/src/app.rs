@@ -16,8 +16,8 @@ use topcoat::{
 
 use crate::features::auth::current_user;
 
-/// The fastcoat browser bundle (TanStack DB + glue), built by `pnpm build:client`.
-pub const FASTCOAT_JS: Asset = asset!("../../../client/dist/fastcoat.js");
+/// The hearth browser bundle (TanStack DB + glue), built by `pnpm build:client`.
+pub const HEARTH_JS: Asset = asset!("../../../client/dist/hearth.js");
 
 pub fn router() -> RouterBuilder {
     module_router!()
@@ -36,7 +36,7 @@ async fn root(slot: Slot<'_>) -> Result<impl View> {
             <head>
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1">
-                <title>"zbugs · fastcoat"</title>
+                <title>"zbugs · hearth"</title>
                 <link rel="stylesheet" href=(asset!("./styles.css"))>
                 topcoat::runtime::script()
                 topcoat::dev::script()

@@ -3,7 +3,7 @@ import type { Context } from "./context";
 export type Expression<T = unknown> = (cx: Context) => T;
 
 /**
- * [fastcoat] Shared JS table for `@N` references. SSR list rows reference
+ * [hearth] Shared JS table for `@N` references. SSR list rows reference
  * their `$()` source by index instead of repeating it per row.
  */
 let jsTable: string[] = [];
@@ -14,7 +14,7 @@ export function setJsTable(table: string[]): string[] {
 	return prev;
 }
 
-/** [fastcoat] Compiled functions are pure in `cx`, so identical sources share one. */
+/** [hearth] Compiled functions are pure in `cx`, so identical sources share one. */
 const cache = new Map<string, Expression<unknown>>();
 
 /** Compiles server-generated source without evaluating it. */

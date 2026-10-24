@@ -1,0 +1,14 @@
+[package]
+name = "hearth-macro"
+edition.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish = false
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2.workspace = true
+quote.workspace = true
+syn = { workspace = true, features = ["full", "extra-traits"] }

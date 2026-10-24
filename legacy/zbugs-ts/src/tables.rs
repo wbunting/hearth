@@ -1,7 +1,7 @@
-//! Synced tables (fastcoat::Table impls). Authorization lives in `load`
+//! Synced tables (hearth::Table impls). Authorization lives in `load`
 //! (read scope) and `update` (write rules); everything browser-side is derived.
 
-use fastcoat::{Table, ir::{JsonRow, Query}, table::BoxFut};
+use hearth::{Table, ir::{JsonRow, Query}, table::BoxFut};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use topcoat::{
@@ -145,9 +145,9 @@ impl Table for Labels {
 }
 
 /// Descriptors for the browser, in dependency order.
-pub fn schema(scope: String) -> fastcoat::ClientSchema {
-    fastcoat::client_schema(
+pub fn schema(scope: String) -> hearth::ClientSchema {
+    hearth::client_schema(
         scope,
-        vec![fastcoat::table::describe::<Issues>(), fastcoat::table::describe::<Users>(), fastcoat::table::describe::<Labels>()],
+        vec![hearth::table::describe::<Issues>(), hearth::table::describe::<Users>(), hearth::table::describe::<Labels>()],
     )
 }

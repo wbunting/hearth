@@ -1060,40 +1060,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
 
 [[package]]
-name = "fastcoat"
-version = "0.10.0"
-dependencies = [
- "fastcoat-macro",
- "serde",
- "serde_json",
- "toasty",
- "topcoat",
-]
-
-[[package]]
-name = "fastcoat-macro"
-version = "0.10.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 3.0.9",
-]
-
-[[package]]
-name = "fastissuetracker"
-version = "0.10.0"
-dependencies = [
- "csv",
- "fastcoat",
- "rand 0.9.5",
- "serde",
- "serde_json",
- "toasty",
- "tokio",
- "topcoat",
-]
-
-[[package]]
 name = "fastrand"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1401,6 +1367,40 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a596f1b20ed2cc5ecac41a164aaebc7258057060f06c0cf7a2ba3991ee7990fb"
 dependencies = [
  "hashbrown 0.17.1",
+]
+
+[[package]]
+name = "hearth"
+version = "0.10.0"
+dependencies = [
+ "hearth-macro",
+ "serde",
+ "serde_json",
+ "toasty",
+ "topcoat",
+]
+
+[[package]]
+name = "hearth-macro"
+version = "0.10.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+]
+
+[[package]]
+name = "hearth-tracker"
+version = "0.10.0"
+dependencies = [
+ "csv",
+ "hearth",
+ "rand 0.9.5",
+ "serde",
+ "serde_json",
+ "toasty",
+ "tokio",
+ "topcoat",
 ]
 
 [[package]]

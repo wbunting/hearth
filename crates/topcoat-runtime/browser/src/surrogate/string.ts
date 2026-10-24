@@ -61,12 +61,12 @@ export class Str implements AttributeValueViewParts, NodeViewParts {
 		return new String(this.v);
 	}
 
-	/** [fastcoat] `String + &str`. */
+	/** [hearth] `String + &str`. */
 	add(other: Str): String {
 		return new String(this.v + other.v);
 	}
 
-	/** [fastcoat] `str::parse::<i64>().ok()` (canonical decimal only, like Rust). */
+	/** [hearth] `str::parse::<i64>().ok()` (canonical decimal only, like Rust). */
 	parse_i64(): Option<Integer> {
 		const t = this.v;
 		if (!/^[+-]?[0-9]+$/.test(t)) return Option.none();

@@ -1,8 +1,8 @@
 import type { SignalId, SignalRegistry } from "../signal-registry";
 import { Option, Record, Result, Tuple, WriteSignal } from "../surrogate";
 import { hydrate } from "./hydrate";
-import { type LocalDb, localDb, type RowRef } from "../fastcoat/db";
-import { route } from "../fastcoat/router";
+import { type LocalDb, localDb, type RowRef } from "../hearth/db";
+import { route } from "../hearth/router";
 import type { DehydratedSurrogate } from "./serialized";
 
 /**
@@ -13,11 +13,11 @@ import type { DehydratedSurrogate } from "./serialized";
 export class Context {
 	constructor(
 		private readonly registry: SignalRegistry,
-		/** [fastcoat] Current row of each enclosing client list, by list id. */
+		/** [hearth] Current row of each enclosing client list, by list id. */
 		readonly rows: ReadonlyMap<string, RowRef> = new Map(),
 	) {}
 
-	/** [fastcoat] A context for content inside a list item. */
+	/** [hearth] A context for content inside a list item. */
 	withRow(list: string, row: RowRef): Context {
 		const rows = new Map(this.rows);
 		rows.set(list, row);
@@ -25,7 +25,7 @@ export class Context {
 	}
 
 	/**
-	 * [fastcoat] The current row of client list `list` for this item (works
+	 * [hearth] The current row of client list `list` for this item (works
 	 * for nested lists and outer rows captured by inner bodies). Reading it
 	 * subscribes the running effect, so `$(row.title)` updates with the row.
 	 */
@@ -35,12 +35,12 @@ export class Context {
 		return ref.read();
 	}
 
-	/** [fastcoat] Client router (reactive URL). */
+	/** [hearth] Client router (reactive URL). */
 	get route() {
 		return route;
 	}
 
-	/** [fastcoat] Bridge to the local database (TanStack DB). */
+	/** [hearth] Bridge to the local database (TanStack DB). */
 	get db(): LocalDb {
 		return localDb();
 	}

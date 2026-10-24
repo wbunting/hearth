@@ -2,15 +2,15 @@
 // they're split). LOAD waits for collections; INTERACT drives filters/toggle.
 const LOAD = `(async () => {
   const t = performance.now();
-  while (!window.__fastcoatMarks && performance.now() - t < 12000) await new Promise(r => setTimeout(r, 25));
-  const c = window.__fastcoat.collections;
+  while (!window.__hearthMarks && performance.now() - t < 12000) await new Promise(r => setTimeout(r, 25));
+  const c = window.__hearth.collections;
   const nav = performance.getEntriesByType('navigation')[0];
   const fcp = performance.getEntriesByName('first-contentful-paint')[0];
   return {
-    mode: window.__fastcoat.boot.mode, issues: c.issues.size,
+    mode: window.__hearth.boot.mode, issues: c.issues.size,
     ttfb: Math.round(nav.responseStart), htmlDone: Math.round(nav.responseEnd),
     fcp: fcp ? Math.round(fcp.startTime) : null, dcl: Math.round(nav.domContentLoadedEventEnd),
-    collectionsReady: Math.round(window.__fastcoatMarks.navToReady),
+    collectionsReady: Math.round(window.__hearthMarks.navToReady),
     firstRender: document.getElementById('timing').textContent,
     api: performance.getEntriesByType('resource').filter(r => r.name.includes('/api/')).map(r => r.name.split('/').pop() + ' ' + Math.round(r.duration) + 'ms ' + Math.round(r.encodedBodySize / 1024) + 'KB'),
     heapMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1e6) : null,
@@ -20,7 +20,7 @@ const LOAD = `(async () => {
 const INTERACT = `(async () => {
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const frame = () => new Promise(r => requestAnimationFrame(() => r()));
-  const c = window.__fastcoat.collections;
+  const c = window.__hearth.collections;
   const set = async (id, v, ev = 'change') => {
     const el = document.getElementById(id); const t0 = performance.now();
     el.value = v; el.dispatchEvent(new Event(ev)); await wait(0); await frame();

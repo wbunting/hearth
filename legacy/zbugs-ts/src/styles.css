@@ -51,4 +51,4 @@ a { color: inherit; }
 .new-comment textarea { width: 100%; min-height: 80px; font: inherit; padding: 8px; }
 .new-comment button { margin-top: 6px; font: inherit; padding: 4px 12px; }
 kbd { font-size: 11px; border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; }
-.fastcoat-toast { position: fixed; bottom: 16px; right: 16px; padding: 8px 12px; background: #c33; color: white; border-radius: 6px; }
+.hearth-toast { position: fixed; bottom: 16px; right: 16px; padding: 8px 12px; background: #c33; color: white; border-radius: 6px; }

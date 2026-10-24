@@ -33,7 +33,7 @@ impl<T> Expr<T> {
         }
     }
 
-    /// [fastcoat fork] A value whose browser JS is supplied by the caller and
+    /// [hearth fork] A value whose browser JS is supplied by the caller and
     /// which always renders as dynamic, e.g. the current row of a client
     /// list (`cx.row(0)`). Captures of it inside `$()` inline that JS.
     #[inline]

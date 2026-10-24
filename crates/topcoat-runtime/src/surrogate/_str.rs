@@ -46,7 +46,7 @@ impl_cmp_op!(ge, >=);
 impl_cmp_op!(le, <=);
 
 impl StrSurrogate {
-    /// [fastcoat] `str::parse::<i64>().ok()`, for route params and form input.
+    /// [hearth] `str::parse::<i64>().ok()`, for route params and form input.
     #[inline]
     #[must_use]
     pub fn parse_i64(&self) -> crate::OptionSurrogate<i64> {
@@ -109,7 +109,7 @@ impl StrSurrogate {
 }
 
 #[cfg(test)]
-mod fastcoat_tests {
+mod hearth_tests {
     use crate::Surrogated;
 
     #[test]

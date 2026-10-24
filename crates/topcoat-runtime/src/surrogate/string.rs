@@ -34,7 +34,7 @@ impl std::ops::Deref for StringSurrogate {
     }
 }
 
-/// [fastcoat] `String + &str`, as in Rust.
+/// [hearth] `String + &str`, as in Rust.
 impl<'a> std::ops::Add<&'a crate::StrSurrogate> for StringSurrogate {
     type Output = StringSurrogate;
     fn add(mut self, rhs: &'a crate::StrSurrogate) -> StringSurrogate {

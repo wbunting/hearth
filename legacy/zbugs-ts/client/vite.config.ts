@@ -9,7 +9,7 @@ export default defineConfig({
     lib: {
       entry: "src/index.ts",
       formats: ["es"],
-      fileName: () => "fastcoat.js",
+      fileName: () => "hearth.js",
     },
     target: "es2022",
     sourcemap: true,

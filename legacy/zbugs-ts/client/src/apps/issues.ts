@@ -396,7 +396,7 @@ export function mountApp(store: Store, boot: Boot) {
     const t0 = performance.now();
     if (route.view === "list") {
       app.dataset.view = "list";
-      document.title = "zbugs · fastcoat";
+      document.title = "zbugs · hearth";
       detailCleanup?.();
       detailCleanup = null;
       if (!live) remount();
@@ -413,14 +413,14 @@ export function mountApp(store: Store, boot: Boot) {
       showDetail(issue.id);
       scrollTo(0, 0);
     }
-    (window as any).__fastcoatNav = performance.now() - t0;
+    (window as any).__hearthNav = performance.now() - t0;
   }
 
   function navigate(href: string, push = true) {
     const url = new URL(href, location.href);
     const route = parse(url);
     if (!route) return (location.href = href);
-    if (push) history.pushState({ fastcoat: true }, "", url);
+    if (push) history.pushState({ hearth: true }, "", url);
     render(route);
   }
 
@@ -432,9 +432,9 @@ export function mountApp(store: Store, boot: Boot) {
     navigate(aEl.href);
   });
   addEventListener("popstate", (e) => {
-    if (e.state?.fastcoat || parse(new URL(location.href))) navigate(location.href, false);
+    if (e.state?.hearth || parse(new URL(location.href))) navigate(location.href, false);
   });
-  history.replaceState({ fastcoat: true }, "");
+  history.replaceState({ hearth: true }, "");
 
   // Keyboard: j/k next/prev issue in the current list order, esc back.
   document.addEventListener("keydown", (e) => {
@@ -458,7 +458,7 @@ export function mountApp(store: Store, boot: Boot) {
     issues.onFirstReady(() => render(initial));
   }
 
-  (window as any).__fastcoat = { store, boot, filters, remount, navigate };
+  (window as any).__hearth = { store, boot, filters, remount, navigate };
 }
 
 function report(tx: { isPersisted: { promise: Promise<unknown> } }) {

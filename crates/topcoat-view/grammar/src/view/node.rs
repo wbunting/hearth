@@ -28,7 +28,7 @@ pub enum Node {
     If(Box<TemplateIf<Nodes>>),
     Local(TemplateLocal),
     ForLoop(ForLoop),
-    /// [fastcoat] `if $(cond) { ... }`: a client-switchable region.
+    /// [hearth] `if $(cond) { ... }`: a client-switchable region.
     ClientIf(crate::view::ClientIf),
     Continue(TemplateContinue),
     Break(TemplateBreak),

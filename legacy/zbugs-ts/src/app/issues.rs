@@ -22,7 +22,7 @@ use topcoat::{
 };
 
 use crate::{
-    app::FASTCOAT_JS,
+    app::HEARTH_JS,
     client_schema::ClientSchema,
     features::{
         auth::{current_user, read_scope},
@@ -226,7 +226,7 @@ async fn shell(cx: &Cx, open_issue: Option<String>) -> Result<impl View> {
                 }
             </article>
         </div>
-        (json_script("fastcoat-boot", &boot))
-        <script type="module" src=(FASTCOAT_JS)></script>
+        (json_script("hearth-boot", &boot))
+        <script type="module" src=(HEARTH_JS)></script>
     })
 }

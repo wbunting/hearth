@@ -103,7 +103,7 @@ macro_rules! integer_surrogate {
         }
 
         impl $surrogate {
-            /// [fastcoat] Decimal text (`to_string()`; named to avoid shadowing `Display`).
+            /// [hearth] Decimal text (`to_string()`; named to avoid shadowing `Display`).
             #[inline]
             #[must_use]
             pub fn to_text(&self) -> crate::StringSurrogate {
