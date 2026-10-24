@@ -7,6 +7,8 @@ import { setupEventHandler } from "./event";
 import { type CommentMarker, parseComment } from "./markers";
 import { setupTextExpression } from "./text";
 import { mountList, mountWhen, type ListMarker } from "../hearth/list";
+import { idleWork } from "../hearth/idle";
+import { getJsTable, setJsTable } from "../expression/compile";
 
 /** [hearth] Region markers: content between start/end is owned by the region. */
 const FC_LIST_RE = /^\s*::hearth::list::start\(([\s\S]*)\)\s*$/;
@@ -52,6 +54,34 @@ export function hydrate(
 	/** [hearth] Content was cloned from a template: render text on first run. */
 	fresh = false,
 ): void {
+	const scan = scanHydration(root, from, to, initialScope, adoptable, fresh);
+	const work = idleWork(initialScope);
+	// SSR markers may use @N references. Preserve the table across yields.
+	const table = getJsTable();
+	if (work) {
+		const step = () => {
+			if (initialScope.isDisposed) return;
+			const previous = setJsTable(table);
+			try {
+				if (!scan.next().done) work.add(step);
+			} finally {
+				setJsTable(previous);
+			}
+		};
+		work.add(step);
+	} else {
+		while (!scan.next().done) { /* Synchronous visible hydration. */ }
+	}
+}
+
+function* scanHydration(
+	root: Node,
+	from: Node | null,
+	to: Node | null,
+	initialScope: Scope,
+	adoptable: Set<SignalId>,
+	fresh: boolean,
+): Generator<void> {
 	const walker = document.createTreeWalker(
 		root,
 		NodeFilter.SHOW_COMMENT | NodeFilter.SHOW_ELEMENT,
@@ -60,15 +90,25 @@ export function hydrate(
 
 	const stack: Frame[] = [{ scope: initialScope, shard: null, region: null }];
 	const textExpressions: PendingTextExpression[] = [];
+	const guard = (fn: () => void) => {
+		try {
+			fn();
+		} catch (error) {
+			const work = idleWork(initialScope);
+			if (!work) throw error;
+			work.reportError(error);
+		}
+	};
 
 	for (let node = walker.nextNode(); node; node = walker.nextNode()) {
 		if (to && node === to) break;
+		yield;
 
 		const current = stack[stack.length - 1]?.scope;
 		if (current === undefined) throw new Error("Stack was empty");
 
 		if (node.nodeType === Node.ELEMENT_NODE) {
-			processElement(node as Element, current);
+			guard(() => processElement(node as Element, current));
 			continue;
 		}
 
@@ -94,15 +134,17 @@ export function hydrate(
 				}
 			}
 			if (!end) throw new Error("[hearth] unterminated region");
-			const payload = JSON.parse(decodeComment(fl[1]!));
-			if (FC_LIST_RE.test(data)) mountList(start, end as Comment, payload as ListMarker, current);
-			else mountWhen(start, end as Comment, payload.cond, payload.template, current);
+			guard(() => {
+				const payload = JSON.parse(decodeComment(fl[1]!));
+				if (FC_LIST_RE.test(data)) mountList(start, end as Comment, payload as ListMarker, current);
+				else mountWhen(start, end as Comment, payload.cond, payload.template, current);
+			});
 			continue;
 		}
 		const marker = parseComment(node as Comment);
 		if (!marker) continue;
 
-		processMarker(marker, node as Comment, stack, textExpressions, adoptable, fresh);
+		guard(() => processMarker(marker, node as Comment, stack, textExpressions, adoptable, fresh));
 	}
 }
 

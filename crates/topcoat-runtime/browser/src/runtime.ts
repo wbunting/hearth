@@ -1,4 +1,5 @@
 import { hydrate as hydrateDom } from "./dom/hydrate";
+import { synchronously } from "./hearth/idle";
 import { Context } from "./expression/context";
 import { Connection } from "./render/connection";
 import { NavigationController } from "./render/navigation";
@@ -64,6 +65,8 @@ export class Runtime {
 		scope: Scope,
 		adoptable: Set<SignalId> = new Set(),
 	): void {
-		hydrateDom(root, from, to, scope, adoptable);
+		// Replacements adopt signals and subscribe watchers immediately after
+		// this call. Only speculative template hydration may yield.
+		synchronously(() => hydrateDom(root, from, to, scope, adoptable));
 	}
 }

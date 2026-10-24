@@ -35,20 +35,23 @@ const FILTER = `(async () => {
   return out;
 })()`;
 
-const NAV = (detailSel) => `(async () => {
+const NAV = (detailSel = "article h1", samples = 16) => `(async () => {
   const w = ms => new Promise(r => setTimeout(r, ms)); const fr = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-  const out = [], back = [];
-  for (let n = 0; n < 5; n++) {
-    const a = [...document.querySelectorAll('ul > li a')].filter(x => x.getAttribute('href')?.includes('issue'))[n * 2 + 1] || [...document.querySelectorAll('ul > li a')][n];
+  const out = [], back = [], ready = [];
+  for (let n = 0; n < ${samples}; n++) {
+    const links = [...document.querySelectorAll('ul > li a')].filter(x => x.textContent.trim().length > 12 && x.getAttribute('href')?.includes('issue'));
+    const a = links[(n * 2 + 1) % links.length];
     const title = a.textContent.trim(); const t0 = performance.now(); a.click();
-    while (document.querySelector('${detailSel}')?.textContent.trim() !== title && performance.now() - t0 < 5000) await w(1);
+    while ((document.querySelector('${detailSel}')?.textContent.trim() !== title || document.querySelectorAll('article details button').length !== 30 || !document.querySelector('article button[title="React"]')) && performance.now() - t0 < 5000) await w(1);
+    if (performance.now() - t0 >= 5000) throw new Error("detail readiness timed out");
+    ready.push(+(performance.now() - t0).toFixed(1));
     await fr(); out.push(+(performance.now() - t0).toFixed(1));
     const t1 = performance.now(); const back_ = document.querySelector('a[href$="issues"], a[href="/bench/react"]'); back_ ? back_.click() : history.back();
-    while (!document.querySelector('ul > li') && performance.now() - t1 < 5000) await w(1);
+    while ((!document.querySelector('ul > li a') || document.querySelector('hearth-when:has(> ul)')?.style.display === "none") && performance.now() - t1 < 5000) await w(1);
     await fr(); back.push(+(performance.now() - t1).toFixed(1));
     await w(100);
   }
-  return { toDetail: out, toList: back };
+  return { toDetail: out, toList: back, ready, firstNavigation: out[0] };
 })()`;
 
 if (typeof module !== 'undefined') module.exports = { LOAD, FILTER, NAV };
