@@ -47,7 +47,7 @@ view! {
 | `table_handle::<T>()` | optimistic `set/insert/remove/toggle` from `$()` handlers, validated by the table's Rust write fns, rolled back on rejection |
 | `$()` vocabulary | `str.parse_i64()`, `int.to_text()`, `String + &str`, `Option::unwrap_or` (Rust + TS, tested) |
 
-The browser store matches TanStack DB's optimistic-write semantics, checked by
+The browser store matches `TanStack DB`'s optimistic-write semantics, checked by
 a differential test against it (`crates/topcoat-runtime/browser/src/hearth/store.test.ts`).
 
 Fork surface vs upstream: see `docs/hearth/` (design, results, diff).
@@ -55,7 +55,7 @@ Upstream examples under `examples/` are unchanged. Topcoat is MIT licensed;
 hearth keeps its license and attribution.
 
 ## Benchmarks
-`/bench/react` (React 19 + TanStack DB) and `/bench/topcoat` (plain Topcoat)
+`/bench/react` (React 19 + `TanStack DB`) and `/bench/topcoat` (plain Topcoat)
 implement the same tracker against the same data; see
 `benchmarks/localfirst/run.md`.
 

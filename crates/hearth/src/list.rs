@@ -355,7 +355,7 @@ fn evaluate<'t>(q: &Query, tables: &'t HashMap<&str, Vec<JsonRow>>, params: &[Va
         }
         rows.into_iter().flat_map(|e| join(e[q.from.alias])).collect()
     } else {
-        let mut rows: Vec<_> = base.iter().flat_map(|r| join(r)).filter(|e| keep(e)).collect();
+        let mut rows: Vec<_> = base.iter().flat_map(join).filter(|e| keep(e)).collect();
         rows.sort_by(|a, b| order(a, b));
         if let Some(n) = q.limit {
             rows.truncate(n);

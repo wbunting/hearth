@@ -71,10 +71,8 @@ fn lower<C: SqlColumns>(e: &Expr, alias: &str, params: &[Value]) -> Option<Optio
             let Some(first) = it.next() else { return Some(None) };
             Some(Some(it.fold(first, |acc, f| if *op == "and" { acc.and(f) } else { acc.or(f) })))
         }
-        Expr::Not { arg, .. } => match lower::<C>(arg, alias, params)? {
-            Some(f) => Some(Some(f.not())),
-            None => None, // `!true` = false: let the in-memory pass handle it
-        },
+        // `!true` = false: leave it to the in-memory pass.
+        Expr::Not { arg, .. } => lower::<C>(arg, alias, params)?.map(|f| Some(f.not())),
         Expr::If { cond, then, .. } => {
             if crate::ir::truthy(&value(cond, params)?) { lower::<C>(then, alias, params) } else { Some(None) }
         }

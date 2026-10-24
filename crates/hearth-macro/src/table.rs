@@ -128,7 +128,7 @@ pub fn derive(input: DeriveInput) -> syn::Result<Ts> {
                 #wire => { let p = <#model>::fields().#ident(); ::core::option::Option::Some(if desc { p.desc() } else { p.asc() }) }
             });
         }
-        if o.writable.iter().any(|w| *w == ident) {
+        if o.writable.contains(&ident) {
             patch_fields.push(quote!(pub #ident: ::core::option::Option<#ty>));
         }
     }

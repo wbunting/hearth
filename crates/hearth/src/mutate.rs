@@ -88,6 +88,7 @@ impl<T: Table> TableSurrogate<T> {
     pub fn insert3<A: Surrogate, B: Surrogate, C: Surrogate>(&self, _f1: &S, _v1: A, _f2: &S, _v2: B, _f3: &S, _v3: C) {
         browser_only()
     }
+    #[allow(clippy::too_many_arguments, reason = "field/value pairs mirror the JS varargs call")]
     pub fn insert4<A: Surrogate, B: Surrogate, C: Surrogate, D: Surrogate>(
         &self, _f1: &S, _v1: A, _f2: &S, _v2: B, _f3: &S, _v3: C, _f4: &S, _v4: D,
     ) {
@@ -98,6 +99,7 @@ impl<T: Table> TableSurrogate<T> {
     pub fn toggle2<K: Surrogate, A: Surrogate, B: Surrogate>(&self, _key: K, _f1: &S, _v1: A, _f2: &S, _v2: B) {
         browser_only()
     }
+    #[allow(clippy::too_many_arguments, reason = "field/value pairs mirror the JS varargs call")]
     pub fn toggle3<K: Surrogate, A: Surrogate, B: Surrogate, C: Surrogate>(
         &self, _key: K, _f1: &S, _v1: A, _f2: &S, _v2: B, _f3: &S, _v3: C,
     ) {
