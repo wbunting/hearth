@@ -6,6 +6,7 @@ use topcoat::{Result, context::Cx};
 struct Model {
     #[key]
     custom_key: String,
+    rank: i64,
 }
 
 #[derive(Table, Serialize, Deserialize)]
@@ -14,12 +15,14 @@ struct Model {
 struct CustomRow {
     #[key]
     custom_key: String,
+    rank: i64,
 }
 
 impl From<Model> for CustomRow {
     fn from(model: Model) -> Self {
         Self {
             custom_key: model.custom_key,
+            rank: model.rank,
         }
     }
 }
@@ -49,4 +52,35 @@ fn query_sources_use_derived_wire_key_and_agree_with_schema() {
     let wire = serde_json::to_value(q.ir).unwrap();
     assert_eq!(wire["from"]["key"], schema.key);
     assert_eq!(wire["joins"][0]["key"], schema.key);
+}
+
+#[test]
+fn sql_order_uses_ir_key_for_ties_without_duplicating_explicit_key_order() {
+    let mut q = live_query! {
+        Output from a in CustomRow
+        order by a.rank desc
+        limit 2
+        select { key: a.custom_key }
+    }
+    .ir;
+    assert_eq!(
+        hearth::sql::order::<CustomRow>(&q, &[]),
+        vec![
+            Model::fields().rank().desc(),
+            Model::fields().custom_key().asc()
+        ],
+    );
+    q.order.push(hearth::ir::Order {
+        expr: hearth::ir::Expr::Col {
+            col: ("a", "customKey"),
+        },
+        desc: true,
+    });
+    assert_eq!(
+        hearth::sql::order::<CustomRow>(&q, &[]),
+        vec![
+            Model::fields().rank().desc(),
+            Model::fields().custom_key().desc()
+        ],
+    );
 }

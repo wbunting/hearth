@@ -112,8 +112,9 @@ fn flip(op: &'static str) -> &'static str {
 /// evaluator, so the first page is identical everywhere (otherwise equal
 /// sort keys come back in arbitrary SQL order and the list reshuffles on
 /// hydration).
-pub fn order<C: SqlColumns>(q: &Query, params: &[Value], key: &str) -> Vec<toasty::stmt::OrderByExpr> {
+pub fn order<C: SqlColumns>(q: &Query, params: &[Value]) -> Vec<toasty::stmt::OrderByExpr> {
     let _ = params;
+    let key = q.from.key;
     let mut out: Vec<_> = q
         .order
         .iter()

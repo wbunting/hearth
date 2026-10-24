@@ -220,7 +220,7 @@ pub fn derive(input: DeriveInput) -> syn::Result<Ts> {
                 ::std::boxed::Box::pin(async move {
                     let scope = #scope(cx).await?;
                     let lowered = ::hearth::sql::lower_where::<Self>(q, params);
-                    let order = ::hearth::sql::order::<Self>(q, params, <Self as ::hearth::Table>::KEY);
+                    let order = ::hearth::sql::order::<Self>(q, params);
                     // Push `limit` only when every predicate ran in SQL;
                     // otherwise over-fetch for the in-memory pass.
                     let limit = q.limit.map(|n| if lowered.complete { n } else { n * 8 });
