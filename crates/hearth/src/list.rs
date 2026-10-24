@@ -170,7 +170,7 @@ mod tokio_once {
 /// Rows rendered on the server per list (see `client_for`).
 pub const SSR_ROWS: usize = 50;
 
-static NEXT_TEMPLATE: AtomicU64 = AtomicU64::new(0);
+static NEXT_SEED: AtomicU64 = AtomicU64::new(0);
 
 /// Server half of a client list. `body` renders one row.
 pub fn client_for<'a, R, F>(cx: &'a Cx, query: LiveQuery<R>, body: F) -> BoxView<'a>
@@ -235,16 +235,17 @@ where
             "fc-list-{:012x}",
             ir_json.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)) & 0xffff_ffff_ffff
         );
-        let _ = NEXT_TEMPLATE.fetch_add(0, Ordering::Relaxed);
+        let seed_id = (!in_template).then(|| format!("fc-seed-{}", NEXT_SEED.fetch_add(1, Ordering::Relaxed)));
         let marker = serde_json::json!({
             "query": ir,
             "params": params.iter().map(|(_, js)| js).collect::<Vec<_>>(),
             "template": id,
-            "seed": seed,
+            "seed": seed_id,
         });
         let marker = comment_escape(&marker.to_string());
 
-        let inner_cx = cx.clone();
+        let trailers = crate::row::Trailers::default();
+        let inner_cx = cx.with(trailers.clone());
         let mut html = String::new();
         html.push_str(&format!("<!--::hearth::list::start({marker})-->"));
         // Every SSR row repeats the same `$()` JS (only the row data differs,
@@ -274,9 +275,14 @@ where
         }
         html.push_str(&dedupe.table_comment());
         html.push_str("<!--::hearth::list::end-->");
-        let tcx = inner_cx.with(crate::row::TemplateRender);
+        let nested = crate::row::Trailers::default();
+        let tcx = inner_cx.with(crate::row::TemplateRender).with(nested.clone());
         let tpl = body(tcx.clone(), Row::bind(R::default(), &id)).single().await?.render(&tcx);
-        html.push_str(&format!(r#"<template id="{id}">{tpl}</template>"#));
+        let mut trailer = format!(r#"{}<template id="{id}">{tpl}{}</template>"#, trailers.take(), nested.take());
+        if let Some(seed_id) = seed_id {
+            trailer.push_str(&crate::json_script(&seed_id, &seed));
+        }
+        crate::row::trailer(&cx, &mut html, &trailer);
         Ok::<_, topcoat::Error>(Unescaped::new_unchecked(html))
     };
     Box::pin(topcoat::view::internal::ScopeView::new(topcoat::view::internal::MoveView::new(async move {
@@ -484,11 +490,227 @@ async fn futures_join_all<F: std::future::Future>(futs: Vec<F>) -> Vec<F::Output
 
 #[cfg(test)]
 mod tests {
+    use std::{
+        pin::pin,
+        task::{Context, Poll, Waker},
+    };
+
+    use topcoat::view::View;
+
     use super::*;
     use crate::ir::{
         Expr as E, From, Join, Order,
         indexmap_lite::{Map, Types},
     };
+
+    fn load<'a>(_: &'a Cx, _: &'a Query, _: &'a [Value]) -> crate::table::BoxFut<'a, Vec<JsonRow>> {
+        Box::pin(async {
+            Ok(vec![
+                serde_json::from_value(serde_json::json!({
+                    "id": "</script><script>bad</script>&"
+                }))
+                .unwrap(),
+            ])
+        })
+    }
+
+    #[test]
+    fn seed_and_template_follow_rows_and_cannot_end_the_json_script() {
+        let cx = Cx::default();
+        let view = client_for(&cx, query("things"), |cx, _| {
+            Box::pin(topcoat::view::view! { cx => <li>"row"</li> })
+        });
+        let html = render(&cx, view);
+        let row = html.find("<li>").unwrap();
+        let template = html.find("<template").unwrap();
+        let script = html.find("<script").unwrap();
+        assert!(row < template && template < script);
+        let json =
+            &html[html[script..].find('>').unwrap() + script + 1..html.rfind("</script>").unwrap()];
+        assert!(!json.contains('<'));
+        let seed: Value = serde_json::from_str(json).unwrap();
+        assert_eq!(seed["things"][0]["id"], "</script><script>bad</script>&");
+        let marker_end = html.find("-->").unwrap();
+        assert!(!html[..marker_end].contains("bad"));
+    }
+
+    fn render(cx: &Cx, view: BoxView<'_>) -> String {
+        let mut view = pin!(view);
+        let mut task = Context::from_waker(Waker::noop());
+        loop {
+            if let Poll::Ready(first) = view.as_mut().poll_first(&mut task) {
+                return first.unwrap().content.render(cx);
+            }
+        }
+    }
+
+    fn query(table: &'static str) -> LiveQuery<String> {
+        LiveQuery {
+            ir: Query {
+                from: ir::From { table, alias: "t", key: "id" },
+                joins: vec![],
+                where_: None,
+                order: vec![],
+                limit: None,
+                key: "id",
+                select: ir::indexmap_lite::Map(vec![("id", ir::Expr::Col { col: ("t", "id") })]),
+                types: ir::indexmap_lite::Types(vec![]),
+            },
+            params: vec![],
+            loaders: vec![("t", load)],
+            _row: std::marker::PhantomData,
+        }
+    }
+
+    fn nested_rows(cx: Cx) -> BoxView<'static> {
+        Box::pin(topcoat::view::view! {
+            cx =>
+            <li>
+                "outer"
+                (crate::route::when(
+                    &cx,
+                    Expr::evaluate_dynamic(true, topcoat::runtime::Js::source("true")),
+                    |cx| {
+                        Box::pin(
+                            topcoat::view::view! {
+                                cx =>
+                                <ul>
+                                    (client_for(
+                                        &cx,
+                                        query("inner"),
+                                        |cx, _| {
+                                            Box::pin(topcoat::view::view! { cx => <li>"inner"</li> })
+                                        },
+                                    ))
+                                </ul>
+                            },
+                        )
+                    },
+                ))
+            </li>
+        })
+    }
+
+    fn marker_json(comment: &str, prefix: &str) -> Value {
+        let json = comment
+            .strip_prefix(prefix)
+            .unwrap()
+            .strip_suffix(")")
+            .unwrap()
+            .replace("&quot;", "\"")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&amp;", "&");
+        serde_json::from_str(&json).unwrap()
+    }
+
+    #[test]
+    fn nested_region_trailers_follow_visible_rows_and_keep_seeds_outside_templates() {
+        let cx = Cx::default();
+        let view = crate::route::when(
+            &cx,
+            Expr::evaluate_dynamic(true, topcoat::runtime::Js::source("Boolean(1)")),
+            |cx| {
+                Box::pin(topcoat::view::view! {
+                    cx =>
+                    <ul>(client_for(&cx, query("outer"), |cx, _| nested_rows(cx)))</ul>
+                })
+            },
+        );
+        let html = render(&cx, view);
+        let first_trailer = html
+            .find("<template")
+            .unwrap()
+            .min(html.find("<script").unwrap());
+        let visible_end = html[..first_trailer]
+            .rfind("<!--::hearth::when::end-->")
+            .unwrap();
+        assert!(visible_end < first_trailer);
+        assert_eq!(html[..first_trailer].matches("<li>").count(), 2);
+
+        // Inspect the actual server output, tracking inert template content.
+        // A seed referenced by a live marker must be in the live document.
+        let mut templates = Vec::new();
+        let mut when_template = None;
+        let mut seeds = Vec::new();
+        let mut scripts = Vec::new();
+        let mut item_depth = 0;
+        let mut at = 0;
+        while at < html.len() {
+            let Some(next) = html[at..].find('<') else {
+                break;
+            };
+            at += next;
+            let rest = &html[at..];
+            if let Some(comment) = rest.strip_prefix("<!--") {
+                let end = comment.find("-->").unwrap();
+                let comment = &comment[..end];
+                if templates.is_empty() {
+                    if comment.starts_with("::hearth::item(") {
+                        item_depth += 1;
+                    }
+                    if comment == "::hearth::item-end" {
+                        item_depth -= 1;
+                    }
+                    if comment.starts_with("::hearth::list::start(") {
+                        let marker = marker_json(comment, "::hearth::list::start(");
+                        seeds.push(marker["seed"].as_str().unwrap().to_owned());
+                    }
+                    if when_template.is_none() && comment.starts_with("::hearth::when::start(") {
+                        let marker = marker_json(comment, "::hearth::when::start(");
+                        when_template = Some(marker["template"].as_str().unwrap().to_owned());
+                    }
+                } else if comment.starts_with("::hearth::list::start(") {
+                    assert!(marker_json(comment, "::hearth::list::start(")["seed"].is_null());
+                }
+                at += 4 + end + 3;
+                continue;
+            }
+            if rest.starts_with("<template") {
+                assert_eq!(
+                    item_depth, 0,
+                    "templates must not enter deduped SSR row HTML"
+                );
+                let end = rest.find('>').unwrap();
+                templates.push((at, at + end + 1));
+            } else if rest.starts_with("</template>") {
+                let (start, content) = templates.pop().unwrap();
+                let id = when_template.as_ref().unwrap();
+                if html[start..content].contains(&format!("id=\"{id}\"")) {
+                    let body = &html[content..at];
+                    assert!(body.matches("<template id=\"fc-list-").count() >= 2);
+                    assert!(!body.contains("<script"));
+                    when_template = Some(String::new());
+                }
+            } else if rest.starts_with("<li>") && templates.is_empty() {
+                assert!(at < first_trailer, "visible rows must precede trailers");
+            } else if rest.starts_with("<script") {
+                assert!(
+                    templates.is_empty(),
+                    "seed scripts must be outside templates"
+                );
+                let end = rest.find('>').unwrap();
+                let tag = &rest[..end];
+                assert!(tag.contains("type=\"application/json\""));
+                let id = tag
+                    .split("id=\"")
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap();
+                scripts.push(id.to_owned());
+            }
+            at += rest.find('>').unwrap() + 1;
+        }
+        assert!(templates.is_empty());
+        assert_eq!(item_depth, 0);
+        assert_eq!(seeds.len(), 2);
+        assert_eq!(when_template.as_deref(), Some(""));
+        seeds.sort();
+        scripts.sort();
+        assert_eq!(seeds, scripts);
+    }
 
     #[test]
     fn custom_keys_order_and_seed_match_browser_fixture() {

@@ -8,6 +8,8 @@
 //! - [`mutate`]: optimistic writes from `$()` event handlers.
 
 mod dedupe;
+mod json_script;
+pub use json_script::*;
 pub mod ir;
 pub mod sql;
 mod list;

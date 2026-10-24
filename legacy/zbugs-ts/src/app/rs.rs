@@ -2,7 +2,7 @@
 //! No app JavaScript/TypeScript: queries, row templates, filters, writes
 //! and routing below all compile to JS via the framework.
 
-use hearth::{live_query, route, table_handle};
+use hearth::{json_script, live_query, route, table_handle};
 use topcoat::{
     Result,
     context::Cx,
@@ -13,7 +13,6 @@ use topcoat::{
 
 use crate::{
     features::auth::{current_user, read_scope},
-    snapshot::json_script,
     tables::{self, Issues, Users},
 };
 

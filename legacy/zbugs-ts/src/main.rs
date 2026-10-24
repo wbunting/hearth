@@ -3,7 +3,6 @@ mod client_schema;
 mod db;
 mod features;
 mod seed;
-mod snapshot;
 mod tables;
 
 #[tokio::main]
