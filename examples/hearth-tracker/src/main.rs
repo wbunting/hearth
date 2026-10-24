@@ -9,7 +9,6 @@ mod auth;
 mod db;
 mod model;
 mod seed;
-mod snapshot;
 mod tables;
 
 #[tokio::main]

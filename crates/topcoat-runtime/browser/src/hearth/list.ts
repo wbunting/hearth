@@ -22,7 +22,7 @@ type Item = {
 	raw: unknown;
 };
 
-export type ListMarker = { query: Query; params: string[]; template: string; seed?: { [table: string]: any[] } };
+export type ListMarker = { query: Query; params: string[]; template: string; seed: string | null };
 
 /**
  * Mounts a keyed list between `start` and `end`. Items rendered by the server
@@ -30,7 +30,12 @@ export type ListMarker = { query: Query; params: string[]; template: string; see
  */
 export function mountList(start: Comment, end: Comment, marker: ListMarker, scope: Scope) {
 	const db = localDb();
-	for (const [table, rows] of Object.entries(marker.seed ?? {})) db.seed(table, rows);
+	if (marker.seed) {
+		const source = document.getElementById(marker.seed);
+		if (!source) throw new Error(`[hearth] missing seed ${marker.seed}`);
+		const seed = JSON.parse(source.textContent ?? "{}") as Record<string, { [field: string]: unknown }[]>;
+		for (const [table, rows] of Object.entries(seed)) db.seed(table, rows);
+	}
 	const tpl = findTemplate(marker.template);
 	if (!tpl) throw new Error(`[hearth] missing template ${marker.template}`);
 	const params = marker.params.map((js) => compile(js, "list param"));

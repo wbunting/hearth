@@ -10,6 +10,7 @@
 //! `?mode=local` renders the shell only and lets the client fill it from a
 //! cold DB load, for comparison.
 
+use hearth::json_script;
 use std::collections::HashMap;
 
 use serde::Serialize;
@@ -29,7 +30,6 @@ use crate::{
         data,
         model::User,
     },
-    snapshot::json_script,
 };
 
 #[query_params(error = bad_request)]

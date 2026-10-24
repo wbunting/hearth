@@ -54,14 +54,19 @@ pub fn when<'a>(cx: &'a Cx, cond: Expr<bool>, body: impl Fn(Cx) -> BoxView<'stat
         );
         let marker = serde_json::json!({ "cond": src, "template": id }).to_string();
         let marker = marker.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
-        // Template = structure only (no SSR rows/seeds inside nested lists).
-        let tcx = cx.with(crate::row::TemplateRender);
-        let tpl = body(tcx.clone()).single().await?.render(&tcx);
+        // Nested lists put seeds and templates behind the visible content.
+        let trailers = crate::row::Trailers::default();
+        let content_cx = cx.with(trailers.clone());
         let in_tpl = crate::row::in_template(&cx);
-        let content = if on && !in_tpl { body(cx.clone()).single().await?.render(&cx) } else { String::new() };
-        let html = format!(
-            "<!--::hearth::when::start({marker})-->{content}<!--::hearth::when::end--><template id=\"{id}\">{tpl}</template>"
-        );
+        let content = if on && !in_tpl { body(content_cx.clone()).single().await?.render(&content_cx) } else { String::new() };
+        // Template = structure only (no SSR rows/seeds inside nested lists).
+        // Its nested templates must stay inside its own content fragment.
+        let tcx = cx.with(crate::row::TemplateRender).with(crate::row::Trailers::default());
+        let tpl = body(tcx.clone()).single().await?.render(&tcx);
+        let nested = topcoat::context::request_context::<crate::row::Trailers>(&tcx).take();
+        let mut html = format!("<!--::hearth::when::start({marker})-->{content}<!--::hearth::when::end-->");
+        let trailer = format!("{}<template id=\"{id}\">{tpl}{nested}</template>", trailers.take());
+        crate::row::trailer(&cx, &mut html, &trailer);
         let html = Unescaped::new_unchecked(html);
         let __cx = &cx;
         topcoat::view::internal::MoveView::drive(topcoat::view::view! { (html) }).await

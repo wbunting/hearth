@@ -62,3 +62,25 @@ pub struct TemplateRender;
 pub fn in_template(cx: &topcoat::context::Cx) -> bool {
     topcoat::context::try_request_context::<TemplateRender>(cx).is_some()
 }
+
+/// Inert region data collected behind the enclosing region's visible content.
+#[derive(Clone, Default)]
+pub(crate) struct Trailers(std::sync::Arc<std::sync::Mutex<String>>);
+
+impl Trailers {
+    pub(crate) fn push(&self, html: &str) {
+        self.0.lock().expect("region trailers poisoned").push_str(html);
+    }
+
+    pub(crate) fn take(&self) -> String {
+        std::mem::take(&mut *self.0.lock().expect("region trailers poisoned"))
+    }
+}
+
+pub(crate) fn trailer(cx: &topcoat::context::Cx, html: &mut String, data: &str) {
+    if let Some(trailers) = topcoat::context::try_request_context::<Trailers>(cx) {
+        trailers.push(data);
+    } else {
+        html.push_str(data);
+    }
+}
