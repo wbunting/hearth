@@ -40,6 +40,63 @@ afterEach(() => {
 });
 
 describe("delta synchronization", () => {
+	it("does not discard a load when another table mutates", async () => {
+		vi.useFakeTimers();
+		const d = new LocalDb();
+		d.init(
+			{
+				...schema,
+				tables: [
+					...schema.tables,
+					{ ...schema.tables[0]!, name: "comments", load: "/comments/load" },
+				],
+			},
+			{
+				items: [{ id: "a", value: "old" }],
+				comments: [{ id: "c", value: "old" }],
+			},
+		);
+		d.live(query, []);
+		d.live({ ...query, from: { table: "comments", alias: "i" } }, []);
+		let release!: (r: Response) => void;
+		let started!: () => void;
+		const loading = new Promise<void>((r) => {
+			started = r;
+		});
+		const fetch = vi.fn((url: string) => {
+			if (url === "/mutate") return reply({ id: "c", value: "new" });
+			if (url.startsWith("/comments/"))
+				return reply({
+					rows: [{ id: "c", value: "new" }],
+					deleted: [],
+					full: true,
+					cursor: "c1",
+				});
+			started();
+			return new Promise<Response>((r) => {
+				release = r;
+			});
+		});
+		vi.stubGlobal("fetch", fetch);
+		const syncing = d.backfill();
+		await loading;
+		d.update("comments", "c", { value: "new" });
+		release(
+			new Response(
+				JSON.stringify({
+					rows: [{ id: "a", value: "loaded" }],
+					deleted: [],
+					full: true,
+					cursor: "a1",
+				}),
+			),
+		);
+		await syncing;
+		expect(d.get("items", "a")?.value).toBe("loaded");
+		expect(
+			fetch.mock.calls.filter(([url]) => url.startsWith("/load")),
+		).toHaveLength(1);
+	});
 	it("preserves fresh SSR keys while restoring stale cache before validation", async () => {
 		vi.useFakeTimers();
 		let release!: (response: Response) => void;

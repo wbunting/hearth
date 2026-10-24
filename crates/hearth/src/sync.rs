@@ -60,12 +60,7 @@ pub struct LoadParams {
 impl LoadParams {
     /// Reads the parameters from the request URI.
     pub fn from_request(cx: &Cx) -> Result<Self> {
-        match topcoat::router::request::uri(cx).query() {
-            Some(query) => {
-                Ok(topcoat::router::content::Form::<Self>::from_bytes(query.as_bytes())?.0)
-            }
-            None => Ok(Self::default()),
-        }
+        topcoat::router::parse_query_params(cx).map_err(|e| topcoat::router::error::bad_request(e.to_string()).into())
     }
 
     /// Whether the response uses the delta envelope.
@@ -142,9 +137,7 @@ pub async fn load_route<T: Table>(cx: &Cx) -> Result<LoadBody<T::Row>> {
 #[must_use]
 pub fn fingerprint<T: Table>() -> u64 {
     let json = serde_json::to_vec(&crate::describe::<T>()).unwrap_or_default();
-    json.iter().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
-        (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3)
-    })
+    crate::table::fnv64(&json)
 }
 
 /// What a snapshot belongs to. A cursor is only valid for the same stream.
@@ -223,7 +216,7 @@ impl Snapshots {
                 let _ = serde_json::to_writer(&mut buf, row);
                 let h = (u128::from(self.hash.0.hash_one(buf.as_slice())) << 64)
                     | u128::from(self.hash.1.hash_one(buf.as_slice()));
-                (key_string(row.get(key)).into_boxed_str(), h, i)
+                (crate::table::key_string(row.get(key).cloned().unwrap_or(Value::Null)).into_boxed_str(), h, i)
             })
             .collect();
         current.sort_by(|a, b| a.0.cmp(&b.0));
@@ -387,15 +380,6 @@ impl Inner {
 
 fn cursor(stream: Stream, id: u128) -> String {
     format!("{CURSOR_VERSION}.{:016x}.{id:032x}", stream.fingerprint)
-}
-
-/// Key of a wire row, as the client sees it (`String(key)`).
-fn key_string(key: Option<&Value>) -> String {
-    match key {
-        Some(Value::String(s)) => s.clone(),
-        Some(other) => other.to_string(),
-        None => "null".to_owned(),
-    }
 }
 
 #[cfg(test)]

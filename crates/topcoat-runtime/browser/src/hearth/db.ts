@@ -142,8 +142,8 @@ export class LocalDb {
 	private cursors = new Map<string, string>();
 	private restored = new Set<string>();
 	private inflight = new Map<string, Promise<void>>();
-	private mutationEpoch = 0;
-	private pending = new Set<Promise<void>>();
+	private mutationEpoch = new Map<string, number>();
+	private pending = new Map<string, Set<Promise<void>>>();
 	private syncTable(t: TableDesc): Promise<void> {
 		let p = this.inflight.get(t.name);
 		if (!p) {
@@ -158,16 +158,16 @@ export class LocalDb {
 		if (!this.restored.has(t.name)) {
 			this.restored.add(t.name);
 			try {
-				const epoch = this.mutationEpoch;
+				const epoch = (this.mutationEpoch.get(t.name) ?? 0);
 				const table = this.tables.get(t.name)!;
 				// SSR was fetched after the durable checkpoint. Never roll its rows
 				// back while filling in rows outside the first-view seed.
 				const seeded = new Set(table.serverKeys());
 				const cursor = await cache?.restore(t.name, (rows) => {
-					if (epoch === this.mutationEpoch) table.applyServer(rows.filter(row => !seeded.has(String(row[t.key]))), [], false);
+					if (epoch === (this.mutationEpoch.get(t.name) ?? 0)) table.applyServer(rows.filter(row => !seeded.has(String(row[t.key]))), [], false);
 				});
 				this.tables.get(t.name)!.notify();
-				if (cursor && epoch === this.mutationEpoch) {
+				if (cursor && epoch === (this.mutationEpoch.get(t.name) ?? 0)) {
 					this.cursors.set(t.name, cursor);
 					this.tables.get(t.name)!.markReady();
 					performance.mark(`hearth:restored:${t.name}`);
@@ -177,17 +177,17 @@ export class LocalDb {
 		for (;;) {
 			// A response captured before a mutation must not roll its acknowledgement
 			// back. Retry from the last committed checkpoint after writes settle.
-			await Promise.allSettled([...this.pending]);
-			const epoch = this.mutationEpoch;
+			await Promise.allSettled([...(this.pending.get(t.name) ?? [])]);
+			const epoch = (this.mutationEpoch.get(t.name) ?? 0);
 			const cursor = this.cursors.get(t.name);
 			const url = t.load + (t.load.includes("?") ? "&" : "?") + (cursor ? "since=" + encodeURIComponent(cursor) : "sync=1");
 			const result = await get(url) as Delta | Row[];
-			if (epoch !== this.mutationEpoch || this.pending.size) continue;
+			if (epoch !== (this.mutationEpoch.get(t.name) ?? 0) || this.pending.get(t.name)?.size) continue;
 			// Array compatibility lets old table endpoints opt out of delta sync.
 			const delta: Delta = Array.isArray(result)
 				? { rows: result, deleted: [], full: true, cursor: "" } : result;
-			await this.applyChunked(t.name, delta.rows, delta.full, delta.deleted, () => epoch === this.mutationEpoch);
-			if (epoch !== this.mutationEpoch || this.pending.size) continue;
+			await this.applyChunked(t.name, delta.rows, delta.full, delta.deleted, () => epoch === (this.mutationEpoch.get(t.name) ?? 0));
+			if (epoch !== (this.mutationEpoch.get(t.name) ?? 0) || this.pending.get(t.name)?.size) continue;
 			this.tables.get(t.name)!.markReady();
 			performance.mark(`hearth:synced:${t.name}`);
 			if (delta.cursor) {
@@ -288,7 +288,7 @@ export class LocalDb {
 		this.ensure(table);
 		const t = this.desc.get(table)!;
 		const k = String(plain(key));
-		this.track(
+		this.track(table,
 			this.tables.get(table)!.update(k, changes, async (m) => {
 				const row = (await post(t.mutate, { op: "update", key: m.key, changes: m.changes })) as Row;
 				return { rows: [row] };
@@ -301,7 +301,7 @@ export class LocalDb {
 		const t = this.desc.get(table)!;
 		// Client-generated key so the optimistic row and server row match.
 		if (row[t.key] == null || row[t.key] === "") row[t.key] = crypto.randomUUID();
-		this.track(
+		this.track(table,
 			this.tables.get(table)!.insert(row, async (m) => {
 				// The server may store it under another key (e.g. deterministic
 				// reaction ids); the store swaps rows in one step.
@@ -314,7 +314,7 @@ export class LocalDb {
 	delete(table: string, key: unknown) {
 		this.ensure(table);
 		const t = this.desc.get(table)!;
-		this.track(
+		this.track(table,
 			this.tables.get(table)!.delete(String(plain(key)), async (m) => {
 				await post(t.mutate, { op: "delete", key: m.key });
 				return { deleted: [m.key] };
@@ -322,10 +322,12 @@ export class LocalDb {
 		);
 	}
 
-	private track(p: Promise<void>) {
-		this.mutationEpoch++;
-		this.pending.add(p);
-		void p.catch((e: Error) => toast(`Rolled back: ${e.message}`)).finally(() => this.pending.delete(p));
+	private track(table: string, p: Promise<void>) {
+		this.mutationEpoch.set(table, (this.mutationEpoch.get(table) ?? 0) + 1);
+		let pending = this.pending.get(table);
+		if (!pending) this.pending.set(table, pending = new Set());
+		pending.add(p);
+		void p.catch((e: Error) => toast(`Rolled back: ${e.message}`)).finally(() => pending.delete(p));
 	}
 
 	/** Handle used by Rust `hearth::table_handle::<T>()` inside `$()`. */

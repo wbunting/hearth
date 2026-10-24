@@ -233,7 +233,7 @@ where
         let ir_json = serde_json::to_string(&ir).unwrap_or_default();
         let id = format!(
             "fc-list-{:012x}",
-            ir_json.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)) & 0xffff_ffff_ffff
+            crate::table::fnv64(ir_json.as_bytes()) & 0xffff_ffff_ffff
         );
         let seed_id = (!in_template).then(|| format!("fc-seed-{}", NEXT_SEED.fetch_add(1, Ordering::Relaxed)));
         let marker = serde_json::json!({

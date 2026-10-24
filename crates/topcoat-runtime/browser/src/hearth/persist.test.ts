@@ -105,7 +105,7 @@ describe("durable server checkpoints", () => {
 			cursor: "q1",
 		});
 	});
-	it("a mismatched cross-tab delta base invalidates rather than corrupts rows", async () => {
+	it("a mismatched cross-tab delta preserves the other tab checkpoint", async () => {
 		const p = await open();
 		await p.save("items", "id", {
 			full: true,
@@ -119,7 +119,23 @@ describe("durable server checkpoints", () => {
 			{ full: false, rows: [{ id: "b" }], deleted: [], cursor: "other" },
 			"older",
 		);
-		expect(await read(p)).toEqual({ rows: [], cursor: undefined });
+		expect(await read(p)).toEqual({ rows: [{ id: "a" }], cursor: "newer" });
+		// Alternating unchanged refreshes from a stale tab must not erase it.
+		for (let i = 0; i < 4; i++) {
+			await p.save(
+				"items",
+				"id",
+				{ full: false, rows: [], deleted: [], cursor: "older" },
+				"older",
+			);
+			await p.save(
+				"items",
+				"id",
+				{ full: false, rows: [], deleted: [], cursor: "newer" },
+				"newer",
+			);
+		}
+		expect(await read(p)).toEqual({ rows: [{ id: "a" }], cursor: "newer" });
 	});
 	it("failed writes do not advance the checkpoint", async () => {
 		const p = await open();

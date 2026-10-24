@@ -103,6 +103,13 @@ export class LocalPersistence {
 		delta: Delta,
 		base?: string,
 	): Promise<void> {
+		if (
+			!delta.full &&
+			delta.rows.length === 0 &&
+			delta.deleted.length === 0 &&
+			delta.cursor === base
+		)
+			return;
 		const changes = new Map<number, { rows: Row[]; deleted: Set<string> }>();
 		const part = (id: string) => {
 			const b = bucket(id);
@@ -119,12 +126,12 @@ export class LocalPersistence {
 		const done = complete(tx);
 		const meta = tx.objectStore("meta");
 		// Other tabs may have committed a different checkpoint. Never attach a
-		// delta cursor to rows from a different base. Invalidate instead.
+		// delta cursor to rows from a different base. Preserve the other tab's
+		// self-consistent checkpoint without applying this delta.
 		if (
 			!delta.full &&
 			(await request(meta.get([this.namespace, table]))) !== base
 		) {
-			meta.delete([this.namespace, table]);
 			await done;
 			return;
 		}
@@ -174,17 +181,21 @@ export class LocalPersistence {
 // bundler without shipping a second dependency graph or a Blob/CSP exception.
 type Reply = { id: number; rows?: Row[]; result?: unknown; error?: string };
 if (typeof document === "undefined" && typeof self !== "undefined") {
-	const caches = new Map<string, LocalPersistence>();
+	const caches = new Map<string, Promise<LocalPersistence>>();
 	const staged = new Map<string, Row[]>();
 	self.onmessage = async (event: MessageEvent) => {
 		const { id, op, namespace, table, key, delta, base, rows } = event.data;
 		const stage = JSON.stringify([namespace, table]);
 		try {
-			let p = caches.get(namespace);
-			if (!p) {
-				p = await LocalPersistence.open(namespace);
-				caches.set(namespace, p);
+			let opening = caches.get(namespace);
+			if (!opening) {
+				opening = LocalPersistence.open(namespace).catch((error) => {
+					caches.delete(namespace);
+					throw error;
+				});
+				caches.set(namespace, opening);
 			}
+			const p = await opening;
 			let result: unknown;
 			if (op === "restore")
 				result = await p.restore(table, (rows) =>
