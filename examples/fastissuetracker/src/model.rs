@@ -32,6 +32,8 @@ pub struct Project {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, toasty::Model)]
+// The list's hot query: `open = ? ORDER BY modified DESC LIMIT n`.
+#[index(open, modified)]
 pub struct Issue {
     #[key]
     pub id: String,

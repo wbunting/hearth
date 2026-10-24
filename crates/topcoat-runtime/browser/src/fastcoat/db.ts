@@ -22,6 +22,7 @@ import {
 	type Collection,
 } from "@tanstack/db";
 import { signal, type WriteSignal } from "../reactivity";
+import { LiveQuery, Mirror } from "./engine";
 import { Bool } from "../surrogate/bool";
 import { F64 } from "../surrogate/f64";
 import { Integer } from "../surrogate/integer";
@@ -247,8 +248,27 @@ export class LocalDb {
 
 	// ------------------------------------------------------------ queries
 
-	/** Builds a TanStack live query from IR + evaluated params. */
-	live(q: Query, params: unknown[]): Collection<Row, string> & { planned?: Query } {
+	private mirrors = new Map<string, Mirror>();
+	private mirror = (name: string): Mirror => {
+		let m = this.mirrors.get(name);
+		if (!m) {
+			this.ensure(name);
+			m = new Mirror(this.tables.get(name)!, this.desc.get(name)!.key);
+			this.mirrors.set(name, m);
+		}
+		return m;
+	};
+
+	/**
+	 * A live query over the local tables (see engine.ts: index walk + cheap
+	 * re-run, instead of building a TanStack dataflow graph per param set).
+	 */
+	live(q: Query, params: unknown[]): LiveQuery {
+		return new LiveQuery(q, params, this.mirror);
+	}
+
+	/** Builds a TanStack live query from IR + evaluated params (reference path). */
+	liveTanstack(q: Query, params: unknown[]): Collection<Row, string> & { planned?: Query } {
 		// Planner rule (measured: 163ms -> 0.4ms at 50k rows): a point lookup
 		// `col == $x` on an indexed column with `limit 1` must not carry
 		// orderBy/limit, which forces TanStack's ordered top-K scan instead of

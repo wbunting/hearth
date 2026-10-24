@@ -35,6 +35,7 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 	if (!tpl) throw new Error(`[fastcoat] missing template ${marker.template}`);
 	const params = marker.params.map((js) => compile(js, "list param"));
 	const items = new Map<string, Item>();
+	const startToItem = new Map<Comment, Item>();
 	// Detached, still-hydrated items from previous reconciles. A filter swap
 	// replaces most keys; retargeting a pooled item's row signal (its `$()`
 	// effects patch text/attrs in place) is ~10x cheaper than clone+hydrate.
@@ -52,6 +53,8 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 			const raw = (n as Comment).data.slice("::fastcoat::js(".length, -1);
 			const table = raw.split("\u0001").map(decode);
 			listTables.set(start, table);
+			// Read once; it must not sit between items during reconcile.
+			n.remove();
 			break;
 		}
 		if (n.nodeType === Node.COMMENT_NODE && (n as Comment).data.trim() === "::fastcoat::item-end") break;
@@ -125,20 +128,11 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 		if (!live || !live.isReady()) return;
 		const t0 = performance.now();
 		let rows = live.toArray as Array<{ [k: string]: unknown }>;
-		const planned = (live as any).planned as Query | undefined;
-		if (planned?.clientOrder) {
-			// Planner moved order/limit out of the query (see db.ts rule 2).
-			const n = planned.clientOrder.length;
-			rows = rows.slice().sort((a, b) => {
-				for (let i = 0; i < n; i++) {
-					const x = a[`__o${i}`] as any, y = b[`__o${i}`] as any;
-					if (x === y) continue;
-					const c = x == null ? -1 : y == null ? 1 : x < y ? -1 : 1;
-					return planned.clientOrder![i]!.desc ? -c : c;
-				}
-				return 0;
-			});
-			if (planned.clientLimit != null) rows = rows.slice(0, planned.clientLimit);
+		// Hydration pass: the server rendered only the first rows; adopt them
+		// now and render the rest after first paint, so boot stays short.
+		if (!adopted && rows.length > ssr.length && ssr.length > 0) {
+			rows = rows.slice(0, ssr.length);
+			scheduleAfterPaint(reconcile);
 		}
 		const keyField = marker.query.key;
 		if (!adopted) {
@@ -146,142 +140,167 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 			const byKey = new Map(rows.map((r) => [String(r[keyField]), r]));
 			for (const s of ssr) {
 				const raw = byKey.get(s.key);
-				if (raw) items.set(s.key, makeItem(s.key, raw, s));
+				if (raw) {
+					const it = makeItem(s.key, raw, s);
+					items.set(s.key, it);
+					startToItem.set(it.start, it);
+				}
 			}
 		}
+		// Keyed reconcile with minimal DOM moves (like Inferno/ivi/Vue 3):
+		// 1. resolve every target row to an item (existing, recycled, or new),
+		// 2. pool items that left (detached, still hydrated, reusable),
+		// 3. keep the longest run of surviving items already in DOM order in
+		//    place and move only the rest. One row entering at the top costs
+		//    one insert, not a move of every row below it.
 		const seen = new Set<string>();
-		let cursor: ChildNode | null = start.nextSibling;
-		let lastEnd: ChildNode = start;
+		const target: Item[] = [];
+		const fresh = new Set<Item>();
 		for (const raw of rows) {
 			const key = String(raw[keyField]);
 			seen.add(key);
 			let it = items.get(key);
-			if (!it) {
-				const recycled = pool.pop();
-				if (recycled) {
-					it = recycled.it;
-					it.key = key;
-					it.start.data = `::fastcoat::item(${JSON.stringify(key)})`;
-					it.raw = raw;
-					parent.insertBefore(recycled.frag, cursor);
-					it.row.set(db.surrogate(raw as any, marker.query.types));
-				} else {
-					it = makeItem(key, raw, null);
-				}
-				items.set(key, it);
-			} else if (it.raw !== raw) {
-				// A rebuilt query returns new objects for unchanged rows:
-				// compare field values so unchanged rows do no work.
+			if (it && it.raw !== raw) {
+				// A re-run returns new objects for unchanged rows: compare
+				// field values so unchanged rows do no work.
 				if (!sameRow(it.raw as Row, raw as Row, marker.query.types)) {
 					it.row.set(db.surrogate(raw as any, marker.query.types));
 				}
 				it.raw = raw;
 			}
-			if (it.start !== cursor) {
-				const frag = document.createDocumentFragment();
-				frag.append(...nodesOf(it));
-				parent.insertBefore(frag, cursor);
+			if (!it) {
+				it = { key, raw, start: null as any, end: null as any, scope: null as any, row: null as any };
+				fresh.add(it);
 			}
-			cursor = it.end.nextSibling;
-			lastEnd = it.end;
+			target.push(it);
 		}
-		for (const [key, it] of items) {
-			if (seen.has(key)) continue;
-			items.delete(key);
+		const leaving: Item[] = [];
+		for (const [key, it] of items) if (!seen.has(key)) leaving.push(it);
+		for (const it of leaving) {
+			items.delete(it.key);
 			const nodes = nodesOf(it);
 			if (pool.length < POOL_MAX) {
 				const frag = document.createDocumentFragment();
 				frag.append(...nodes);
 				pool.push({ it, frag });
 			} else {
+				startToItem.delete(it.start);
 				it.scope.dispose();
 				for (const n of nodes) n.remove();
 			}
 		}
-		// Kept items now sit contiguously after `start`, ending at lastEnd.
-		let rest: ChildNode | null = lastEnd.nextSibling;
-		while (rest && rest !== end) {
-			const next: ChildNode | null = rest.nextSibling;
-			rest.remove();
-			rest = next;
+		// DOM order of surviving items (by walking item markers once).
+		const order = new Map<Item, number>();
+		{
+			let i = 0;
+			for (let n: ChildNode | null = start.nextSibling; n && n !== end; n = n.nextSibling) {
+				if (n.nodeType !== 8) continue;
+				const it = startToItem.get(n as Comment);
+				if (it && items.get(it.key) === it) order.set(it, i++);
+			}
+		}
+		const positions = target.map((it) => (fresh.has(it) ? -1 : (order.get(it) ?? -1)));
+		const stay = lisMask(positions);
+		// Walk backwards, inserting before the next placed item's start.
+		let anchor: ChildNode = end;
+		for (let i = target.length - 1; i >= 0; i--) {
+			let it = target[i]!;
+			if (fresh.has(it)) {
+				const raw = it.raw;
+				const key = it.key;
+				const recycled = pool.pop();
+				if (recycled) {
+					it = recycled.it;
+					startToItem.delete(it.start);
+					it.key = key;
+					it.start.data = `::fastcoat::item(${JSON.stringify(key)})`;
+					it.raw = raw;
+					parent.insertBefore(recycled.frag, anchor);
+					it.row.set(db.surrogate(raw as any, marker.query.types));
+				} else {
+					it = makeItem(key, raw, null);
+					const frag = document.createDocumentFragment();
+					frag.append(...nodesOf(it));
+					parent.insertBefore(frag, anchor);
+				}
+				startToItem.set(it.start, it);
+				items.set(key, it);
+				target[i] = it;
+			} else if (!stay[i]) {
+				const frag = document.createDocumentFragment();
+				frag.append(...nodesOf(it));
+				parent.insertBefore(frag, anchor);
+			}
+			anchor = it.start;
+		}
+		// Remove anything that isn't a placed item (unadopted SSR rows, the
+		// SSR rows past the first screenful on the first run, stray nodes).
+		{
+			let n: ChildNode | null = start.nextSibling;
+			let ti = 0;
+			while (n && n !== end) {
+				const it = target[ti];
+				if (it && n === it.start) {
+					n = it.end.nextSibling;
+					ti++;
+					continue;
+				}
+				const next: ChildNode | null = n.nextSibling;
+				n.remove();
+				n = next;
+			}
 		}
 		(window as any).__fastcoatListMs = performance.now() - t0;
 	};
 
-	// Re-run the query whenever a param's signals change.
-	// Input never waits on queries. Param changes are read synchronously (so
-	// the effect tracks them), then the rebuild runs as a background task
-	// *after* the browser has painted the input:
-	//  - coalesced: a burst of keystrokes runs one query with the latest values
-	//  - latest-wins: if params change while a query is being built, its
-	//    result is dropped and the newest params run next
-	//  - `scheduler.postTask(…, {priority: "user-visible"})` where available
-	//    (yields to pending input), else rAF→setTimeout.
+	// Re-run the query whenever a param's signals change. Queries are cheap
+	// (engine.ts: index walk, ~1-5 ms at 50k rows), so a change runs in a
+	// microtask and its rows land in the same frame as the input. Changes
+	// within one task coalesce into a single run with the latest values.
+	// If a run is ever slow (measured), later bursts move after paint so
+	// keys still never wait on a query.
 	// The first run is synchronous so SSR adoption happens during hydration.
-	// Warm queries: the last few param sets stay live (incrementally
-	// maintained by TanStack) so flipping back to a recent filter is just a
-	// reconcile, no rebuild. Bounded; the oldest is cleaned up.
+	// Warm queries: the last few param sets stay live, so flipping back to a
+	// recent filter reuses its result.
 	const WARM = 4;
 	const warm = new Map<string, LiveCollection>();
 	let pending: unknown[] | null = null;
 	let scheduled = false;
-	let lastChange = 0;
-	// Typing guard: a query build is one uninterruptible task (~20-50ms at 50k
-	// rows), so starting it while keys are still arriving makes the next key
-	// wait. Wait for a short quiet gap (one key-repeat interval) first; a
-	// single change (select, click) still runs on the next frame.
-	const QUIET_MS = 40;
-	const flushWhenIdle = () => {
-		const since = performance.now() - lastChange;
-		if (since < QUIET_MS && burst > 1) {
-			setTimeout(() => scheduleAfterPaint(flushWhenIdle), QUIET_MS - since);
-			return;
-		}
-		burst = 0;
-		flush();
-	};
-	let burst = 0;
+	let slow = false;
 	let firstRun = true;
-	let generation = 0;
 	const flush = () => {
 		scheduled = false;
 		if (scope.isDisposed || !pending) return;
 		const values = pending;
 		pending = null;
-		const gen = ++generation;
-		untrack(() => runQuery(values, gen));
+		const t = performance.now();
+		untrack(() => runQuery(values));
+		slow = performance.now() - t > 12;
 	};
 	scope.effect(() => {
 		const values = params.map((p) => plain(p(scope.context)));
 		if (firstRun) {
 			firstRun = false;
-			untrack(() => runQuery(values, ++generation));
+			untrack(() => runQuery(values));
 			return;
 		}
 		pending = values;
-		burst = performance.now() - lastChange < 250 ? burst + 1 : 1;
-		lastChange = performance.now();
 		if (!scheduled) {
 			scheduled = true;
-			// A discrete change (select, click, route) runs in a microtask:
-			// the user expects the result in the very next frame. Bursts
-			// (typing) go after paint + quiet gap so keys never wait.
-			if (burst <= 1) queueMicrotask(flushWhenIdle);
-			else scheduleAfterPaint(flushWhenIdle);
+			// Text input: paint the keystroke first, then the results (one
+			// frame later), like React's useDeferredValue. Discrete changes
+			// (select, click, route) render in the same frame.
+			if (slow || performance.now() - lastTextInput < 50) scheduleAfterPaint(flush);
+			else queueMicrotask(flush);
 		}
 	});
-	function runQuery(values: unknown[], gen: number) {
+	function runQuery(values: unknown[]) {
 		const k = JSON.stringify(values);
 		let next = warm.get(k);
 		if (next) {
 			warm.delete(k);
 		} else {
 			next = db.live(marker.query, values);
-			if (gen !== generation || pending) {
-				// Superseded while building: keep it warm, the newer run is queued.
-				remember(k, next);
-				return;
-			}
 		}
 		unsub?.();
 		if (live && liveKey !== null) remember(liveKey, live);
@@ -371,6 +390,20 @@ export function reportError(e: unknown, where: string) {
 }
 
 /** Runs `fn` after the next paint, at background-ish priority. */
+let lastTextInput = -Infinity;
+if (typeof document !== "undefined") {
+	document.addEventListener(
+		"input",
+		(e) => {
+			const t = e.target as HTMLElement | null;
+			if (t && (t.tagName === "TEXTAREA" || (t.tagName === "INPUT" && !/^(checkbox|radio|range|color|file)$/.test((t as HTMLInputElement).type)))) {
+				lastTextInput = performance.now();
+			}
+		},
+		true,
+	);
+}
+
 export function scheduleAfterPaint(fn: () => void) {
 	const sched = (globalThis as any).scheduler;
 	const post = () =>
@@ -407,4 +440,35 @@ export function findTemplate(id: string): HTMLTemplateElement | null {
 		index(document, registry);
 	}
 	return registry.get(id) ?? null;
+}
+
+/**
+ * Marks the longest strictly increasing subsequence of `a` (entries < 0 are
+ * never in it). Those items are already in relative DOM order and stay put.
+ * O(n log n).
+ */
+export function lisMask(a: number[]): boolean[] {
+	const n = a.length;
+	const prev = new Int32Array(n).fill(-1);
+	const tails: number[] = []; // indices into a
+	for (let i = 0; i < n; i++) {
+		const v = a[i]!;
+		if (v < 0) continue;
+		let lo = 0;
+		let hi = tails.length;
+		while (lo < hi) {
+			const mid = (lo + hi) >>> 1;
+			if (a[tails[mid]!]! < v) lo = mid + 1;
+			else hi = mid;
+		}
+		if (lo > 0) prev[i] = tails[lo - 1]!;
+		tails[lo] = i;
+	}
+	const mask = new Array<boolean>(n).fill(false);
+	let k = tails.length ? tails[tails.length - 1]! : -1;
+	while (k >= 0) {
+		mask[k] = true;
+		k = prev[k]!;
+	}
+	return mask;
 }

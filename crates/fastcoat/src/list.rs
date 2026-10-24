@@ -54,26 +54,121 @@ impl<R> LiveQuery<R> {
 }
 
 /// Loader adaptor for a [`crate::Table`].
+///
+/// Per-request memoized: lists that load the same table with the same
+/// pushed-down query (e.g. `users` joined by three lists on one page) share
+/// one SQL round trip.
 #[doc(hidden)]
 pub fn loader<T: crate::Table>(cx: &Cx, q: &Query, p: &[Value]) -> crate::table::BoxFut<'static, Vec<JsonRow>>
 where
     T::Row: 'static,
 {
-    // SAFETY-free lifetime juggling: we own clones.
     let cx = cx.clone();
     let q = q.clone();
     let p = p.to_vec();
     Box::pin(async move {
-        let rows = T::load_first(&cx, &q, &p).await?;
-        Ok(rows
-            .into_iter()
-            .filter_map(|r| match serde_json::to_value(r) {
-                Ok(Value::Object(m)) => Some(m),
-                _ => None,
-            })
-            .collect())
+        // What reaches SQL: the base table's where/order/limit + params. A
+        // joined table (T isn't the base) loads whole, so every such load of
+        // T shares one key, as does a base query with no where/limit.
+        let joined = q.from.table != T::NAME;
+        let whole = joined || (q.where_.is_none() && q.limit.is_none());
+        let shape = if whole {
+            format!("{}#all", std::any::type_name::<T>())
+        } else {
+            serde_json::to_string(&(std::any::type_name::<T>(), &q.from, &q.where_, &q.order, q.limit, &p)).unwrap_or_default()
+        };
+        let cell = request_loads(&cx);
+        let slot = {
+            let mut m = cell.lock().expect("load cache poisoned");
+            m.entry(shape).or_insert_with(|| std::sync::Arc::new(tokio_once::OnceAsync::default())).clone()
+        };
+        slot.get_or_try_init(|| async {
+            // A joined table must not get the base query's where/order/limit
+            // (they're about another table): load all of its scoped rows.
+            let rows = if joined { T::load(&cx).await? } else { T::load_first(&cx, &q, &p).await? };
+            Ok(std::sync::Arc::new(
+                rows.into_iter()
+                    .filter_map(|r| match serde_json::to_value(r) {
+                        Ok(Value::Object(m)) => Some(m),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>(),
+            ))
+        })
+        .await
+        .map(|rows| (*rows).clone())
     })
 }
+
+type LoadCache = std::sync::Mutex<HashMap<String, std::sync::Arc<tokio_once::OnceAsync<std::sync::Arc<Vec<JsonRow>>>>>>;
+
+/// One load cache per request (the memoize cache is per request).
+fn request_loads(cx: &Cx) -> &LoadCache {
+    topcoat::context::memoize_cache(cx).memoize(cx, "fastcoat::loads", (), |_, ()| LoadCache::default())
+}
+
+/// A minimal async once-cell (no extra dependency): the first caller runs the
+/// init; concurrent callers wait for it.
+mod tokio_once {
+    use std::sync::Mutex;
+
+    pub struct OnceAsync<T> {
+        state: Mutex<State<T>>,
+    }
+    enum State<T> {
+        Empty,
+        Running(Vec<std::task::Waker>),
+        Done(T),
+    }
+    impl<T> Default for OnceAsync<T> {
+        fn default() -> Self {
+            Self { state: Mutex::new(State::Empty) }
+        }
+    }
+    impl<T: Clone> OnceAsync<T> {
+        pub async fn get_or_try_init<F, Fut, E>(&self, init: F) -> Result<T, E>
+        where
+            F: FnOnce() -> Fut,
+            Fut: std::future::Future<Output = Result<T, E>>,
+        {
+            let run = std::future::poll_fn(|cx| {
+                let mut s = self.state.lock().expect("once poisoned");
+                match &mut *s {
+                    State::Done(v) => std::task::Poll::Ready(Some(v.clone())),
+                    State::Running(w) => {
+                        w.push(cx.waker().clone());
+                        std::task::Poll::Pending
+                    }
+                    State::Empty => {
+                        *s = State::Running(Vec::new());
+                        std::task::Poll::Ready(None)
+                    }
+                }
+            })
+            .await;
+            if let Some(v) = run {
+                return Ok(v);
+            }
+            let out = init().await;
+            let mut s = self.state.lock().expect("once poisoned");
+            let waiters = match std::mem::replace(&mut *s, State::Empty) {
+                State::Running(w) => w,
+                _ => Vec::new(),
+            };
+            if let Ok(v) = &out {
+                *s = State::Done(v.clone());
+            }
+            drop(s);
+            for w in waiters {
+                w.wake();
+            }
+            out
+        }
+    }
+}
+
+/// Rows rendered on the server per list (see `client_for`).
+pub const SSR_ROWS: usize = 50;
 
 static NEXT_TEMPLATE: AtomicU64 = AtomicU64::new(0);
 
@@ -158,8 +253,13 @@ where
         let mut dedupe = crate::dedupe::Dedupe::default();
         // Build every row's view first, then drive them concurrently (row
         // bodies may contain components that await).
+        // Only the first screenful is server-rendered; the seed carries every
+        // row, and the browser renders the rest right after first paint.
+        // Rows are ~10 µs + ~1 KB each on the server (reactive markup), so
+        // 200 SSR rows cost more TTFB and parse time than they're worth.
         let views: Vec<_> = rows
             .iter()
+            .take(SSR_ROWS)
             .map(|row| {
                 let r: R = serde_json::from_value(Value::Object(row.clone())).unwrap_or_default();
                 body(inner_cx.clone(), Row::bind(r, &id)).single()
@@ -340,7 +440,22 @@ fn json_key(v: &Value) -> String {
 /// HTML comments can't contain `--`/`>` sequences safely; the browser side
 /// decodes these entities.
 fn comment_escape(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
+    let mut out = String::with_capacity(s.len() + s.len() / 8);
+    let mut last = 0;
+    for (i, b) in s.bytes().enumerate() {
+        let rep = match b {
+            b'&' => "&amp;",
+            b'<' => "&lt;",
+            b'>' => "&gt;",
+            b'"' => "&quot;",
+            _ => continue,
+        };
+        out.push_str(&s[last..i]);
+        out.push_str(rep);
+        last = i + 1;
+    }
+    out.push_str(&s[last..]);
+    out
 }
 
 
