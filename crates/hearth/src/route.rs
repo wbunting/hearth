@@ -50,7 +50,7 @@ pub fn when<'a>(cx: &'a Cx, cond: Expr<bool>, body: impl Fn(Cx) -> BoxView<'stat
         let _ = NEXT.fetch_add(0, Ordering::Relaxed);
         let id = format!(
             "fc-when-{:012x}",
-            src.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)) & 0xffff_ffff_ffff
+            crate::table::fnv64(src.as_bytes()) & 0xffff_ffff_ffff
         );
         let marker = serde_json::json!({ "cond": src, "template": id }).to_string();
         let marker = marker.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");

@@ -17,6 +17,7 @@ mod row;
 pub mod table;
 pub mod mutate;
 pub mod route;
+pub mod sync;
 pub use mutate::table as table_handle;
 
 pub use list::{LiveQuery, LoaderFn as __LoaderFn, client_for, loader as __loader};

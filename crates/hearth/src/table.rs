@@ -112,9 +112,13 @@ pub fn client_schema(scope: String, tables: Vec<TableDesc>) -> ClientSchema {
     let json = serde_json::to_string(&tables).unwrap_or_default();
     let version = format!(
         "{:016x}",
-        json.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3))
+        fnv64(json.as_bytes())
     );
     ClientSchema { version, scope, tables }
+}
+
+pub(crate) fn fnv64(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3))
 }
 
 /// Body of `POST /_hearth/{table}/mutate`.
@@ -126,7 +130,7 @@ pub enum Mutation {
     Delete { key: Value },
 }
 
-fn key_string(key: Value) -> String {
+pub(crate) fn key_string(key: Value) -> String {
     match key {
         Value::String(s) => s,
         other => other.to_string(),

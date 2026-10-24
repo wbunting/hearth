@@ -30,7 +30,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
             .then(a.login.cmp(&b.login))
     });
     Ok(view! {
-        <main class="mx-auto mt-[10vh] max-w-sm px-4">
+        <main data-hearth-clear="" class="mx-auto mt-[10vh] max-w-sm px-4">
             <h1 class="text-2xl font-semibold tracking-tight">"hearth tracker"</h1>
             <p class="mt-1 text-muted-foreground">
                 "Sign in as a seeded user. Crew can see internal issues and edit anything."

@@ -233,6 +233,11 @@ export class Table {
 		return true;
 	}
 
+	/** Notify after a sequence of silent server batches. */
+	notify() {
+		this.emit();
+	}
+
 	private emit() {
 		for (const l of this.listeners) l();
 	}

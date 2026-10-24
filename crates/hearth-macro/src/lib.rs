@@ -64,9 +64,9 @@ pub fn routes(input: TokenStream) -> TokenStream {
         let mutate = quote::format_ident!("__hearth_mutate_{}", snake);
         items.push(quote! {
             #[::topcoat::router::route(GET #load_path)]
-            async fn #load(cx: &::topcoat::context::Cx) -> ::topcoat::Result<::topcoat::router::content::Json<::std::vec::Vec<<#t as ::hearth::Table>::Row>>> {
+            async fn #load(cx: &::topcoat::context::Cx) -> ::topcoat::Result<::topcoat::router::content::Json<::hearth::sync::LoadBody<<#t as ::hearth::Table>::Row>>> {
                 ::hearth::table::check_table::<#t>(#snake)?;
-                ::core::result::Result::Ok(::topcoat::router::content::Json(<#t as ::hearth::Table>::load(cx).await?))
+                ::core::result::Result::Ok(::topcoat::router::content::Json(::hearth::sync::load_route::<#t>(cx).await?))
             }
             #[::topcoat::router::route(POST #mutate_path)]
             async fn #mutate(cx: &::topcoat::context::Cx, ::topcoat::router::content::Json(m): ::topcoat::router::content::Json<::hearth::table::Mutation>)

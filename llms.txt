@@ -87,6 +87,10 @@ Ok(view! {
 - [Sessions](docs/session.md): `.cookies().sessions(SessionConfig::default())`. Authenticate, then `session::start(cx).await?`; store token_hash/user/expiry, never raw token. `token_hash(cx).await?` needs application lookup+expiry validation. `stop` returns hash to delete; `refresh` requires validation+persisted expiry; `rotate` requires revoking old hash+persisting replacement. Default cookie: __Host-/Secure/HttpOnly/SameSite=Lax/Path=/. Mutate before streaming. TokenStore changes transport, not database storage.
 - [Mail](docs/mail.md), `mail`/`mail-smtp`: `.mail(MailConfig::builder().transport(...).build())`; `mail! { from: "...", to: "...", html: { cx => ... } }?`, then `send(cx, mail).await?`. Plain text derived from HTML; attachments supported. FileTransport for .eml, MemoryTransport for tests, SmtpTransport for delivery.
 
+## Hearth local-first tables
+
+[Persistence and delta sync](docs/hearth/persistence.md): `routes!` keeps bare-array loads compatible; `?sync=1` / `?since=<cursor>` return scoped full/delta envelopes with tombstones. Browser server rows persist in a lazy IndexedDB worker, namespaced by schema fingerprint and viewer scope; include user/role identity in the scope. Optimistic overlays are never persisted. Delta cursors reset safely after schema/session changes, eviction, or restart. Server delta calculation still scans the scoped table.
+
 ## Optional HTTP integrations
 
 - `fs`: import `RouterBuilderDirectoryExt`; `.public_dir("./public")` or `.serve_dir("/files/{*rest}", dir)` for fixed file URLs.

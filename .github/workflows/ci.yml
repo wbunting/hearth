@@ -50,4 +50,4 @@ jobs:
       # The runtime bundle is committed and embedded by the Rust crate:
       # reject stale artifacts.
       - working-directory: crates/topcoat-runtime/browser
-        run: pnpm build && git diff --exit-code -- dist/index.js dist/coherence.js
+        run: pnpm build && git diff --exit-code -- dist/index.js dist/coherence.js dist/persist.js

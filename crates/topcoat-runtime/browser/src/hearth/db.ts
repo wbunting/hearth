@@ -8,6 +8,7 @@
 import { signal, type WriteSignal } from "../reactivity";
 import { LiveQuery } from "./engine";
 import { Table } from "./store";
+import type { Delta, Persistence } from "./persist";
 import { Bool } from "../surrogate/bool";
 import { F64 } from "../surrogate/f64";
 import { Integer } from "../surrogate/integer";
@@ -104,7 +105,7 @@ export class LocalDb {
 		delete this.seeds[name];
 		// A table first used after the initial backfill (e.g. comments, when
 		// the session started on the list page) still needs its full rows.
-		if (this.backfillStarted && seeded) void this.fetchTable(t).then((rows) => this.applyChunked(name, rows));
+		if (this.backfillStarted && seeded) void this.syncTable(t).catch((e) => reportLoadError(name, e));
 		if (!this.backfillScheduled) {
 			this.backfillScheduled = true;
 			// After the first view is interactive, pull full tables.
@@ -123,24 +124,79 @@ export class LocalDb {
 		} else {
 			// Unseeded table: applied in slices (no long task), ready once
 			// complete so queries never see a partial table.
-			this.fetchTable(t)
-				.then((rows) => this.applyChunked(t.name, rows))
-				.then(() => table.markReady())
-				.catch((e) => reportLoadError(t.name, e));
+			void this.syncTable(t).catch((e) => reportLoadError(t.name, e));
 		}
 	}
 
-	// One in-flight full-table fetch per table: `backfill()` and a late
-	// `ensure()` must not both pull a 12 MB table.
-	private inflight = new Map<string, Promise<Row[]>>();
-	private fetchTable(t: TableDesc): Promise<Row[]> {
+	private persistence: Promise<Persistence | null> | null = null;
+	private cache(): Promise<Persistence | null> {
+		this.persistence ??= (async () => {
+			const url = document.querySelector<HTMLScriptElement>("script[data-topcoat-persistence]")?.dataset.topcoatPersistence;
+			if (!url || !this.schema || !globalThis.indexedDB) return null;
+			const { Persistence } = await import(/* @vite-ignore */ url) as typeof import("./persist");
+			return Persistence.open(JSON.stringify([this.schema.version, this.schema.scope]));
+		})().catch(() => null); // Blocked storage/private mode is a network-only cache miss.
+		return this.persistence;
+	}
+
+	private cursors = new Map<string, string>();
+	private restored = new Set<string>();
+	private inflight = new Map<string, Promise<void>>();
+	private mutationEpoch = new Map<string, number>();
+	private pending = new Map<string, Set<Promise<void>>>();
+	private syncTable(t: TableDesc): Promise<void> {
 		let p = this.inflight.get(t.name);
 		if (!p) {
-			p = (get(t.load) as Promise<Row[]>)
-.finally(() => this.inflight.delete(t.name));
+			p = this.sync(t).finally(() => this.inflight.delete(t.name));
 			this.inflight.set(t.name, p);
 		}
 		return p;
+	}
+
+	private async sync(t: TableDesc) {
+		let cache = await this.cache();
+		if (!this.restored.has(t.name)) {
+			this.restored.add(t.name);
+			try {
+				const epoch = (this.mutationEpoch.get(t.name) ?? 0);
+				const table = this.tables.get(t.name)!;
+				// SSR was fetched after the durable checkpoint. Never roll its rows
+				// back while filling in rows outside the first-view seed.
+				const seeded = new Set(table.serverKeys());
+				const cursor = await cache?.restore(t.name, (rows) => {
+					if (epoch === (this.mutationEpoch.get(t.name) ?? 0)) table.applyServer(rows.filter(row => !seeded.has(String(row[t.key]))), [], false);
+				});
+				this.tables.get(t.name)!.notify();
+				if (cursor && epoch === (this.mutationEpoch.get(t.name) ?? 0)) {
+					this.cursors.set(t.name, cursor);
+					this.tables.get(t.name)!.markReady();
+					performance.mark(`hearth:restored:${t.name}`);
+				}
+			} catch { cache = null; }
+		}
+		for (;;) {
+			// A response captured before a mutation must not roll its acknowledgement
+			// back. Retry from the last committed checkpoint after writes settle.
+			await Promise.allSettled([...(this.pending.get(t.name) ?? [])]);
+			const epoch = (this.mutationEpoch.get(t.name) ?? 0);
+			const cursor = this.cursors.get(t.name);
+			const url = t.load + (t.load.includes("?") ? "&" : "?") + (cursor ? "since=" + encodeURIComponent(cursor) : "sync=1");
+			const result = await get(url) as Delta | Row[];
+			if (epoch !== (this.mutationEpoch.get(t.name) ?? 0) || this.pending.get(t.name)?.size) continue;
+			// Array compatibility lets old table endpoints opt out of delta sync.
+			const delta: Delta = Array.isArray(result)
+				? { rows: result, deleted: [], full: true, cursor: "" } : result;
+			await this.applyChunked(t.name, delta.rows, delta.full, delta.deleted, () => epoch === (this.mutationEpoch.get(t.name) ?? 0));
+			if (epoch !== (this.mutationEpoch.get(t.name) ?? 0) || this.pending.get(t.name)?.size) continue;
+			this.tables.get(t.name)!.markReady();
+			performance.mark(`hearth:synced:${t.name}`);
+			if (delta.cursor) {
+				this.cursors.set(t.name, delta.cursor);
+				try { await cache?.save(t.name, t.key, delta, cursor); }
+				catch { this.persistence = Promise.resolve(null); }
+			}
+			return;
+		}
 	}
 
 	/** Apply server rows; `full` = the complete table (diff out deletions). */
@@ -173,7 +229,9 @@ export class LocalDb {
 	async backfill() {
 		this.backfillStarted = true;
 		const seeded = [...this.desc.values()];
-		await Promise.all(seeded.map(async (t) => this.applyChunked(t.name, await this.fetchTable(t))));
+		await Promise.all(seeded.map(async (t) => {
+			try { await this.syncTable(t); } catch (e) { reportLoadError(t.name, e); }
+		}));
 	}
 
 	/**
@@ -181,23 +239,25 @@ export class LocalDb {
 	 * 50k-row backfill never blocks input or paint for more than a few ms.
 	 * Deletions (rows the server no longer has) are diffed at the end.
 	 */
-	private async applyChunked(table: string, rows: Row[]) {
+	private async applyChunked(table: string, rows: Row[], full = true, deleted: string[] = [], current = () => true) {
 		// ~1000 rows ≈ 6-8 ms of TanStack + index work: well inside a frame.
 		const CHUNK = 1000;
 		if (rows.length <= CHUNK) {
-			this.apply(table, rows, true);
+			this.apply(table, rows, full, deleted);
 			return;
 		}
 		const key = this.desc.get(table)!.key;
 		const seen = new Set<string>();
 		for (let i = 0; i < rows.length; i += CHUNK) {
+			if (!current()) return;
 			const slice = rows.slice(i, i + CHUNK);
 			for (const r of slice) seen.add(String(r[key]));
 			this.apply(table, slice, false);
 			await yieldToBrowser();
 		}
+		if (!current()) return;
 		const t = this.tables.get(table);
-		const gone = t ? t.serverKeys().filter((k) => !seen.has(k)) : [];
+		const gone = full && t ? t.serverKeys().filter((k) => !seen.has(k)) : deleted;
 		if (gone.length) this.apply(table, [], false, gone);
 	}
 
@@ -228,7 +288,7 @@ export class LocalDb {
 		this.ensure(table);
 		const t = this.desc.get(table)!;
 		const k = String(plain(key));
-		this.track(
+		this.track(table,
 			this.tables.get(table)!.update(k, changes, async (m) => {
 				const row = (await post(t.mutate, { op: "update", key: m.key, changes: m.changes })) as Row;
 				return { rows: [row] };
@@ -241,7 +301,7 @@ export class LocalDb {
 		const t = this.desc.get(table)!;
 		// Client-generated key so the optimistic row and server row match.
 		if (row[t.key] == null || row[t.key] === "") row[t.key] = crypto.randomUUID();
-		this.track(
+		this.track(table,
 			this.tables.get(table)!.insert(row, async (m) => {
 				// The server may store it under another key (e.g. deterministic
 				// reaction ids); the store swaps rows in one step.
@@ -254,7 +314,7 @@ export class LocalDb {
 	delete(table: string, key: unknown) {
 		this.ensure(table);
 		const t = this.desc.get(table)!;
-		this.track(
+		this.track(table,
 			this.tables.get(table)!.delete(String(plain(key)), async (m) => {
 				await post(t.mutate, { op: "delete", key: m.key });
 				return { deleted: [m.key] };
@@ -262,8 +322,12 @@ export class LocalDb {
 		);
 	}
 
-	private track(p: Promise<void>) {
-		p.catch((e: Error) => toast(`Rolled back: ${e.message}`));
+	private track(table: string, p: Promise<void>) {
+		this.mutationEpoch.set(table, (this.mutationEpoch.get(table) ?? 0) + 1);
+		let pending = this.pending.get(table);
+		if (!pending) this.pending.set(table, pending = new Set());
+		pending.add(p);
+		void p.catch((e: Error) => toast(`Rolled back: ${e.message}`)).finally(() => pending.delete(p));
 	}
 
 	/** Handle used by Rust `hearth::table_handle::<T>()` inside `$()`. */

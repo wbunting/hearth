@@ -43,3 +43,6 @@ pub use surrogate::*;
 use topcoat_asset::{Asset, asset};
 
 pub const SCRIPT: Asset = asset!("browser/dist/index.js", rename: "topcoat");
+
+/// Lazy browser table persistence module.
+pub const PERSISTENCE: Asset = asset!("browser/dist/persist.js", rename: "hearth-persist");
