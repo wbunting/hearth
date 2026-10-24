@@ -29,7 +29,7 @@ A Chromium comparison used the tracker wire format (50,516 issues, 12,374,165 JS
 
 The wa-sqlite size includes the 558,343-byte WASM (273,752 gzip) and 42,355-byte loader (14,642 gzip), before the SQLite API/VFS glue. Its asynchronous build is larger (1,139,398-byte WASM, 417,756 gzip). The experiment stores JSON rows in a SQLite table with prepared inserts inside one transaction and parses selected JSON on read. The OPFS pool also needs external synchronization for concurrent tabs. SQLite adds no query benefit while Hearth already maintains in-memory query indexes, so IndexedDB is the smaller and faster fit for this cache.
 
-A main-thread IndexedDB prototype produced one 52 ms checkpoint task. The shipped implementation moves grouping and transaction work into the lazy worker. It does not add worker/WASM download to the SSR first-view path. Runtime entry gzip grows from 24,441 to approximately 25,010 bytes; the persistence asset loads only after tables start syncing.
+A main-thread IndexedDB prototype produced one 52 ms checkpoint task. The shipped implementation moves grouping and transaction work into the lazy worker. It does not add worker/WASM download to the SSR first-view path. Runtime entry gzip grows from 24,441 to 25,010 bytes; the persistence asset loads only after tables start syncing.
 
 ## Reproduce
 
@@ -39,7 +39,7 @@ For the storage comparison, download and unpack the `wa-sqlite@1.0.0` npm tarbal
 
 ## Measurements
 
-Chromium, 50 ms simulated request delay, 50,516 issues, three navigations per mode. First rows remain SSR-rendered; FCP is used as the visible-row proxy. Concurrent builds made server validation variable, so these are indicative local timings rather than a controlled performance claim.
+Chromium, 50 ms simulated request delay, 50,516 issues, three baseline and warm navigations and two cold worker runs. First rows remain SSR-rendered; FCP is used as the visible-row proxy. Concurrent builds made server validation variable, so these are indicative local timings rather than a controlled performance claim.
 
 | Metric | Before (no persistence) | Cold checkpoint | Warm reload |
 | --- | ---: | ---: | ---: |
