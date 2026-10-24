@@ -172,6 +172,22 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 	// The first run is synchronous so SSR adoption happens during hydration.
 	let pending: unknown[] | null = null;
 	let scheduled = false;
+	let lastChange = 0;
+	// Typing guard: a query build is one uninterruptible task (~20-50ms at 50k
+	// rows), so starting it while keys are still arriving makes the next key
+	// wait. Wait for a short quiet gap (one key-repeat interval) first; a
+	// single change (select, click) still runs on the next frame.
+	const QUIET_MS = 40;
+	const flushWhenIdle = () => {
+		const since = performance.now() - lastChange;
+		if (since < QUIET_MS && burst > 1) {
+			setTimeout(() => scheduleAfterPaint(flushWhenIdle), QUIET_MS - since);
+			return;
+		}
+		burst = 0;
+		flush();
+	};
+	let burst = 0;
 	let firstRun = true;
 	let generation = 0;
 	const flush = () => {
@@ -190,9 +206,11 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 			return;
 		}
 		pending = values;
+		burst = performance.now() - lastChange < 250 ? burst + 1 : 1;
+		lastChange = performance.now();
 		if (!scheduled) {
 			scheduled = true;
-			scheduleAfterPaint(flush);
+			scheduleAfterPaint(flushWhenIdle);
 		}
 	});
 	function runQuery(values: unknown[], gen: number) {

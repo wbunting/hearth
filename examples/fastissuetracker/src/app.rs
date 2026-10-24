@@ -1,6 +1,7 @@
 //! Pages, all in Rust. `/issues` and `/issue/{short_id}` are one client-routed
 //! app shell: navigating between them never hits the server.
 
+mod baseline;
 mod issues;
 mod login;
 
@@ -17,8 +18,12 @@ use topcoat::{
 };
 
 pub fn router() -> RouterBuilder {
+    use topcoat::router::RouterBuilderDirectoryExt;
     module_router!()
         .discover()
+        // Benchmark comparison: the React + TanStack DB SPA build, served by the
+        // same server against the same `/_fastcoat` endpoints.
+        .serve_dir("/bench/react-assets/assets/{*file}", concat!(env!("CARGO_MANIFEST_DIR"), "/../../benchmarks/localfirst/react/dist/assets"))
         .assets(AssetBundle::load().unwrap())
         .cookies()
         .sessions(SessionConfig::default())
@@ -47,4 +52,19 @@ async fn root(slot: Slot<'_>) -> Result<impl View> {
 async fn home(cx: &Cx) -> Result<impl View> {
     let signed_in = crate::auth::current_user(cx).await.map_err(Clone::clone)?.is_some();
     Err::<BoxView<'static>, _>(redirect(if signed_in { "/issues" } else { "/login" }).into())
+}
+
+/// Benchmarking: `SIMULATED_RTT_MS=50` delays every request by that much,
+/// emulating network latency for all apps alike (local-first apps hide it,
+/// server-round-trip apps can't). Off by default.
+#[topcoat::router::layer("/")]
+async fn simulated_latency(
+    cx: &Cx,
+    body: topcoat::router::Body,
+    next: topcoat::router::Next<'_>,
+) -> Result<topcoat::router::response::Response> {
+    if let Some(ms) = std::env::var("SIMULATED_RTT_MS").ok().and_then(|v| v.parse::<u64>().ok()) {
+        tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
+    }
+    next.run(cx, body).await
 }

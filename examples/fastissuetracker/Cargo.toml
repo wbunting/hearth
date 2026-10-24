@@ -6,9 +6,9 @@ publish = false
 
 [dependencies]
 fastcoat.workspace = true
-topcoat = { workspace = true, features = ["tailwind"] }
+topcoat = { workspace = true, features = ["tailwind", "fs"] }
 toasty = { workspace = true, features = ["sqlite"] }
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 csv.workspace = true

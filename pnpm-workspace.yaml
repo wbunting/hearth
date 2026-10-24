@@ -1,3 +1,4 @@
 packages:
   - crates/topcoat-runtime/browser
   - legacy/zbugs-ts/client
+  - benchmarks/localfirst/react
