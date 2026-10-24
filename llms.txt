@@ -76,6 +76,8 @@ Ok(view! {
 - [Live](docs/view/live.md): `live! { emit! { "Loading" }?; let x = fetch().await?; emit! { (x) } }` replaces region per emission; returns Result<EmitToken>. Must emit >=1 time; first emission blocks initial HTML. `suspense(fallback: view! { ... }, child())` handles loading; `error_boundary(fallback: |e| Ok(view! { ... }), child())` handles errors. HTTP swaps include their script automatically.
 - `runtime::connected(cx)` requests WebSocket after HTTP completes, reruns page/shard with true. Emit and finish on HTTP; indefinite waits only when connected. Reconnect restarts rendering, so reread state; start durable jobs elsewhere. `connected_untracked` checks without requesting connection.
 
+- [Hearth idle warming](docs/hearth/idle-warming.md): inactive `if $(...)` regions outside list items pre-mount hidden after load in yielding background slices. One-row lists can prepare a pooled row shell with placeholder fields; keep expressions safe for those values. Route changes reuse the warmed scope and nested lists.
+
 ## Assets and services
 
 - [Assets](docs/asset.md): `asset!("./image.png")` renders hashed URL. `./`/`../` from source file, bare paths from crate root, HTTP(S) downloaded/cached. `topcoat dev` bundles; manual `topcoat asset bundle --release` must match profile/package. `.assets(AssetBundle::load()?)` loads `assets/` beside binary. Custom `--out` needs `load_dir`. Deploy matching binary+bundle; missing assets panic. `AssetConfig::hosted_at(base, catalog)` supports separately uploaded CDN files.

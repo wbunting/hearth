@@ -12,6 +12,7 @@ const listTables = new WeakMap<Comment, string[]>();
 import { signal, untrack, type WriteSignal } from "../reactivity";
 import { Scope } from "../scope";
 import { localDb, plain, type Query } from "./db";
+import { IdleWork, idleWork, synchronously } from "./idle";
 
 type Item = {
 	key: string;
@@ -90,7 +91,7 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 	let unsub: (() => void) | null = null;
 	let adopted = false;
 
-	const makeItem = (key: string, raw: unknown, at: { start: Comment; end: Comment } | null): Item => {
+	const makeItem = (key: string, raw: unknown, at: { start: Comment; end: Comment } | null, detached?: DocumentFragment): Item => {
 		const row = signal<unknown>(db.surrogate(raw as any, marker.query.types));
 		const itemScope = new Scope(scope, scope.runtime, scope.unit);
 		itemScope.context = scope.context.withRow(marker.template, { read: () => row() });
@@ -105,7 +106,8 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 			const frag = document.createDocumentFragment();
 			frag.append(s, tpl.content.cloneNode(true), e);
 			// Insert detached first so hydration can find markers; position later.
-			parentOf().insertBefore(frag, end);
+			if (detached) detached.append(frag);
+			else parentOf().insertBefore(frag, end);
 		}
 		// SSR items: text already rendered; cloned items: render on first run.
 		// SSR rows reference this list's JS table; nested lists set their
@@ -113,7 +115,7 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 		const table = listTables.get(start);
 		const prevTable = at && table ? setJsTable(table) : null;
 		try {
-			hydrate(parentOf(), s, e, itemScope, new Set(), at === null);
+			hydrate(detached ?? parentOf(), s, e, itemScope, new Set(), at === null);
 		} finally {
 			if (prevTable) setJsTable(prevTable);
 		}
@@ -129,14 +131,23 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 		return out;
 	};
 
+	let revision = 0;
 	const reconcile = () => {
-		try {
-			untrack(reconcileInner);
-		} catch (e) {
-			reportError(e, marker.template);
-		}
+		const version = ++revision;
+		const work = idleWork(scope);
+		const scan = reconcileInner();
+		const step = () => {
+			if (scope.isDisposed || version !== revision) return;
+			try {
+				if (work) {
+					if (!untrack(() => scan.next()).done) work.add(step);
+				} else while (!untrack(() => scan.next()).done) { /* Visible work is synchronous. */ }
+			} catch (e) { if (work) work.reportError(e); else reportError(e, marker.template); }
+		};
+		if (work) work.add(step);
+		else step();
 	};
-	const reconcileInner = () => {
+	function* reconcileInner(): Generator<void> {
 		if (!live || !live.isReady()) return;
 		const t0 = performance.now();
 		let rows = live.toArray as Array<{ [k: string]: unknown }>;
@@ -151,6 +162,7 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 			adopted = true;
 			const byKey = new Map(rows.map((r) => [String(r[keyField]), r]));
 			for (const s of ssr) {
+				yield;
 				const raw = byKey.get(s.key);
 				if (raw) {
 					const it = makeItem(s.key, raw, s);
@@ -169,6 +181,7 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 		const target: Item[] = [];
 		const fresh = new Set<Item>();
 		for (const raw of rows) {
+			yield;
 			const key = String(raw[keyField]);
 			// A key can appear twice transiently (e.g. a join emitting the
 			// same label for an optimistic row and its server copy): render
@@ -193,6 +206,7 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 		const leaving: Item[] = [];
 		for (const [key, it] of items) if (!seen.has(key)) leaving.push(it);
 		for (const it of leaving) {
+			yield;
 			items.delete(it.key);
 			const nodes = nodesOf(it);
 			if (pool.length < POOL_MAX) {
@@ -220,6 +234,7 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 		// Walk backwards, inserting before the next placed item's start.
 		let anchor: ChildNode = end;
 		for (let i = target.length - 1; i >= 0; i--) {
+			yield;
 			let it = target[i]!;
 			if (fresh.has(it)) {
 				const raw = it.raw;
@@ -255,6 +270,7 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 			let n: ChildNode | null = start.nextSibling;
 			let ti = 0;
 			while (n && n !== end) {
+				yield;
 				const it = target[ti];
 				if (it && n === it.start) {
 					n = it.end.nextSibling;
@@ -267,7 +283,19 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 			}
 		}
 		(window as any).__hearthListMs = performance.now() - t0;
-	};
+	}
+
+	// An empty detail query still needs a hydrated row shell. Keep exactly
+	// one detached placeholder in the existing bounded item pool. Its nested
+	// queries use empty/zero params and retarget through the row signal.
+	const work = idleWork(scope);
+	if (work && marker.query.limit === 1) work.add(() => {
+		if (scope.isDisposed || items.size || pool.length) return;
+		// Missing fields surrogate to empty, zero, false, or None.
+		const frag = document.createDocumentFragment();
+		const it = makeItem("", {}, null, frag);
+		pool.push({ it, frag });
+	});
 
 	// Re-run the query whenever a param's signals change. Queries are cheap
 	// (engine.ts: index walk, ~1-5 ms at 50k rows), so a change runs in a
@@ -353,8 +381,10 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
  * Mounts a `when` region: renders `template` iff `cond` is truthy. Used for
  * client `if` and route arms. Content is mounted once and then kept alive
  * (hidden with `display: contents`/`none` wrappers) so switching back is
- * instant and live queries inside aren't recompiled; queries inside a hidden
- * arm keep running but their params only change when their signals do.
+ * instant and live queries inside aren't recompiled. Inactive arms are
+ * pre-mounted after load in yielding background slices. A one-row list gets
+ * one pooled placeholder, so empty route params can still warm nested lists.
+ * Queries in hidden arms remain live and use their normal indexed lookups.
  */
 export function mountWhen(start: Comment, end: Comment, cond: string, template: string, scope: Scope) {
 	const found = findTemplate(template);
@@ -364,12 +394,32 @@ export function mountWhen(start: Comment, end: Comment, cond: string, template: 
 	const parent = start.parentNode!;
 	let shown: Scope | null = null;
 	let wrapper: HTMLElement | null = null;
+	let warming: IdleWork | null = null;
 	scope.effect(() => {
 		const on = Boolean(plain(compute(scope.context)));
 		// Only `cond` is a dependency: mounting content (hydration, nested
 		// lists, their params) must not subscribe this effect.
 		untrack(() => apply(on));
 	});
+	// Route/page arms can warm, but per-row conditionals stay lazy. Their
+	// hidden effects would otherwise add work to every pooled row retarget.
+	if (!shown && scope.context.rows.size === 0) {
+		const work = new IdleWork(scope, false);
+		work.add(() => {
+			if (scope.isDisposed || shown) return;
+			try {
+				mount();
+			} catch (e) {
+				reportError(e, template);
+			}
+		});
+	}
+	function mount() {
+		shown = new Scope(scope, scope.runtime, scope.unit);
+		warming = new IdleWork(shown);
+		wrapper!.append(tpl.content.cloneNode(true));
+		hydrate(wrapper!, null, null, shown, new Set(), true);
+	}
 	function apply(on: boolean) {
 		if (!wrapper) {
 			// First run: adopt server content (if any) into a wrapper.
@@ -385,10 +435,22 @@ export function mountWhen(start: Comment, end: Comment, cond: string, template: 
 				parent.insertBefore(wrapper, end);
 			}
 		}
-		if (on && !shown) {
-			wrapper.append(tpl.content.cloneNode(true));
-			shown = new Scope(scope, scope.runtime, scope.unit);
-			hydrate(wrapper, null, null, shown, new Set(), true);
+		if (on) {
+			if (!shown) {
+				wrapper.append(tpl.content.cloneNode(true));
+				shown = new Scope(scope, scope.runtime, scope.unit);
+				hydrate(wrapper, null, null, shown, new Set(), true);
+			}
+			warming?.finish();
+			if (warming?.failed) {
+				// A false guard or placeholder row may make body expressions
+				// invalid. Never reuse their disposed effects/listeners.
+				shown?.dispose();
+				wrapper.replaceChildren(tpl.content.cloneNode(true));
+				shown = new Scope(scope, scope.runtime, scope.unit);
+				synchronously(() => hydrate(wrapper!, null, null, shown!, new Set(), true));
+			}
+			warming = null;
 		}
 		wrapper.style.display = on ? "contents" : "none";
 	}

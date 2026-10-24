@@ -101,19 +101,21 @@ impl Dedupe {
                     copied = i;
                     continue;
                 }
-            } else if b == b' ' && (bytes[i..].starts_with(ON.as_bytes()) || bytes[i..].starts_with(BIND.as_bytes())) {
-                if let Some(eq) = html[i..].find("=\"") {
-                    let vstart = i + eq + 2;
-                    if let Some(close) = html[vstart..].find('"') {
-                        let id = self.id(&html[vstart..vstart + close]);
-                        out.push_str(&html[copied..vstart]);
-                        out.push('@');
-                        push_usize(out, id);
-                        out.push('"');
-                        i = vstart + close + 1;
-                        copied = i;
-                        continue;
-                    }
+            } else if b == b' '
+                && (bytes[i..].starts_with(ON.as_bytes())
+                    || bytes[i..].starts_with(BIND.as_bytes()))
+                && let Some(eq) = html[i..].find("=\"")
+            {
+                let vstart = i + eq + 2;
+                if let Some(close) = html[vstart..].find('"') {
+                    let id = self.id(&html[vstart..vstart + close]);
+                    out.push_str(&html[copied..vstart]);
+                    out.push('@');
+                    push_usize(out, id);
+                    out.push('"');
+                    i = vstart + close + 1;
+                    copied = i;
+                    continue;
                 }
             }
             i += 1;

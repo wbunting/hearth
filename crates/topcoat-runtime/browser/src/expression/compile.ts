@@ -7,6 +7,10 @@ export type Expression<T = unknown> = (cx: Context) => T;
  * their `$()` source by index instead of repeating it per row.
  */
 let jsTable: string[] = [];
+/** Captures the active table for hydration that continues after a yield. */
+export function getJsTable(): string[] {
+	return jsTable;
+}
 /** Sets the active table; returns the previous one (restore it after). */
 export function setJsTable(table: string[]): string[] {
 	const prev = jsTable;
