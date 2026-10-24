@@ -35,6 +35,7 @@ impl Dedupe {
     /// Rewrites one row's HTML into `out`. Nested list regions are copied
     /// verbatim: they carry their own JS table, and the browser resolves
     /// `@N` inside them against that one.
+    #[allow(clippy::collapsible_if, reason = "scanner branches read clearer nested")]
     pub fn rewrite_into(&mut self, html: &str, out: &mut String) {
         let bytes = html.as_bytes();
         let mut copied = 0;
