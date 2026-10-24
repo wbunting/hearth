@@ -10,11 +10,13 @@ use topcoat::{
     asset::{AssetBundle, RouterBuilderAssetExt},
     context::Cx,
     cookie::RouterBuilderCookieExt,
-    router::{RouterBuilder, RouterBuilderDiscoverExt, Slot, error::redirect, layout, module_router, page},
+    router::{
+        RouterBuilder, RouterBuilderDiscoverExt, Slot, error::redirect, layout, module_router, page,
+    },
     runtime::RouterBuilderRuntimeExt,
     session::{RouterBuilderSessionExt, SessionConfig},
     tailwind,
-    view::{BoxView, View, view},
+    view::{BoxView, View, attributes, component, view},
 };
 
 pub fn router() -> RouterBuilder {
@@ -23,15 +25,23 @@ pub fn router() -> RouterBuilder {
         .discover()
         // Benchmark comparison: the React + TanStack DB SPA build, served by the
         // same server against the same `/_hearth` endpoints.
-        .serve_dir("/bench/react-assets/assets/{*file}", concat!(env!("CARGO_MANIFEST_DIR"), "/../../benchmarks/localfirst/react/dist/assets"))
+        .serve_dir(
+            "/bench/react-assets/assets/{*file}",
+            concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../benchmarks/localfirst/react/dist/assets"
+            ),
+        )
         .assets(AssetBundle::load().unwrap())
         .cookies()
         .sessions(SessionConfig::default())
         .runtime()
 }
 
-/// The app stylesheet (shared with the React benchmark shell).
-pub const TAILWIND: topcoat::asset::Asset = tailwind::stylesheet!();
+/// The benchmark stylesheet, shared with the React benchmark shell.
+pub const TAILWIND: topcoat::asset::Asset =
+    topcoat::asset::asset!(concat!(env!("OUT_DIR"), "/benchmark.css"));
+const APP_TAILWIND: topcoat::asset::Asset = tailwind::stylesheet!();
 
 /// Hashed URL of the app stylesheet.
 pub fn tailwind_url(cx: &Cx) -> String {
@@ -43,7 +53,10 @@ pub fn tailwind_url(cx: &Cx) -> String {
 }
 
 #[layout]
-async fn root(slot: Slot<'_>) -> Result<impl View> {
+async fn root(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
+    let benchmark = topcoat::router::request::uri(cx)
+        .path()
+        .starts_with("/bench/");
     Ok(view! {
         <!DOCTYPE html>
         <html lang="en">
@@ -51,18 +64,69 @@ async fn root(slot: Slot<'_>) -> Result<impl View> {
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>"hearth tracker"</title>
-                <link rel="stylesheet" href=(TAILWIND)>
+                <link
+                    rel="stylesheet"
+                    href=(if benchmark { TAILWIND } else { APP_TAILWIND })
+                >
                 topcoat::runtime::script()
                 topcoat::dev::script()
             </head>
-            <body class="bg-white text-sm text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100">(slot)</body>
+            <body
+                class=(if benchmark {
+                    "bg-white text-sm text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100"
+                } else {
+                    "bg-background text-sm text-foreground antialiased"
+                })
+            >
+                (slot)
+            </body>
         </html>
+    })
+}
+
+/// Shared tracker header. The registry has no header primitive.
+#[component]
+async fn tracker_header(login: &str, crew: bool) -> Result<impl View> {
+    use crate::components::{
+        badge::{BadgeVariant, badge},
+        button::{ButtonSize, ButtonVariant, button, button_variants},
+    };
+    Ok(view! {
+        <header
+            class="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-background/80 px-4 py-2 tracker-header"
+        >
+            <a
+                class=(topcoat::view::class!(
+                    button_variants(ButtonVariant::Ghost, ButtonSize::Sm),
+                    "mr-auto",
+                ))
+                data-hearth-link=""
+                href="/issues"
+            >
+                "hearth tracker"
+            </a>
+            <span class="text-muted-foreground">(login)</span>
+            if crew {
+                badge(variant: BadgeVariant::Secondary, "crew")
+            }
+            <form method="post" action="/logout">
+                button(
+                    variant: ButtonVariant::Outline,
+                    size: ButtonSize::Sm,
+                    attrs: attributes! { type="submit" },
+                    "Sign out"
+                )
+            </form>
+        </header>
     })
 }
 
 #[page]
 async fn home(cx: &Cx) -> Result<impl View> {
-    let signed_in = crate::auth::current_user(cx).await.map_err(Clone::clone)?.is_some();
+    let signed_in = crate::auth::current_user(cx)
+        .await
+        .map_err(Clone::clone)?
+        .is_some();
     Err::<BoxView<'static>, _>(redirect(if signed_in { "/issues" } else { "/login" }).into())
 }
 
@@ -75,7 +139,10 @@ async fn simulated_latency(
     body: topcoat::router::Body,
     next: topcoat::router::Next<'_>,
 ) -> Result<topcoat::router::response::Response> {
-    if let Some(ms) = std::env::var("SIMULATED_RTT_MS").ok().and_then(|v| v.parse::<u64>().ok()) {
+    if let Some(ms) = std::env::var("SIMULATED_RTT_MS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+    {
         tokio::time::sleep(std::time::Duration::from_millis(ms)).await;
     }
     let mut res = next.run(cx, body).await?;
@@ -86,8 +153,10 @@ async fn simulated_latency(
         .get(topcoat::router::header::CONTENT_TYPE)
         .is_some_and(|v| v.as_bytes().starts_with(b"text/html"));
     if html {
-        res.headers_mut()
-            .insert(topcoat::router::header::CACHE_CONTROL, topcoat::router::HeaderValue::from_static("no-store"));
+        res.headers_mut().insert(
+            topcoat::router::header::CACHE_CONTROL,
+            topcoat::router::HeaderValue::from_static("no-store"),
+        );
     }
     Ok(res)
 }

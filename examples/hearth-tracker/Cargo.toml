@@ -6,7 +6,7 @@ publish = false
 
 [dependencies]
 hearth.workspace = true
-topcoat = { workspace = true, features = ["tailwind", "fs"] }
+topcoat = { workspace = true, features = ["tailwind", "fs", "ui"] }
 toasty = { workspace = true, features = ["sqlite"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
 serde = { workspace = true, features = ["derive"] }
