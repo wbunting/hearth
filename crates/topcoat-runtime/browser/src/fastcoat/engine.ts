@@ -8,33 +8,20 @@
 // (microseconds). This engine does that, and re-runs (cheaply) when a table
 // changes instead of maintaining a dataflow graph.
 //
-// TanStack collections stay the source of truth (sync, optimistic writes,
-// rollback); each table is mirrored here into plain rows + lazy indexes via
-// `subscribeChanges`, so optimistic state is visible to queries.
+// Tables (store.ts) hold the visible rows (server + optimistic writes) and
+// the indexes; queries read them directly.
 //
 // Semantics mirror the SSR evaluator (`crates/fastcoat/src/list.rs` +
 // `ir.rs`): same plan (filter/order/limit before joins when they only touch
 // the base table), same null ordering, same `contains`.
 
-import type { Collection } from "@tanstack/db";
 import { plain, simplify, type Expr, type Query } from "./db";
+import { cmpv, shallowEqual, type Row, type Table } from "./store";
 
-type Row = { [k: string]: unknown };
 type Env = { [alias: string]: Row | undefined };
 type Fn = (env: Env) => unknown;
 
 // ---------------------------------------------------------------- values
-
-/** Ordering shared with `ir::cmp` (Rust): null first, then by type. */
-export function cmpv(a: unknown, b: unknown): number {
-	if (a === b) return 0;
-	if (a == null) return b == null ? 0 : -1;
-	if (b == null) return 1;
-	if (typeof a === "number" && typeof b === "number") return a < b ? -1 : a > b ? 1 : 0;
-	if (typeof a === "string" && typeof b === "string") return a < b ? -1 : a > b ? 1 : 0;
-	if (typeof a === "boolean" && typeof b === "boolean") return a === b ? 0 : a ? 1 : -1;
-	return 0;
-}
 
 function truthy(v: unknown): boolean {
 	if (v == null) return false;
@@ -42,184 +29,6 @@ function truthy(v: unknown): boolean {
 	if (typeof v === "string") return v.length > 0;
 	if (typeof v === "number") return v !== 0;
 	return true;
-}
-
-// ---------------------------------------------------------------- mirror
-
-type OrderSpec = { col: string; desc: boolean }[];
-
-/** Plain-row mirror of one TanStack collection, with lazily built indexes. */
-export class Mirror {
-	readonly rows = new Map<string, Row>();
-	private listeners = new Set<() => void>();
-	private sorted = new Map<string, { spec: OrderSpec; arr: Row[] | null; pending: Row[] }>();
-	private hashes = new Map<string, Map<unknown, Set<Row>> | null>();
-
-	constructor(
-		readonly coll: Collection<Row, string>,
-		readonly keyField: string,
-	) {
-		coll.subscribeChanges((changes) => this.apply(changes as any), { includeInitialState: true });
-	}
-
-	isReady(): boolean {
-		return (this.coll as any).isReady?.() ?? (this.coll as any).status === "ready";
-	}
-
-	onFirstReady(cb: () => void): () => void {
-		return this.coll.onFirstReady(cb) as unknown as () => void;
-	}
-
-	listen(cb: () => void): () => void {
-		this.listeners.add(cb);
-		return () => this.listeners.delete(cb);
-	}
-
-	private apply(changes: { type: string; key: unknown; value: Row }[]) {
-		if (changes.length === 0) return;
-		// Large batches (backfill chunks) queue sorted-index inserts and merge
-		// them on next read (sort the batch, one linear merge) instead of a
-		// splice per row.
-		const bulk = changes.length > 64;
-		for (const ch of changes) {
-			const key = String(ch.key);
-			const prev = this.rows.get(key);
-			if (ch.type === "delete") {
-				if (!prev) continue;
-				this.unindex(prev);
-				this.rows.delete(key);
-			} else {
-				const next = ch.value;
-				if (prev === next) {
-					// Mutated in place: indexes can't locate the old position.
-					this.invalidate();
-					continue;
-				}
-				if (prev) this.unindex(prev);
-				this.rows.set(key, next);
-				this.index(next, bulk);
-			}
-		}
-		for (const l of this.listeners) l();
-	}
-
-	private invalidate() {
-		for (const s of this.sorted.values()) {
-			s.arr = null;
-			s.pending = [];
-		}
-		for (const k of this.hashes.keys()) this.hashes.set(k, null);
-	}
-
-	private comparator(spec: OrderSpec) {
-		const key = this.keyField;
-		return (a: Row, b: Row) => {
-			for (const { col, desc } of spec) {
-				const c = cmpv(a[col], b[col]);
-				if (c !== 0) return desc ? -c : c;
-			}
-			const ka = String(a[key]);
-			const kb = String(b[key]);
-			return ka < kb ? -1 : ka > kb ? 1 : 0;
-		};
-	}
-
-	/** Rows in `spec` order (ties by key). */
-	sortedIndex(id: string, spec: OrderSpec): Row[] {
-		let s = this.sorted.get(id);
-		if (!s) {
-			s = { spec, arr: null, pending: [] };
-			this.sorted.set(id, s);
-		}
-		if (!s.arr) {
-			s.arr = [...this.rows.values()].sort(this.comparator(spec));
-			s.pending = [];
-		} else if (s.pending.length) this.flush(s);
-		return s.arr;
-	}
-
-	private flush(s: { spec: OrderSpec; arr: Row[] | null; pending: Row[] }) {
-		if (!s.arr || !s.pending.length) return;
-		const cmp = this.comparator(s.spec);
-		const add = s.pending.sort(cmp);
-		const old = s.arr;
-		const out = new Array<Row>(old.length + add.length);
-		let i = 0;
-		let j = 0;
-		let k = 0;
-		while (i < old.length && j < add.length) out[k++] = cmp(old[i]!, add[j]!) <= 0 ? old[i++]! : add[j++]!;
-		while (i < old.length) out[k++] = old[i++]!;
-		while (j < add.length) out[k++] = add[j++]!;
-		s.arr = out;
-		s.pending = [];
-	}
-
-	/** Rows whose `col` equals `v`. */
-	lookup(col: string, v: unknown): Iterable<Row> {
-		if (col === this.keyField) {
-			const r = this.rows.get(String(v));
-			return r ? [r] : [];
-		}
-		return this.hashIndex(col).get(v) ?? EMPTY;
-	}
-
-	private hashIndex(col: string): Map<unknown, Set<Row>> {
-		let h = this.hashes.get(col);
-		if (!h) {
-			h = new Map();
-			for (const r of this.rows.values()) addTo(h, r[col], r);
-			this.hashes.set(col, h);
-		}
-		return h;
-	}
-
-	private index(r: Row, bulk: boolean) {
-		for (const [col, h] of this.hashes) if (h) addTo(h, r[col], r);
-		for (const s of this.sorted.values()) {
-			if (!s.arr) continue;
-			if (bulk) {
-				s.pending.push(r);
-				continue;
-			}
-			this.flush(s);
-			const cmp = this.comparator(s.spec);
-			s.arr.splice(lowerBound(s.arr, r, cmp), 0, r);
-		}
-	}
-
-	private unindex(r: Row) {
-		for (const [col, h] of this.hashes) h?.get(r[col])?.delete(r);
-		for (const s of this.sorted.values()) {
-			if (!s.arr) continue;
-			const p = s.pending.indexOf(r);
-			if (p >= 0) {
-				s.pending.splice(p, 1);
-				continue;
-			}
-			let i = lowerBound(s.arr, r, this.comparator(s.spec));
-			if (s.arr[i] !== r) i = s.arr.indexOf(r);
-			if (i >= 0) s.arr.splice(i, 1);
-		}
-	}
-}
-
-const EMPTY: Row[] = [];
-
-function addTo(h: Map<unknown, Set<Row>>, v: unknown, r: Row) {
-	let s = h.get(v);
-	if (!s) h.set(v, (s = new Set()));
-	s.add(r);
-}
-
-function lowerBound(arr: Row[], r: Row, cmp: (a: Row, b: Row) => number): number {
-	let lo = 0;
-	let hi = arr.length;
-	while (lo < hi) {
-		const mid = (lo + hi) >>> 1;
-		if (cmp(arr[mid]!, r) < 0) lo = mid + 1;
-		else hi = mid;
-	}
-	return lo;
 }
 
 // ---------------------------------------------------------------- compile
@@ -370,7 +179,7 @@ function equalities(e: Expr | null, alias: string, params: unknown[]): { col: st
 
 // ---------------------------------------------------------------- run
 
-export type Tables = (name: string) => Mirror;
+export type Tables = (name: string) => Table;
 
 /** Evaluates `q` once over the mirrors. */
 export function run(q: Query, params: unknown[], tables: Tables): Row[] {
@@ -525,7 +334,7 @@ export class LiveQuery {
 	private scheduled = false;
 	private subs = new Set<ChangeCb>();
 	private unlisten: (() => void)[] = [];
-	private mirrors: Mirror[];
+	private mirrors: Table[];
 	private prevByKey = new Map<string, Row>();
 
 	constructor(
@@ -612,10 +421,4 @@ export class LiveQuery {
 		this.result = rows;
 		return changed;
 	}
-}
-
-function shallowEqual(a: Row, b: Row) {
-	for (const k in a) if (a[k] !== b[k]) return false;
-	for (const k in b) if (!(k in a)) return false;
-	return true;
 }

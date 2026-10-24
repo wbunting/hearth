@@ -1,28 +1,13 @@
-// [fastcoat] Local database bridge: TanStack DB collections built from the
-// Rust-emitted schema, a query-IR interpreter, and row values that look like
+// [fastcoat] Local database: tables built from the
+// Rust-emitted schema (store.ts), live queries (engine.ts), and row values that look like
 // Topcoat surrogates so `$()` expressions can read them.
 //
 // Nothing in here is app-specific. The app's tables, queries and mutations all
 // come from Rust (`#[client_table]`, `live_query!`, `mutate!`).
 
-import {
-	and,
-	BTreeIndex,
-	createCollection,
-	createLiveQueryCollection,
-	eq,
-	gt,
-	gte,
-	ilike,
-	inArray,
-	lt,
-	lte,
-	not,
-	or,
-	type Collection,
-} from "@tanstack/db";
 import { signal, type WriteSignal } from "../reactivity";
-import { LiveQuery, Mirror } from "./engine";
+import { LiveQuery } from "./engine";
+import { Table } from "./store";
 import { Bool } from "../surrogate/bool";
 import { F64 } from "../surrogate/f64";
 import { Integer } from "../surrogate/integer";
@@ -82,10 +67,8 @@ export type Query = {
 export type RowRef = { read(): unknown };
 
 export class LocalDb {
-	readonly tables = new Map<string, Collection<Row, string>>();
+	readonly tables = new Map<string, Table>();
 	readonly desc = new Map<string, TableDesc>();
-	private servers = new Map<string, Map<string, Row>>();
-	private writers = new Map<string, Writer>();
 	/** Bumps when any table syncs, for coarse `ready` reactivity. */
 	readonly version: WriteSignal<number> = signal(0);
 
@@ -117,7 +100,7 @@ export class LocalDb {
 		const t = this.schema?.tables.find((x) => x.name === name);
 		if (!t) throw new Error(`[fastcoat] unknown table ${name}`);
 		const seeded = this.seeds[name];
-		this.createTable(t, this.schema!.scope, seeded);
+		this.createTable(t, seeded);
 		delete this.seeds[name];
 		// A table first used after the initial backfill (e.g. comments, when
 		// the session started on the list page) still needs its full rows.
@@ -130,60 +113,21 @@ export class LocalDb {
 		}
 	}
 
-	private createTable(t: TableDesc, scope: string, initial: Row[] | undefined) {
+	private createTable(t: TableDesc, initial: Row[] | undefined) {
 		this.desc.set(t.name, t);
-		const server = new Map<string, Row>();
-		this.servers.set(t.name, server);
-		const keyOf = (r: Row) => String(r[t.key]);
-		const coll = createCollection<Row, string>({
-			id: `${scope}/${t.name}`,
-			getKey: keyOf,
-			startSync: true,
-			gcTime: 0,
-			sync: {
-				rowUpdateMode: "full",
-				sync: (params) => {
-					const w = params as unknown as Writer;
-					this.writers.set(t.name, w);
-					if (initial && initial.length > 0) {
-						this.seededTables.add(t.name);
-						this.apply(t.name, initial, false);
-						params.markReady();
-					} else {
-						// Unseeded table: applied in slices (no long task), ready
-						// once complete so queries never see a partial table.
-						this.fetchTable(t)
-							.then((rows) => this.applyChunked(t.name, rows))
-							.then(() => params.markReady())
-							.catch((e) => params.markError(e));
-					}
-				},
-			},
-			onUpdate: async ({ transaction }) => {
-				for (const m of transaction.mutations) {
-					const row = (await post(t.mutate, { op: "update", key: m.key, changes: m.changes })) as Row;
-					this.apply(t.name, [row], false);
-				}
-			},
-			onInsert: async ({ transaction }) => {
-				for (const m of transaction.mutations) {
-					const row = (await post(t.mutate, { op: "insert", row: m.modified })) as Row;
-					// The server may assign a different key (e.g. deterministic
-					// reaction ids): drop the optimistic key if it changed.
-					const optimistic = String(m.key);
-					const real = String(row[t.key]);
-					this.apply(t.name, [row], false, real === optimistic ? [] : [optimistic]);
-				}
-			},
-			onDelete: async ({ transaction }) => {
-				for (const m of transaction.mutations) {
-					await post(t.mutate, { op: "delete", key: m.key });
-					this.apply(t.name, [], false, [String(m.key)]);
-				}
-			},
-		});
-		for (const f of t.indexes) coll.createIndex((r: any) => r[f], { indexType: BTreeIndex });
-		this.tables.set(t.name, coll);
+		const table = new Table(t.name, t.key);
+		this.tables.set(t.name, table);
+		if (initial && initial.length > 0) {
+			table.applyServer(initial);
+			table.markReady();
+		} else {
+			// Unseeded table: applied in slices (no long task), ready once
+			// complete so queries never see a partial table.
+			this.fetchTable(t)
+				.then((rows) => this.applyChunked(t.name, rows))
+				.then(() => table.markReady())
+				.catch((e) => reportLoadError(t.name, e));
+		}
 	}
 
 	// One in-flight full-table fetch per table: `backfill()` and a late
@@ -201,28 +145,14 @@ export class LocalDb {
 
 	/** Apply server rows; `full` = the complete table (diff out deletions). */
 	apply(table: string, rows: Row[], full: boolean, deleted: string[] = []) {
-		const w = this.writers.get(table);
-		const server = this.servers.get(table)!;
-		const key = this.desc.get(table)!.key;
-		if (!w) return;
-		w.begin();
-		const seen = new Set<string>();
-		for (const row of rows) {
-			const k = String(row[key]);
-			seen.add(k);
-			const prev = server.get(k);
-			if (!prev) w.write({ type: "insert", value: row });
-			else if (!shallowEqual(prev, row)) w.write({ type: "update", value: row });
-			server.set(k, row);
+		const t = this.tables.get(table);
+		if (!t) return;
+		let gone: Iterable<string> = deleted;
+		if (full) {
+			const seen = new Set(rows.map((r) => String(r[t.keyField])));
+			gone = t.serverKeys().filter((k) => !seen.has(k));
 		}
-		const gone = full ? [...server.keys()].filter((k) => !seen.has(k)) : deleted;
-		for (const k of gone) {
-			const prev = server.get(k);
-			if (prev) w.write({ type: "delete", value: prev });
-			server.delete(k);
-		}
-		w.commit();
-		this.version.set((v) => v + 1);
+		if (t.applyServer(rows, gone)) this.version.set((v) => v + 1);
 	}
 
 	/** Refresh synced tables when the tab regains focus or comes online. */
@@ -266,23 +196,16 @@ export class LocalDb {
 			this.apply(table, slice, false);
 			await yieldToBrowser();
 		}
-		const server = this.servers.get(table);
-		const gone = server ? [...server.keys()].filter((k) => !seen.has(k)) : [];
+		const t = this.tables.get(table);
+		const gone = t ? t.serverKeys().filter((k) => !seen.has(k)) : [];
 		if (gone.length) this.apply(table, [], false, gone);
 	}
-	private seededTables = new Set<string>();
 
 	// ------------------------------------------------------------ queries
 
-	private mirrors = new Map<string, Mirror>();
-	private mirror = (name: string): Mirror => {
-		let m = this.mirrors.get(name);
-		if (!m) {
-			this.ensure(name);
-			m = new Mirror(this.tables.get(name)!, this.desc.get(name)!.key);
-			this.mirrors.set(name, m);
-		}
-		return m;
+	private table_ = (name: string): Table => {
+		this.ensure(name);
+		return this.tables.get(name)!;
 	};
 
 	/**
@@ -290,134 +213,7 @@ export class LocalDb {
 	 * re-run, instead of building a TanStack dataflow graph per param set).
 	 */
 	live(q: Query, params: unknown[]): LiveQuery {
-		return new LiveQuery(q, params, this.mirror);
-	}
-
-	/** Builds a TanStack live query from IR + evaluated params (reference path). */
-	liveTanstack(q: Query, params: unknown[]): Collection<Row, string> & { planned?: Query } {
-		// Planner rule (measured: 163ms -> 0.4ms at 50k rows): a point lookup
-		// `col == $x` on an indexed column with `limit 1` must not carry
-		// orderBy/limit, which forces TanStack's ordered top-K scan instead of
-		// the index lookup. The result has at most a few rows anyway.
-		const w = q.where as any;
-		const pointLookup =
-			q.limit === 1 && w && w.op === "eq" && "col" in w.l && w.l.col[0] === q.from.alias &&
-			this.desc.get(q.from.table)?.indexes.includes(w.l.col[1]);
-		if (pointLookup) q = { ...q, order: [], limit: null };
-		// Planner rule 2: `contains` (unindexable) + orderBy/limit. TanStack's
-		// ordered top-K walks the order index until `limit` rows match: cheap
-		// when matches are common (7ms for "s"), terrible when rare (270ms
-		// for "sel"); an unlimited scan is the opposite (160ms / 16ms). Pick
-		// by measured selectivity: sample the base table and estimate how far
-		// top-K would have to walk.
-		// Plan on the *active* predicate: an optional search filter that's
-		// currently off must not trigger this rule (it removed `limit` from
-		// the default list: 15k live rows, ~20ms per toArray).
-		if (q.limit != null && q.order.length && hasContains(simplify(q.where, params))) {
-			const rate = this.sampleMatchRate(q, params);
-			const expectedWalk = rate > 0 ? q.limit / rate : Number.POSITIVE_INFINITY;
-			const size = this.tables.get(q.from.table)?.size ?? 0;
-			if (expectedWalk > size * 0.05) {
-				q = { ...q, order: [], limit: null, clientOrder: q.order, clientLimit: q.limit } as Query;
-			}
-		}
-		const tables = this.tables;
-		const coll = (name: string) => {
-			this.ensure(name);
-			const c = tables.get(name);
-			if (!c) throw new Error(`[fastcoat] unknown table ${name}`);
-			return c;
-		};
-		const planned = q;
-		const out = createLiveQueryCollection({
-			startSync: true,
-			query: (qb: any) => {
-				let b = qb.from({ [q.from.alias]: coll(q.from.table) });
-				// Filter/order/limit on the base table *before* joins when they
-				// only reference the base alias (indexes apply; joins then run over
-				// <= limit rows). Otherwise join first, then filter/order/limit.
-				const aliasesOf = (e: Expr | null): Set<string> => {
-					const out = new Set<string>();
-					const walk = (x: any) => {
-						if (!x || typeof x !== "object") return;
-						if ("col" in x) out.add(x.col[0]);
-						for (const v of Object.values(x)) {
-							if (Array.isArray(v)) v.forEach(walk);
-							else if (v && typeof v === "object") walk(v);
-						}
-					};
-					walk(e);
-					return out;
-				};
-				const baseOnly = (e: Expr | null) => [...aliasesOf(e)].every((a) => a === q.from.alias);
-				const early = q.joins.length === 0 || (baseOnly(q.where) && q.order.every((o) => baseOnly(o.expr)));
-				const applyFilters = () => {
-					const simple = simplify(q.where, params);
-					const where = simple && lower(simple, params);
-					if (where) b = b.where((refs: any) => where(refs));
-					for (const o of q.order) {
-						const ex = lower(o.expr, params);
-						b = b.orderBy((refs: any) => ex(refs), o.desc ? "desc" : "asc");
-					}
-					if (q.limit != null) b = b.limit(q.limit);
-				};
-				if (early) applyFilters();
-				for (const j of q.joins) {
-					const [l, r] = j.on.map((e) => lower(e, params));
-					const method = j.kind === "inner" ? "innerJoin" : "leftJoin";
-					b = b[method]({ [j.alias]: coll(j.table) }, (refs: any) => eq(l!(refs), r!(refs)));
-				}
-				if (!early) applyFilters();
-				const sel = Object.entries(q.select).map(([k, e]) => [k, lower(e, params)] as const);
-				// Planner rule 2 needs the order columns in the output to sort by.
-				const extra = (planned.clientOrder ?? []).map((o, i) => [`__o${i}`, lower(o.expr, params)] as const);
-				return b.select((refs: any) =>
-					Object.fromEntries([...sel, ...extra].map(([k, f]) => [k, f(refs)])),
-				);
-			},
-		}) as unknown as Collection<Row, string> & { planned?: Query };
-		out.planned = planned;
-		return out;
-	}
-
-	private sampleCache = new Map<string, { version: number; rows: Row[] }>();
-
-	/** Fraction of a ~2k-row sample of the base table matching `contains` terms. */
-	private sampleMatchRate(q: Query, params: unknown[]): number {
-		// The sample itself is cached per table and refreshed on sync, so a
-		// keystroke costs ~2k substring tests (<1ms), not a 50k-row `toArray`.
-		const version = this.version();
-		let cached = this.sampleCache.get(q.from.table);
-		if (!cached || cached.version !== version) {
-			const all = this.tables.get(q.from.table)?.toArray ?? [];
-			const step = Math.max(1, Math.floor(all.length / 2000));
-			const rows: Row[] = [];
-			for (let i = 0; i < all.length; i += step) rows.push(all[i] as Row);
-			cached = { version, rows };
-			this.sampleCache.set(q.from.table, cached);
-		}
-		const rows = cached.rows;
-		if (rows.length === 0) return 1;
-		const terms: [string, string][] = [];
-		const walk = (e: any) => {
-			if (!e || typeof e !== "object") return;
-			if (e.op === "contains" && "col" in e.l) {
-				const v = "param" in e.r ? plain(params[e.r.param]) : e.r.lit;
-				terms.push([e.l.col[1], String(v ?? "").toLowerCase()]);
-			} else if (e.op === "if") {
-				if (plain(evalParam(e.cond, params))) walk(e.then);
-			} else (e.args ?? (e.arg ? [e.arg] : [])).forEach(walk);
-		};
-		walk(q.where);
-		if (terms.length === 0) return 1;
-		let seen = 0;
-		let hit = 0;
-		for (let i = 0; i < rows.length; i++) {
-			seen++;
-			const r = rows[i] as Row;
-			if (terms.every(([c, t]) => String(r[c] ?? "").toLowerCase().includes(t))) hit++;
-		}
-		return hit / seen;
+		return new LiveQuery(q, params, this.table_);
 	}
 
 	/** Surrogate-shaped view of a plain row so `$()` can read fields. */
@@ -430,10 +226,14 @@ export class LocalDb {
 
 	update(table: string, key: unknown, changes: Row) {
 		this.ensure(table);
-		const c = this.tables.get(table)!;
+		const t = this.desc.get(table)!;
 		const k = String(plain(key));
-		const tx = c.update(k, (d: Row) => Object.assign(d, changes));
-		tx.isPersisted.promise.catch((e: Error) => toast(`Rolled back: ${e.message}`));
+		this.track(
+			this.tables.get(table)!.update(k, changes, async (m) => {
+				const row = (await post(t.mutate, { op: "update", key: m.key, changes: m.changes })) as Row;
+				return { rows: [row] };
+			}),
+		);
 	}
 
 	insert(table: string, row: Row) {
@@ -441,14 +241,29 @@ export class LocalDb {
 		const t = this.desc.get(table)!;
 		// Client-generated key so the optimistic row and server row match.
 		if (row[t.key] == null || row[t.key] === "") row[t.key] = crypto.randomUUID();
-		const tx = this.tables.get(table)!.insert(row);
-		tx.isPersisted.promise.catch((e: Error) => toast(`Rolled back: ${e.message}`));
+		this.track(
+			this.tables.get(table)!.insert(row, async (m) => {
+				// The server may store it under another key (e.g. deterministic
+				// reaction ids); the store swaps rows in one step.
+				const saved = (await post(t.mutate, { op: "insert", row: m.value })) as Row;
+				return { rows: [saved] };
+			}),
+		);
 	}
 
 	delete(table: string, key: unknown) {
 		this.ensure(table);
-		const tx = this.tables.get(table)!.delete(String(plain(key)));
-		tx.isPersisted.promise.catch((e: Error) => toast(`Rolled back: ${e.message}`));
+		const t = this.desc.get(table)!;
+		this.track(
+			this.tables.get(table)!.delete(String(plain(key)), async (m) => {
+				await post(t.mutate, { op: "delete", key: m.key });
+				return { deleted: [m.key] };
+			}),
+		);
+	}
+
+	private track(p: Promise<void>) {
+		p.catch((e: Error) => toast(`Rolled back: ${e.message}`));
 	}
 
 	/** Handle used by Rust `fastcoat::table_handle::<T>()` inside `$()`. */
@@ -488,82 +303,11 @@ export class LocalDb {
 	}
 }
 
-type Writer = { begin(): void; write(m: { type: string; value: Row }): void; commit(): void };
 
 let instance: LocalDb | null = null;
 export function localDb(): LocalDb {
 	instance ??= new LocalDb();
 	return instance;
-}
-
-// ---------------------------------------------------------------- lowering
-
-type Refs = { [alias: string]: { [col: string]: unknown } };
-type Lowered = (refs: Refs) => any;
-
-function lower(e: Expr, params: unknown[]): Lowered {
-	if ("col" in e) {
-		const [a, c] = e.col;
-		return (refs) => (refs[a] as any)[c];
-	}
-	if ("lit" in e) return () => e.lit;
-	if ("param" in e) {
-		const v = plain(params[e.param]);
-		return () => v;
-	}
-	switch (e.op) {
-		case "eq":
-		case "ne":
-		case "lt":
-		case "lte":
-		case "gt":
-		case "gte":
-		case "ilike": {
-			const l = lower(e.l, params);
-			const r = lower(e.r, params);
-			const f = { eq, ne: (a: any, b: any) => not(eq(a, b)), lt, lte, gt, gte, ilike }[e.op] as any;
-			return (refs) => f(l(refs), r(refs));
-		}
-		case "contains": {
-			const l = lower(e.l, params);
-			const r = lower(e.r, params);
-			return (refs) => ilike(l(refs), `%${r(refs)}%`);
-		}
-		case "in": {
-			const l = lower(e.l, params);
-			const r = lower(e.r, params);
-			return (refs) => inArray(l(refs), r(refs));
-		}
-		case "and":
-		case "or": {
-			const args = e.args.map((a) => lower(a, params));
-			if (args.length === 0) return () => eq(1, 1);
-			if (args.length === 1) return args[0]!;
-			const f = e.op === "and" ? and : or;
-			return (refs) => (f as any)(...args.map((a) => a(refs)));
-		}
-		case "not": {
-			const a = lower(e.arg, params);
-			return (refs) => not(a(refs));
-		}
-		case "if": {
-			// Optional filter: skipped entirely when the param is falsy/empty,
-			// so it doesn't defeat indexes with a `true OR ...` predicate.
-			const cond = plain(evalParam(e.cond, params));
-			if (!cond) return () => eq(1, 1);
-			return lower(e.then, params);
-		}
-	}
-}
-
-function hasContains(e: Expr | null): boolean {
-	if (!e || typeof e !== "object") return false;
-	const x = e as any;
-	if (x.op === "contains") return true;
-	if (x.op === "if") return hasContains(x.then);
-	if (x.args) return x.args.some(hasContains);
-	if (x.arg) return hasContains(x.arg);
-	return false;
 }
 
 function evalParam(e: Expr, params: unknown[]): unknown {
@@ -616,11 +360,6 @@ function snake(s: string): string {
 	return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 }
 
-function shallowEqual(a: Row, b: Row) {
-	for (const k in a) if (a[k] !== b[k]) return false;
-	for (const k in b) if (!(k in a)) return false;
-	return true;
-}
 
 async function get(url: string): Promise<unknown> {
 	const res = await fetch(url, { headers: { accept: "application/json" } });
@@ -641,6 +380,12 @@ async function post(url: string, body: unknown): Promise<unknown> {
 	if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 120)}`);
 	const t = await res.text();
 	return t ? JSON.parse(t) : null;
+}
+
+function reportLoadError(table: string, e: unknown) {
+	const errs = ((globalThis as any).__fastcoatErrors ??= []) as string[];
+	errs.push(`load ${table}: ${(e as Error)?.message ?? e}`);
+	console.error("[fastcoat] load", table, e);
 }
 
 function toast(msg: string) {

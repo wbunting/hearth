@@ -41,7 +41,9 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 	// effects patch text/attrs in place) is ~10x cheaper than clone+hydrate.
 	const pool: { it: Item; frag: DocumentFragment }[] = [];
 	const POOL_MAX = 256;
-	const parent = start.parentNode!;
+	// Read the parent live: the region can be moved (e.g. a `when` arm is
+	// wrapped after mount), so a captured parent goes stale.
+	const parentOf = () => start.parentNode!;
 
 	// Adopt server-rendered items (already hydrated by the parent pass into
 	// the parent scope, so their effects read a frozen capture). Re-hydrate
@@ -98,12 +100,12 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 			const frag = document.createDocumentFragment();
 			frag.append(s, tpl.content.cloneNode(true), e);
 			// Insert detached first so hydration can find markers; position later.
-			parent.insertBefore(frag, end);
+			parentOf().insertBefore(frag, end);
 		}
 		// SSR items: text already rendered; cloned items: render on first run.
 		const table = listTables.get(start);
 		if (at && table) setJsTable(table);
-		hydrate(parent, s, e, itemScope, new Set(), at === null);
+		hydrate(parentOf(), s, e, itemScope, new Set(), at === null);
 		if (at && table) setJsTable([]);
 		return { key, start: s, end: e, scope: itemScope, row, raw };
 	};
@@ -158,6 +160,10 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 		const fresh = new Set<Item>();
 		for (const raw of rows) {
 			const key = String(raw[keyField]);
+			// A key can appear twice transiently (e.g. a join emitting the
+			// same label for an optimistic row and its server copy): render
+			// the first occurrence only, like React would after warning.
+			if (seen.has(key)) continue;
 			seen.add(key);
 			let it = items.get(key);
 			if (it && it.raw !== raw) {
@@ -215,13 +221,13 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 					it.key = key;
 					it.start.data = `::fastcoat::item(${JSON.stringify(key)})`;
 					it.raw = raw;
-					parent.insertBefore(recycled.frag, anchor);
+					parentOf().insertBefore(recycled.frag, anchor);
 					it.row.set(db.surrogate(raw as any, marker.query.types));
 				} else {
 					it = makeItem(key, raw, null);
 					const frag = document.createDocumentFragment();
 					frag.append(...nodesOf(it));
-					parent.insertBefore(frag, anchor);
+					parentOf().insertBefore(frag, anchor);
 				}
 				startToItem.set(it.start, it);
 				items.set(key, it);
@@ -229,7 +235,7 @@ export function mountList(start: Comment, end: Comment, marker: ListMarker, scop
 			} else if (!stay[i]) {
 				const frag = document.createDocumentFragment();
 				frag.append(...nodesOf(it));
-				parent.insertBefore(frag, anchor);
+				parentOf().insertBefore(frag, anchor);
 			}
 			anchor = it.start;
 		}

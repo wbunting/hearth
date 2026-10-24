@@ -1,30 +1,19 @@
-import { BTreeIndex, createCollection } from "@tanstack/db";
 import { describe, expect, it } from "vitest";
 import type { Query } from "./db";
-import { LiveQuery, Mirror, run } from "./engine";
+import { LiveQuery, run } from "./engine";
+import { Table } from "./store";
 
 type Row = { [k: string]: unknown };
 
 function table(rows: Row[], key = "id") {
-	let w: any;
-	const c = createCollection<Row, string>({
-		id: `t${Math.random()}`,
-		getKey: (r) => String(r[key]),
-		startSync: true,
-		gcTime: 0,
-		sync: {
-			rowUpdateMode: "full",
-			sync: (p: any) => {
-				w = p;
-				p.begin();
-				for (const r of rows) p.write({ type: "insert", value: r });
-				p.commit();
-				p.markReady();
-			},
-		},
-	});
-	c.createIndex((r: any) => r.open, { indexType: BTreeIndex });
-	return { c, write: (rows: Row[], type = "insert") => (w.begin(), rows.forEach((r) => w.write({ type, value: r })), w.commit()) };
+	const t = new Table(`t${Math.random()}`, key);
+	t.applyServer(rows);
+	t.markReady();
+	return {
+		t,
+		write: (rows: Row[], type = "insert") =>
+			type === "delete" ? t.applyServer([], rows.map((r) => String(r[key]))) : t.applyServer(rows),
+	};
 }
 
 const WORDS = ["replicache", "sync", "auth", "chunk", "rocicorp", "zero", "bug", "perf"];
@@ -85,8 +74,8 @@ describe("engine", () => {
 	const it_ = table(all);
 	const us = table(users);
 	const mirrors = new Map([
-		["issues", new Mirror(it_.c, "id")],
-		["users", new Mirror(us.c, "id")],
+		["issues", it_.t],
+		["users", us.t],
 	]);
 	const tables = (n: string) => mirrors.get(n)!;
 
@@ -111,8 +100,8 @@ describe("engine", () => {
 		const lt = table(labels);
 		const ilt = table(il);
 		const ms = new Map([
-			["labels", new Mirror(lt.c, "id")],
-			["issue_labels", new Mirror(ilt.c, "id")],
+			["labels", lt.t],
+			["issue_labels", ilt.t],
 		]);
 		const q: Query = {
 			from: { table: "issue_labels", alias: "il" },
@@ -149,8 +138,8 @@ describe("engine", () => {
 		const base = issues(5_000);
 		const t = table(base.slice(0, 1000));
 		const m = new Map([
-			["issues", new Mirror(t.c, "id")],
-			["users", new Mirror(us.c, "id")],
+			["issues", t.t],
+			["users", us.t],
 		]);
 		const tb = (n: string) => m.get(n)!;
 		run(listQuery, cases[0]!, tb); // build sorted index on 1k rows
