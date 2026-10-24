@@ -394,7 +394,7 @@ impl Q {
                 let table = &j.src.table;
                 let kind = j.kind;
                 let (l, r) = (j.l.lower(&mut cx), j.r.lower(&mut cx));
-                quote!(#ir::Join { table: <#table as ::hearth::Table>::NAME, alias: #alias, on: (#l, #r), kind: #kind })
+                quote!(#ir::Join { table: <#table as ::hearth::Table>::NAME, alias: #alias, key: <#table as ::hearth::Table>::KEY, on: (#l, #r), kind: #kind })
             })
             .collect();
         let where_ = match &self.where_ {
@@ -447,7 +447,7 @@ impl Q {
         quote! {{
             ::hearth::LiveQuery::<#row> {
                 ir: #ir::Query {
-                    from: #ir::From { table: <#from_table as ::hearth::Table>::NAME, alias: #from_alias },
+                    from: #ir::From { table: <#from_table as ::hearth::Table>::NAME, alias: #from_alias, key: <#from_table as ::hearth::Table>::KEY },
                     joins: vec![#(#joins),*],
                     where_: #where_,
                     order: vec![#(#order),*],

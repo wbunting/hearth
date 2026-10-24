@@ -1,0 +1,34 @@
+{
+  "query": {
+    "from": { "table": "tasks", "alias": "t", "key": "taskCode" },
+    "joins": [{ "table": "owners", "alias": "o", "key": "ownerCode", "kind": "left", "on": [{ "col": ["t", "owner"] }, { "col": ["o", "ownerCode"] }] }],
+    "where": null,
+    "order": [{ "expr": { "col": ["t", "rank"] }, "desc": true }],
+    "limit": 2,
+    "select": { "key": { "col": ["t", "taskCode"] }, "owner": { "col": ["o", "name"] } },
+    "key": "key",
+    "types": {}
+  },
+  "tables": {
+    "t": [
+      { "taskCode": "c", "rank": 1, "owner": "alice" },
+      { "taskCode": "b", "rank": 1, "owner": "missing" },
+      { "taskCode": "a", "rank": 1, "owner": "alice" }
+    ],
+    "o": [
+      { "ownerCode": "bob", "name": "Bob" },
+      { "ownerCode": "alice", "name": "Alice" }
+    ]
+  },
+  "expected": [{ "key": "a", "owner": "Alice" }, { "key": "b", "owner": null }],
+  "seed": {
+    "tasks": [
+      { "taskCode": "b", "rank": 1, "owner": "missing" },
+      { "taskCode": "a", "rank": 1, "owner": "alice" }
+    ],
+    "owners": [
+      { "ownerCode": "bob", "name": "Bob" },
+      { "ownerCode": "alice", "name": "Alice" }
+    ]
+  }
+}

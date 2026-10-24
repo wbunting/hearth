@@ -220,9 +220,7 @@ where
                 }
             }
         }
-        // TODO(ir): carry the base table's key in the IR; every synced table
-        // is keyed by `id` today (seed_rows assumes the same).
-        let rows = evaluate(&ir, &tables, &param_values, "id");
+        let rows = evaluate(&ir, &tables, &param_values);
         // First-view seed: base rows that made the cut + the joined rows they
         // reference, keyed by table name, so the browser's collections are
         // ready immediately and the full tables backfill afterwards.
@@ -289,7 +287,7 @@ where
 }
 
 /// Evaluate the IR over loaded rows: base filter/order/limit, then joins.
-fn evaluate<'t>(q: &Query, tables: &'t HashMap<&str, Vec<JsonRow>>, params: &[Value], base_key: &str) -> Vec<JsonRow> {
+fn evaluate<'t>(q: &Query, tables: &'t HashMap<&str, Vec<JsonRow>>, params: &[Value]) -> Vec<JsonRow> {
     static EMPTY: Vec<JsonRow> = Vec::new();
     let empty: &'t [JsonRow] = &EMPTY;
     let base: &'t [JsonRow] = tables.get(q.from.alias).map_or(empty, Vec::as_slice);
@@ -342,7 +340,7 @@ fn evaluate<'t>(q: &Query, tables: &'t HashMap<&str, Vec<JsonRow>>, params: &[Va
         }
         // Tie-break by the base row's key, like SQL (`sql::order`) and the
         // browser engine, so all three agree on the first page.
-        let k = |e: &HashMap<&str, &JsonRow>| e.get(q.from.alias).and_then(|r| r.get(base_key)).map(json_key).unwrap_or_default();
+        let k = |e: &HashMap<&str, &JsonRow>| e.get(q.from.alias).and_then(|r| r.get(q.from.key)).map(json_key).unwrap_or_default();
         k(a).cmp(&k(b))
     };
 
@@ -400,12 +398,11 @@ fn seed_rows(q: &Query, tables: &HashMap<&str, Vec<JsonRow>>, out_rows: &[JsonRo
     let empty = Vec::new();
     let keys: std::collections::HashSet<String> =
         out_rows.iter().filter_map(|r| r.get(q.key)).map(json_key).collect();
-    let base_key = "id";
     let base: Vec<Value> = tables
         .get(q.from.alias)
         .unwrap_or(&empty)
         .iter()
-        .filter(|r| r.get(base_key).map(json_key).is_some_and(|k| keys.contains(&k)))
+        .filter(|r| r.get(q.from.key).map(json_key).is_some_and(|k| keys.contains(&k)))
         .map(|r| Value::Object(r.clone()))
         .collect();
     seed.insert(q.from.table.to_owned(), Value::Array(base));
@@ -483,4 +480,93 @@ async fn futures_join_all<F: std::future::Future>(futs: Vec<F>) -> Vec<F::Output
     })
     .await;
     out.into_iter().map(|o| o.expect("all futures completed")).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ir::{
+        Expr as E, From, Join, Order,
+        indexmap_lite::{Map, Types},
+    };
+
+    #[test]
+    fn custom_keys_order_and_seed_match_browser_fixture() {
+        // The browser runs this same fixture, including the SSR seed.
+        let fixture: Value =
+            serde_json::from_str(include_str!("../tests/fixtures/custom-keys.json")).unwrap();
+        let mut q = Query {
+            from: From {
+                table: "tasks",
+                alias: "t",
+                key: "taskCode",
+            },
+            joins: vec![Join {
+                table: "owners",
+                alias: "o",
+                key: "ownerCode",
+                kind: "left",
+                on: (
+                    E::Col {
+                        col: ("t", "owner"),
+                    },
+                    E::Col {
+                        col: ("o", "ownerCode"),
+                    },
+                ),
+            }],
+            where_: None,
+            order: vec![Order {
+                expr: E::Col { col: ("t", "rank") },
+                desc: true,
+            }],
+            limit: Some(2),
+            select: Map(vec![
+                (
+                    "key",
+                    E::Col {
+                        col: ("t", "taskCode"),
+                    },
+                ),
+                ("owner", E::Col { col: ("o", "name") }),
+            ]),
+            key: "key",
+            types: Types::default(),
+        };
+        assert_eq!(serde_json::to_value(&q).unwrap(), fixture["query"]);
+        let tables = HashMap::from([
+            (
+                "t",
+                serde_json::from_value(fixture["tables"]["t"].clone()).unwrap(),
+            ),
+            (
+                "o",
+                serde_json::from_value(fixture["tables"]["o"].clone()).unwrap(),
+            ),
+        ]);
+        let rows = evaluate(&q, &tables, &[]);
+        assert_eq!(serde_json::to_value(&rows).unwrap(), fixture["expected"]);
+        assert_eq!(
+            Value::Object(seed_rows(&q, &tables, &rows)),
+            fixture["seed"]
+        );
+
+        // A joined order column uses the post-join plan and the same base key.
+        q.order[0].expr = E::Col { col: ("o", "name") };
+        q.order[0].desc = true;
+        let rows = evaluate(&q, &tables, &[]);
+        assert_eq!(
+            rows.iter()
+                .map(|r| r["key"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            ["a", "c"]
+        );
+        assert_eq!(
+            seed_rows(&q, &tables, &rows)["tasks"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+    }
 }

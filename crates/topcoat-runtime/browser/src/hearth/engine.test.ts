@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Query } from "./db";
 import { LiveQuery, run } from "./engine";
 import { Table } from "./store";
+import customKeys from "../../../../hearth/tests/fixtures/custom-keys.json";
 
 type Row = { [k: string]: unknown };
 
@@ -33,10 +34,10 @@ function issues(n: number): Row[] {
 const users: Row[] = Array.from({ length: 14 }, (_, i) => ({ id: `u${i}`, login: `user${i}` }));
 
 const listQuery: Query = {
-	from: { table: "issues", alias: "i" },
+	from: { table: "issues", alias: "i", key: "id" },
 	joins: [
-		{ table: "users", alias: "c", kind: "left", on: [{ col: ["i", "creatorId"] }, { col: ["c", "id"] }] },
-		{ table: "users", alias: "a", kind: "left", on: [{ col: ["i", "assigneeId"] }, { col: ["a", "id"] }] },
+		{ table: "users", alias: "c", kind: "left", key: "id", on: [{ col: ["i", "creatorId"] }, { col: ["c", "id"] }] },
+		{ table: "users", alias: "a", kind: "left", key: "id", on: [{ col: ["i", "assigneeId"] }, { col: ["a", "id"] }] },
 	],
 	where: {
 		op: "and",
@@ -104,8 +105,8 @@ describe("engine", () => {
 			["issue_labels", ilt.t],
 		]);
 		const q: Query = {
-			from: { table: "issue_labels", alias: "il" },
-			joins: [{ table: "labels", alias: "l", kind: "inner", on: [{ col: ["il", "labelId"] }, { col: ["l", "id"] }] }],
+			from: { table: "issue_labels", alias: "il", key: "id" },
+			joins: [{ table: "labels", alias: "l", kind: "inner", key: "id", on: [{ col: ["il", "labelId"] }, { col: ["l", "id"] }] }],
 			where: { op: "eq", l: { col: ["il", "issueId"] }, r: { param: 0 } },
 			order: [{ expr: { col: ["l", "name"] }, desc: false }],
 			limit: null,
@@ -183,5 +184,46 @@ describe("lisMask", () => {
 		expect(lisMask([3, 0, 1, 2])).toEqual([false, true, true, true]);
 		expect(lisMask([2, 1, 0])).toEqual([false, false, true]);
 		expect(lisMask([])).toEqual([]);
+	});
+});
+
+// Shared with the Rust SSR evaluator/seed regression test.
+describe("custom table keys", () => {
+	const q = customKeys.query as unknown as Query;
+	const tables = () => {
+		const tasks = table(customKeys.tables.t, q.from.key).t;
+		const owners = table(customKeys.tables.o, q.joins[0]!.key).t;
+		return (name: string) => name === "tasks" ? tasks : owners;
+	};
+
+	it("matches SSR ties and joins on both sort paths", () => {
+		const mirrors = tables();
+		expect(run(q, [], mirrors)).toEqual(customKeys.expected);
+		// The first run walks the order index. An equality bucket forces
+		// the in-memory sort path on the same rows.
+		const bucket: Query = { ...q, where: { op: "eq", l: { col: ["t", "rank"] }, r: { lit: 1 } } };
+		expect(run(bucket, [], mirrors)).toEqual(customKeys.expected);
+		const late: Query = { ...q, order: [{ expr: { col: ["o", "name"] }, desc: true }] };
+		expect(run(late, [], mirrors).map((r) => r.key)).toEqual(["a", "c"]);
+	});
+
+	it("rehydrates SSR seeds by custom base and joined keys", () => {
+		const tasks = table(customKeys.seed.tasks, q.from.key).t;
+		const owners = table(customKeys.seed.owners, q.joins[0]!.key).t;
+		expect([...tasks.rows.keys()].sort()).toEqual(["a", "b"]);
+		expect([...owners.rows.keys()].sort()).toEqual(["alice", "bob"]);
+		const mirrors = (name: string) => name === "tasks" ? tasks : owners;
+		expect(run(q, [], mirrors)).toEqual(customKeys.expected);
+		// A non-key join column takes the hash-index path, not key lookup.
+		const hashed = structuredClone(q);
+		hashed.joins[0]!.on = [{ col: ["t", "owner"] }, { col: ["o", "name"] }];
+		tasks.applyServer([{ taskCode: "a", rank: 1, owner: "Alice" }]);
+		expect(run(hashed, [], mirrors)).toEqual(customKeys.expected);
+	});
+
+	it("rejects base and joined IR/store key mismatches", () => {
+		const mirrors = tables();
+		expect(() => run({ ...q, from: { ...q.from, key: "id" } }, [], mirrors)).toThrow(/key mismatch/);
+		expect(() => run({ ...q, joins: [{ ...q.joins[0]!, key: "id" }] }, [], mirrors)).toThrow(/key mismatch/);
 	});
 });

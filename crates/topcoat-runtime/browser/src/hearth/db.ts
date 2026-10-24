@@ -49,8 +49,8 @@ export type Expr =
 	| { op: "contains"; l: Expr; r: Expr }; // ilike %r%
 
 export type Query = {
-	from: { table: string; alias: string };
-	joins: { table: string; alias: string; on: [Expr, Expr]; kind: "left" | "inner" }[];
+	from: { table: string; alias: string; key: string };
+	joins: { table: string; alias: string; key: string; on: [Expr, Expr]; kind: "left" | "inner" }[];
 	where: Expr | null;
 	order: { expr: Expr; desc: boolean }[];
 	limit: number | null;
