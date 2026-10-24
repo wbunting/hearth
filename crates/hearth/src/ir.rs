@@ -21,12 +21,14 @@ pub enum Expr {
 pub struct From {
     pub table: &'static str,
     pub alias: &'static str,
+    pub key: &'static str,
 }
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Join {
     pub table: &'static str,
     pub alias: &'static str,
+    pub key: &'static str,
     pub on: (Expr, Expr),
     pub kind: &'static str,
 }

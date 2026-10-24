@@ -181,9 +181,18 @@ function equalities(e: Expr | null, alias: string, params: unknown[]): { col: st
 
 export type Tables = (name: string) => Table;
 
+// The IR and schema both come from Table::KEY. Reject a stale/mismatched
+// schema rather than sorting with one key and storing rows under another.
+function queryTable(source: { table: string; key: string }, tables: Tables): Table {
+	const table = tables(source.table);
+	if (source.key !== table.keyField)
+		throw new Error(`[hearth] key mismatch for ${source.table}: IR ${source.key}, store ${table.keyField}`);
+	return table;
+}
+
 /** Evaluates `q` once over the mirrors. */
 export function run(q: Query, params: unknown[], tables: Tables): Row[] {
-	const base = tables(q.from.table);
+	const base = queryTable(q.from, tables);
 	const alias = q.from.alias;
 	const where = simplify(q.where, params);
 	const pred = where ? compile(where, params) : null;
@@ -204,7 +213,7 @@ export function run(q: Query, params: unknown[], tables: Tables): Row[] {
 
 	// Joins: hash lookups on the joined table's column where possible.
 	const joins = q.joins.map((j) => {
-		const m = tables(j.table);
+		const m = queryTable(j, tables);
 		let [probe, build] = j.on;
 		if (!("col" in build && build.col[0] === j.alias)) [probe, build] = [build, probe];
 		const probeFn = compile(probe, params);
