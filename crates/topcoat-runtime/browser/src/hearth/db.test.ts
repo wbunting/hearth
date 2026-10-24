@@ -17,7 +17,7 @@ const schema: Schema = {
 	],
 };
 const query: Query = {
-	from: { table: "items", alias: "i" },
+	from: { table: "items", alias: "i", key: "id" },
 	joins: [],
 	where: null,
 	order: [],
@@ -57,7 +57,7 @@ describe("delta synchronization", () => {
 			},
 		);
 		d.live(query, []);
-		d.live({ ...query, from: { table: "comments", alias: "i" } }, []);
+		d.live({ ...query, from: { table: "comments", alias: "i", key: "id" } }, []);
 		let release!: (r: Response) => void;
 		let started!: () => void;
 		const loading = new Promise<void>((r) => {
