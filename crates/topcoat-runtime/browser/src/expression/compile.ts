@@ -91,9 +91,14 @@ export async function loadExpressions(
 ): Promise<void> {
 	let root: ParentNode;
 	if (typeof html === "string") {
-		const template = document.createElement("template");
-		template.innerHTML = html;
-		root = template.content;
+		// Fragment parsing discards document-wrapper attributes.
+		if (/<(?:html|body)(?:\s|>)/i.test(html)) {
+			root = new DOMParser().parseFromString(html, "text/html");
+		} else {
+			const template = document.createElement("template");
+			template.innerHTML = html;
+			root = template.content;
+		}
 	} else root = html;
 	const ids = [...references(root)].filter((id) => !factories.has(id)).sort();
 	const waits: Promise<void>[] = [];
