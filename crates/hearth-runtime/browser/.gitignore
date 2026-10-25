@@ -2,6 +2,7 @@
 dist/*
 !dist/index.js
 !dist/coherence.js
+!dist/persist.js
 
 # Node.js
 node_modules
