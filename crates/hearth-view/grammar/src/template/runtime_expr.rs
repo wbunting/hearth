@@ -60,12 +60,14 @@ impl ToTokens for RuntimeExpr {
 #[cfg(feature = "pretty")]
 impl hearth_foundation_grammar::pretty::PrettyPrint for RuntimeExpr {
     fn pretty_print(&self, printer: &mut hearth_foundation_grammar::pretty::Printer<'_>) {
-        "$".pretty_print(printer);
-        "(".pretty_print(printer);
-        syn::parse2::<syn::Expr>(self.expr.clone())
-            .unwrap_or_else(|_| syn::Expr::Verbatim(self.expr.clone()))
-            .pretty_print(printer);
-        ")".pretty_print(printer);
+        use hearth_foundation_grammar::pretty::{BreakMode, Delim};
+        self.dollar.pretty_print(printer);
+        self.paren
+            .pretty_print(printer, Some(BreakMode::Consistent), |printer| {
+                syn::parse2::<syn::Expr>(self.expr.clone())
+                    .unwrap_or_else(|_| syn::Expr::Verbatim(self.expr.clone()))
+                    .pretty_print(printer);
+            });
     }
 }
 

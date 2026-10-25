@@ -92,7 +92,6 @@ async fn home(cx: &Cx) -> Result<impl View> {
                     </h2>
                     <div class="flow">
                         <article>
-                            <span class="flow-tag">"Your Rust app"</span>
                             <h3>"One source of truth."</h3>
                             <p>
                                 "Declare a table, authorize its rows, and write a query. Hearth uses that query for the initial render and the browser's live results."
@@ -104,7 +103,6 @@ async fn home(cx: &Cx) -> Result<impl View> {
                             </code>
                         </article>
                         <article>
-                            <span class="flow-tag">"The first request"</span>
                             <h3>"HTML, already useful."</h3>
                             <p>
                                 "The server sends rendered content. Client expressions compile to small JavaScript modules. No client-side Rust or WebAssembly download."
@@ -112,7 +110,6 @@ async fn home(cx: &Cx) -> Result<impl View> {
                             <code>"Rust → HTML + JavaScript"</code>
                         </article>
                         <article>
-                            <span class="flow-tag">"Every interaction"</span>
                             <h3>"Keep the data close."</h3>
                             <p>
                                 "Indexed queries run against local tables. Writes update the interface immediately, then the server validates them. Rejected writes roll back."
@@ -244,7 +241,7 @@ async fn workbench(cx: &Cx, owner: String) -> Result<impl View> {
                     <pre class="source" aria-label="Rust query source">
                         <code>
                             <span class="syntax-muted">
-                                "// The same query. Server and browser.\n"
+                                "// Query excerpt. Server and browser.\n"
                             </span>
                             <span class="syntax-accent">"let "</span>
                             "issues = "
@@ -270,7 +267,7 @@ async fn workbench(cx: &Cx, owner: String) -> Result<impl View> {
                     </pre>
                 }
                 <div class="code-foot">
-                    "Application code: Rust. Browser code: generated."
+                    "Simplified source excerpts. Full demo: site/src/pages.rs."
                 </div>
             </div>
             <div class="demo-side">
@@ -314,21 +311,17 @@ async fn workbench(cx: &Cx, owner: String) -> Result<impl View> {
                 <ul class="demo-list" aria-label="Demo issues">
                     for issue in $(issues) {
                         <li
-                            :class=$(if issue.open {
-                                "issue"
-                            } else {
-                                "issue completed"
-                            })
+                            :class=$(
+                                if issue.open { "issue" } else { "issue completed" }
+                            )
                         >
                             <button
                                 class="issue-check"
                                 :aria-label=$(issue.title.clone())
                                 :aria-pressed=$(!issue.open)
-                                @click=$(|_e| table.set(
-                                        issue.id.clone(),
-                                        "open",
-                                        !issue.open,
-                                    ))
+                                @click=$(
+                                    |_e| table.set(issue.id.clone(), "open", !issue.open)
+                                )
                             >
                                 <svg
                                     viewBox="0 0 20 20"

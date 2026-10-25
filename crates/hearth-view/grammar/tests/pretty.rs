@@ -174,3 +174,32 @@ fn client_regions_preserve_conditions_queries_and_bodies() {
         formatted
     );
 }
+
+#[test]
+fn client_region_comments_stay_at_their_delimiters_and_are_idempotent() {
+    for source in [
+        "fn f() { view! { if $(// condition\n visible.get()) { \"yes\" } } }",
+        "fn f() { view! { for issue in $(/*query*/ issues) { <p>$(issue.title.clone())</p> } } }",
+        "fn f() { view! { if $(visible.get() /*tail*/) { \"yes\" } } }",
+    ] {
+        let first = pretty_print_str(&registry(), source).unwrap();
+        let second = pretty_print_str(&registry(), &first).unwrap();
+        assert_eq!(first, second);
+        let comment = if source.contains("condition") {
+            "condition"
+        } else if source.contains("query") {
+            "query"
+        } else {
+            "tail"
+        };
+        assert!(
+            first.find(comment).unwrap()
+                < first
+                    .find("{ \"yes\"")
+                    .or_else(|| first.find("<p>"))
+                    .unwrap_or(first.len()),
+            "{first}"
+        );
+        assert!(!first.contains("get(//"), "{first}");
+    }
+}

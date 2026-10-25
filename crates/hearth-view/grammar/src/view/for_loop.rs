@@ -17,6 +17,8 @@ pub struct ForLoop {
     pub template: TemplateForLoop<Nodes>,
     /// [hearth] Tokens of `$(...)` when the iterable is a client query.
     pub client: Option<proc_macro2::TokenStream>,
+    pub client_dollar: Option<syn::Token![$]>,
+    pub client_paren: Option<syn::token::Paren>,
     /// [hearth] Raw body tokens (for capture analysis).
     pub client_body: proc_macro2::TokenStream,
 }
@@ -52,9 +54,9 @@ impl Parse for ForLoop {
             let for_token = input.parse()?;
             let pat = Box::new(input.call(syn::Pat::parse_single)?);
             let in_token = input.parse()?;
-            input.parse::<syn::Token![$]>()?;
+            let dollar = input.parse::<syn::Token![$]>()?;
             let content;
-            syn::parenthesized!(content in input);
+            let paren = syn::parenthesized!(content in input);
             let client: proc_macro2::TokenStream = content.parse()?;
             let client_body: proc_macro2::TokenStream = {
                 let f = input.fork();
@@ -72,12 +74,16 @@ impl Parse for ForLoop {
                     body,
                 },
                 client: Some(client),
+                client_dollar: Some(dollar),
+                client_paren: Some(paren),
                 client_body,
             });
         }
         let loop_ = Self {
             template: input.parse()?,
             client: None,
+            client_dollar: None,
+            client_paren: None,
             client_body: proc_macro2::TokenStream::new(),
         };
         for (index, attribute) in loop_.template.attributes.iter().enumerate() {
@@ -167,11 +173,14 @@ impl hearth_foundation_grammar::pretty::PrettyPrint for ForLoop {
             self.template.pat.pretty_print(printer);
             " ".pretty_print(printer);
             self.template.in_token.pretty_print(printer);
-            " $(".pretty_print(printer);
-            syn::parse2::<syn::Expr>(client.clone())
-                .unwrap_or_else(|_| syn::Expr::Verbatim(client.clone()))
-                .pretty_print(printer);
-            ") ".pretty_print(printer);
+            " ".pretty_print(printer);
+            crate::template::RuntimeExpr {
+                dollar: self.client_dollar.expect("client loop dollar"),
+                paren: self.client_paren.expect("client loop parentheses"),
+                expr: client.clone(),
+            }
+            .pretty_print(printer);
+            " ".pretty_print(printer);
             self.template.body.pretty_print(printer);
         } else {
             self.template.pretty_print(printer);
@@ -220,6 +229,9 @@ mod tests {
 /// [hearth] `if $(cond) { body }` in view position: rendered on the server
 /// when `cond` is true, and switched in the browser when it changes.
 pub struct ClientIf {
+    pub if_token: syn::Token![if],
+    pub dollar: syn::Token![$],
+    pub paren: syn::token::Paren,
     pub cond: proc_macro2::TokenStream,
     pub body: crate::template::TemplateBlock<Nodes>,
     pub raw_body: proc_macro2::TokenStream,
@@ -233,10 +245,10 @@ impl ClientIf {
 
 impl Parse for ClientIf {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        input.parse::<syn::Token![if]>()?;
-        input.parse::<syn::Token![$]>()?;
+        let if_token = input.parse::<syn::Token![if]>()?;
+        let dollar = input.parse::<syn::Token![$]>()?;
         let c;
-        syn::parenthesized!(c in input);
+        let paren = syn::parenthesized!(c in input);
         let cond = c.parse()?;
         let raw_body = {
             let f = input.fork();
@@ -244,6 +256,9 @@ impl Parse for ClientIf {
             g.stream()
         };
         Ok(Self {
+            if_token,
+            dollar,
+            paren,
             cond,
             body: input.parse()?,
             raw_body,
@@ -283,11 +298,15 @@ impl LowerView for ClientIf {
 #[cfg(feature = "pretty")]
 impl hearth_foundation_grammar::pretty::PrettyPrint for ClientIf {
     fn pretty_print(&self, printer: &mut hearth_foundation_grammar::pretty::Printer<'_>) {
-        "if $(".pretty_print(printer);
-        syn::parse2::<syn::Expr>(self.cond.clone())
-            .unwrap_or_else(|_| syn::Expr::Verbatim(self.cond.clone()))
-            .pretty_print(printer);
-        ") ".pretty_print(printer);
+        self.if_token.pretty_print(printer);
+        " ".pretty_print(printer);
+        crate::template::RuntimeExpr {
+            dollar: self.dollar,
+            paren: self.paren,
+            expr: self.cond.clone(),
+        }
+        .pretty_print(printer);
+        " ".pretty_print(printer);
         self.body.pretty_print(printer);
     }
 }
