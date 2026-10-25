@@ -35,10 +35,9 @@ pub enum ExecutableSource {
     /// root (the directory the build script runs in).
     Path(PathBuf),
     /// Read the executable from the named environment variable at build time,
-    /// interpreting its value like [`ExecutableSource::Path`]. Print
-    /// `cargo:rerun-if-env-changed=<name>` from your build script if a change
-    /// to the variable should rerun it; note that printing any `rerun-if-*`
-    /// directive replaces Cargo's default change detection.
+    /// interpreting its value like [`ExecutableSource::Path`].
+    /// [`BuildConfig::render`](crate::BuildConfig::render) tracks changes to
+    /// this variable for Cargo.
     Env(String),
 }
 
