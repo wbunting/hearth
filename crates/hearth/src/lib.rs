@@ -22,7 +22,7 @@ pub use mutate::table as table_handle;
 
 pub use list::{LiveQuery, LoaderFn as __LoaderFn, client_for, loader as __loader};
 pub use row::{Row, RowField, row_surrogate_js};
-pub use table::{ClientSchema, Table, TableDesc, client_schema, describe, mutation_route};
+pub use table::{ClientSchema, OnUnauthorized, Table, TableDesc, client_schema, describe, mutation_route};
 
 /// Re-exported for macro output.
 #[doc(hidden)]

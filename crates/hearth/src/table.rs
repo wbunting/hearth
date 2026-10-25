@@ -92,6 +92,33 @@ pub struct ClientSchema {
     pub version: String,
     pub scope: String,
     pub tables: Vec<TableDesc>,
+    pub on_unauthorized: OnUnauthorized,
+}
+
+impl ClientSchema {
+    /// Sets how the browser handles an unauthorized load or mutation.
+    #[must_use]
+    pub fn on_unauthorized(mut self, behavior: OnUnauthorized) -> Self {
+        self.on_unauthorized = behavior;
+        self
+    }
+}
+
+/// Browser behavior for HTTP 401 or a redirect to the configured sign-in URL.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OnUnauthorized {
+    /// Navigate to this URL, also used to recognize followed sign-in redirects.
+    Redirect(String),
+    /// Report load errors and roll back rejected mutations without navigating.
+    /// Servers should return HTTP 401 rather than sign-in HTML in this mode.
+    Error,
+}
+
+impl Default for OnUnauthorized {
+    fn default() -> Self {
+        Self::Redirect("/login".to_owned())
+    }
 }
 
 #[must_use]
@@ -114,7 +141,7 @@ pub fn client_schema(scope: String, tables: Vec<TableDesc>) -> ClientSchema {
         "{:016x}",
         fnv64(json.as_bytes())
     );
-    ClientSchema { version, scope, tables }
+    ClientSchema { version, scope, tables, on_unauthorized: OnUnauthorized::default() }
 }
 
 pub(crate) fn fnv64(bytes: &[u8]) -> u64 {
@@ -160,5 +187,32 @@ pub fn check_table<T: Table>(route_name: &str) -> Result<()> {
             T::NAME
         )))
         .into())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unauthorized_behavior_is_carried_in_boot_schema() {
+        let schema = client_schema("viewer".to_owned(), vec![]);
+        let boot = serde_json::json!({ "schema": &schema });
+        assert_eq!(boot["schema"]["on_unauthorized"]["redirect"], "/login");
+        let version = schema.version.clone();
+        let custom =
+            schema.on_unauthorized(OnUnauthorized::Redirect("/account/sign-in".to_owned()));
+        let boot = serde_json::json!({ "schema": &custom });
+        assert_eq!(
+            boot["schema"]["on_unauthorized"]["redirect"],
+            "/account/sign-in"
+        );
+        assert_eq!(
+            custom.version, version,
+            "auth policy does not change the row schema"
+        );
+        let errors = custom.on_unauthorized(OnUnauthorized::Error);
+        let boot = serde_json::json!({ "schema": &errors });
+        assert_eq!(boot["schema"]["on_unauthorized"], "error");
     }
 }

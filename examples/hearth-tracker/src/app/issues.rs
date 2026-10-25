@@ -11,7 +11,7 @@ use hearth::{json_script, live_query, route, table_handle};
 use topcoat::{
     Result,
     context::Cx,
-    router::page,
+    router::{href, page},
     runtime::{Event, signal},
     view::{View, attributes, class, component, view},
 };
@@ -146,7 +146,9 @@ async fn tracker(cx: &Cx) -> Result<impl View> {
     let comments_t = table_handle::<CommentRow>();
     let emojis_t = table_handle::<EmojiRow>();
 
-    let boot = serde_json::json!({ "schema": client_schema(me.fingerprint()), "snapshot": {} });
+    let schema = client_schema(me.fingerprint())
+        .on_unauthorized(hearth::OnUnauthorized::Redirect(href!(super::login::page).resolve(cx)));
+    let boot = serde_json::json!({ "schema": schema, "snapshot": {} });
 
     Ok(view! {
         <div class="min-h-screen">
