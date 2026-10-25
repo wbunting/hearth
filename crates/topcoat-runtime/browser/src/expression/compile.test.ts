@@ -8,7 +8,10 @@ vi.unmock("./compile");
 vi.mock("./module", () => ({
 	importExpressions: async () => ({
 		default: {
-			bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb: (cx: Context, captures: { expressions: string[] }) => cx.expression(captures.expressions[0]!),
+			bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb: (
+				cx: Context,
+				captures: { expressions: string[] },
+			) => cx.expression(captures.expressions[0]!),
 			aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: (
 				cx: { value: number },
 				captures: number[],
@@ -61,14 +64,21 @@ it("does not import reference-shaped text or captured strings", async () => {
 });
 
 it("loads nested captured expression references but not value data", async () => {
-    const inner = `#${id}:[8]`;
-    const outer = "#" + "b".repeat(64) + ":" + JSON.stringify({ expressions: [inner], values: ["#" + "f".repeat(64) + ":[]"] });
-    const template = document.createElement("template");
-    const element = document.createElement("b");
-    element.setAttribute("data-topcoat-bind:title", outer);
-    template.content.append(element);
-    await loadExpressions(template.content);
-    const cx = new Context(new SignalRegistry());
-    Object.assign(cx, { value: 2 });
-    expect(compile<number>(outer, "nested")(cx)).toBe(10);
+	const inner = `#${id}:[8]`;
+	const outer =
+		"#" +
+		"b".repeat(64) +
+		":" +
+		JSON.stringify({
+			expressions: [inner],
+			values: ["#" + "f".repeat(64) + ":[]"],
+		});
+	const template = document.createElement("template");
+	const element = document.createElement("b");
+	element.setAttribute("data-topcoat-bind:title", outer);
+	template.content.append(element);
+	await loadExpressions(template.content);
+	const cx = new Context(new SignalRegistry());
+	Object.assign(cx, { value: 2 });
+	expect(compile<number>(outer, "nested")(cx)).toBe(10);
 });
