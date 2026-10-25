@@ -42,6 +42,10 @@ pub fn router() -> RouterBuilder {
 pub const TAILWIND: topcoat::asset::Asset =
     topcoat::asset::asset!(concat!(env!("OUT_DIR"), "/benchmark.css"));
 const APP_TAILWIND: topcoat::asset::Asset = tailwind::stylesheet!();
+/// hearth's keyed-arch mark (source: `docs/hearth/brand/`).
+const FAVICON_SVG: topcoat::asset::Asset = topcoat::asset::asset!("./favicon.svg");
+const FAVICON_PNG: topcoat::asset::Asset = topcoat::asset::asset!("./favicon-32.png");
+const APPLE_TOUCH_ICON: topcoat::asset::Asset = topcoat::asset::asset!("./apple-touch-icon.png");
 
 /// Hashed URL of the app stylesheet.
 pub fn tailwind_url(cx: &Cx) -> String {
@@ -64,6 +68,9 @@ async fn root(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>"hearth tracker"</title>
+                <link rel="icon" type="image/svg+xml" href=(FAVICON_SVG)>
+                <link rel="icon" type="image/png" sizes="32x32" href=(FAVICON_PNG)>
+                <link rel="apple-touch-icon" href=(APPLE_TOUCH_ICON)>
                 <link
                     rel="stylesheet"
                     href=(if benchmark { TAILWIND } else { APP_TAILWIND })

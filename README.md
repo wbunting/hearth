@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/hearth/brand/hearth-logo-dark.svg">
+    <img src="docs/hearth/brand/hearth-logo.svg" alt="hearth" width="360">
+  </picture>
+</p>
+
 # hearth
 
 A fork of [Topcoat](https://github.com/tokio-rs/topcoat) (v0.10.0) for
