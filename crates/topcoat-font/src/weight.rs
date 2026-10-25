@@ -3,7 +3,7 @@
 
 use topcoat_core::fnv1a::Fnv1a;
 
-/// A font weight: an integer in `100..=900`.
+/// A font weight: an integer in `1..=1000`.
 ///
 /// Named constants cover weights in steps of `100`. Intermediate values are
 /// also accepted for variable fonts. The default is `400` (Normal).
@@ -34,14 +34,14 @@ impl FontWeight {
     ///
     /// # Panics
     ///
-    /// Panics if `weight` is outside `100..=900`. Use
+    /// Panics if `weight` is outside `1..=1000`. Use
     /// `FontWeight::try_from` for a non-panicking conversion.
     #[must_use]
     #[track_caller]
     pub const fn new(weight: u16) -> Self {
         assert!(
-            weight >= 100 && weight <= 900,
-            "font weight out of range 100..=900"
+            weight >= 1 && weight <= 1000,
+            "font weight out of range 1..=1000"
         );
         Self(weight)
     }
@@ -64,14 +64,14 @@ impl From<FontWeight> for u16 {
     }
 }
 
-/// Error returned when converting a `u16` outside `100..=900` into a
+/// Error returned when converting a `u16` outside `1..=1000` into a
 /// [`FontWeight`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FontWeightOutOfRangeError;
 
 impl std::fmt::Display for FontWeightOutOfRangeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("font weight out of range 100..=900")
+        f.write_str("font weight out of range 1..=1000")
     }
 }
 
@@ -81,7 +81,7 @@ impl TryFrom<u16> for FontWeight {
     type Error = FontWeightOutOfRangeError;
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
-        if !(100..=900).contains(&value) {
+        if !(1..=1000).contains(&value) {
             return Err(FontWeightOutOfRangeError);
         }
         Ok(Self(value))
@@ -121,7 +121,7 @@ impl FontWeightRange {
     ///
     /// # Panics
     ///
-    /// Panics if either value is outside `100..=900`, or if `end` is before
+    /// Panics if either value is outside `1..=1000`, or if `end` is before
     /// `start`.
     #[must_use]
     #[track_caller]
@@ -195,27 +195,29 @@ mod tests {
     }
 
     #[test]
-    fn try_from_accepts_the_bounds() {
-        assert_eq!(FontWeight::try_from(100), Ok(w(100)));
-        assert_eq!(FontWeight::try_from(900), Ok(w(900)));
+    fn accepts_every_integer_weight() {
+        for value in 1..=1000 {
+            assert_eq!(FontWeight::try_from(value), Ok(w(value)));
+        }
     }
 
     #[test]
     fn try_from_rejects_out_of_range() {
-        assert_eq!(FontWeight::try_from(99), Err(FontWeightOutOfRangeError));
-        assert_eq!(FontWeight::try_from(901), Err(FontWeightOutOfRangeError));
+        for value in [0, 1001, u16::MAX] {
+            assert_eq!(FontWeight::try_from(value), Err(FontWeightOutOfRangeError));
+        }
     }
 
     #[test]
     #[should_panic = "out of range"]
     fn new_panics_below_the_minimum() {
-        let _ = FontWeight::new(99);
+        let _ = FontWeight::new(0);
     }
 
     #[test]
     #[should_panic = "out of range"]
     fn new_panics_above_the_maximum() {
-        let _ = FontWeight::new(901);
+        let _ = FontWeight::new(1001);
     }
 
     #[test]
@@ -225,7 +227,7 @@ mod tests {
 
     #[test]
     fn multi_weight_range_displays_both_numbers() {
-        assert_eq!(FontWeightRange::new(w(400), w(700)).to_string(), "400 700");
+        assert_eq!(FontWeightRange::new(w(1), w(1000)).to_string(), "1 1000");
     }
 
     #[test]
@@ -245,6 +247,6 @@ mod tests {
     #[test]
     #[should_panic = "out of range"]
     fn range_from_u16_panics_on_out_of_range() {
-        let _ = FontWeightRange::from_u16(100, 901);
+        let _ = FontWeightRange::from_u16(1, 1001);
     }
 }

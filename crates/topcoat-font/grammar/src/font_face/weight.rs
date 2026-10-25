@@ -170,7 +170,7 @@ impl topcoat_core_grammar::pretty::PrettyPrint for FontWeightRange {
 }
 
 /// A single absolute font weight, written as a bare number validated to be in
-/// `100..=900`, or one of the CSS keywords `normal` (`400`) or `bold` (`700`).
+/// `1..=1000`, or one of the CSS keywords `normal` (`400`) or `bold` (`700`).
 pub struct FontWeightLevel {
     pub value: u16,
     pub span: Span,
@@ -191,10 +191,10 @@ impl Parse for FontWeightLevel {
 
         let literal: LitInt = input.parse()?;
         let value: u16 = literal.base10_parse()?;
-        if !(100..=900).contains(&value) {
+        if !(1..=1000).contains(&value) {
             return Err(syn::Error::new(
                 literal.span(),
-                "font weight out of range 100..=900",
+                "font weight out of range 1..=1000",
             ));
         }
         Ok(Self {
@@ -271,10 +271,29 @@ mod tests {
 
     #[test]
     fn accepts_the_bounds() {
-        let weight = parse("font-weight: 100 900");
+        let weight = parse("font-weight: 1 1000");
         let range = css(&weight.value);
-        assert_eq!(range.start.value, 100);
-        assert_eq!(range.end.as_ref().unwrap().value, 900);
+        assert_eq!(range.start.value, 1);
+        assert_eq!(range.end.as_ref().unwrap().value, 1000);
+    }
+
+    #[test]
+    fn accepts_every_integer_weight() {
+        for value in 1..=1000 {
+            let weight = parse(&format!("font-weight: {value}"));
+            assert_eq!(css(&weight.value).start.value, value);
+        }
+    }
+
+    #[test]
+    fn validates_both_range_endpoints() {
+        for value in ["0 400", "400 1001", "0 1000", "1 65536", "1000 1"] {
+            assert!(syn::parse_str::<FontWeight>(&format!("font-weight: {value}")).is_err());
+        }
+        let weight = parse("font-weight: 1000 1000");
+        let range = css(&weight.value);
+        assert_eq!(range.start.value, 1000);
+        assert_eq!(range.end.as_ref().unwrap().value, 1000);
     }
 
     #[test]
@@ -322,13 +341,13 @@ mod tests {
 
     #[test]
     fn rejects_weights_below_the_minimum() {
-        assert!(parse_err("font-weight: 99").contains("out of range"));
+        assert!(parse_err("font-weight: 0").contains("out of range"));
     }
 
     #[test]
     fn rejects_weights_above_the_maximum() {
-        assert!(parse_err("font-weight: 901").contains("out of range"));
-        assert!(parse_err("font-weight: 1000").contains("out of range"));
+        assert!(parse_err("font-weight: 1001").contains("out of range"));
+        assert!(parse_err("font-weight: 65535").contains("out of range"));
     }
 
     #[test]

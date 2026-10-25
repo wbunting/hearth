@@ -1,4 +1,4 @@
-use std::sync::OnceLock;
+use std::{collections::HashSet, sync::OnceLock};
 
 use topcoat_core::context::Cx;
 use topcoat_router::{
@@ -86,7 +86,12 @@ impl Route for FontRoute {
     }
 }
 
+#[derive(Default)]
+struct RegisteredFontRoutes(HashSet<PathBuf>);
+
 pub trait RouterBuilderFontExt {
+    /// Registers a font stylesheet. Registering the same stylesheet more than
+    /// once, including through discovery, has no effect.
     #[must_use]
     fn font(self, font: Font) -> Self;
 
@@ -97,7 +102,18 @@ pub trait RouterBuilderFontExt {
 
 impl RouterBuilderFontExt for RouterBuilder {
     fn font(mut self, font: Font) -> Self {
-        self = self.route(FontRoute::new(font));
+        let route = FontRoute::new(font);
+        if self.get_app_context::<RegisteredFontRoutes>().is_none() {
+            self = self.app_context(RegisteredFontRoutes::default());
+        }
+        if self
+            .get_app_context_mut::<RegisteredFontRoutes>()
+            .unwrap()
+            .0
+            .insert(route.path.clone())
+        {
+            self = self.route(route);
+        }
         // Every font shares the same resolver, so register it only for the
         // first one; a second `app_context` of the same type would panic.
         if self.get_app_context::<FontResolver>().is_none() {
