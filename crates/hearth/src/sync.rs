@@ -107,18 +107,18 @@ impl Principal {
 }
 
 /// Handles `GET /_hearth/<table>/load` for `T`.
-pub async fn load_route<T: Table>(cx: &Cx) -> Result<LoadBody<T::Row>> {
+pub async fn load_route<T: Table>(cx: &Cx) -> Result<LoadBody<Value>> {
     let params = LoadParams::from_request(cx)?;
     let rows = T::load(cx).await?;
+    let rows = rows
+        .into_iter()
+        .map(T::to_wire)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(internal_server_error)?;
     if !params.envelope() {
         return Ok(LoadBody::Rows(rows));
     }
     let principal = Principal::current(cx).await?;
-    let rows = rows
-        .into_iter()
-        .map(serde_json::to_value)
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(internal_server_error)?;
     let stream = Stream {
         table: T::NAME,
         fingerprint: fingerprint::<T>(),

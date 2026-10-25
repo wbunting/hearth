@@ -13,8 +13,43 @@ use crate::{ir::JsonRow, sql::SqlColumns};
 pub type BoxFut<'a, T> = Pin<Box<dyn Future<Output = Result<T>> + Send + 'a>>;
 
 /// A table synced to the browser.
+///
+/// Derived tables can mark server-only fields with `#[skip]`. Hearth excludes
+/// them from wire rows and schema. The app's `From<Model>` still fills them.
+/// They cannot appear in `writable(...)` or in a `live_query!` expression.
+///
+/// ```compile_fail,E0080
+/// use hearth::{Table, live_query};
+/// use serde::{Serialize, Deserialize};
+/// use topcoat::{Result, context::Cx};
+/// #[derive(toasty::Model)]
+/// struct Model {
+///     #[key]
+///     id: String,
+///     secret: String,
+/// }
+/// #[derive(Table, Serialize, Deserialize)]
+/// #[table(name = "rows", model = Model, scope = scope)]
+/// struct Row {
+///     #[key]
+///     id: String,
+///     #[skip]
+///     secret: String,
+/// }
+/// impl From<Model> for Row {
+///     fn from(m: Model) -> Self { Self { id: m.id, secret: m.secret } }
+/// }
+/// async fn scope(_: &Cx) -> Result<Option<toasty::stmt::Expr<bool>>> { Ok(None) }
+/// #[hearth::row]
+/// struct Output { id: String }
+/// let _ = live_query! {
+///     Output from r in Row
+///     where r.secret == "not client data"
+///     select { id: r.id }
+/// };
+/// ```
 pub trait Table: Send + Sync + Sized + 'static {
-    /// Wire row (camelCase JSON fields).
+    /// Server row. Hearth sends only fields listed in `COLUMNS`.
     type Row: Serialize + DeserializeOwned + Send;
     const NAME: &'static str;
     const KEY: &'static str;
@@ -24,6 +59,15 @@ pub trait Table: Send + Sync + Sized + 'static {
     const WRITES: (bool, bool, bool) = (false, false, false);
     /// Client indexes (from `#[key]`/`#[index]` fields).
     fn indexes() -> Vec<&'static str>;
+
+    /// Serializes a row for the browser, excluding server-only fields.
+    fn to_wire(row: Self::Row) -> serde_json::Result<Value> {
+        let mut value = serde_json::to_value(row)?;
+        if let Value::Object(fields) = &mut value {
+            fields.retain(|name, _| Self::COLUMNS.iter().any(|(column, _)| *column == name));
+        }
+        Ok(value)
+    }
 
     /// All rows the current request may read. **Authorization lives here.**
     fn load(cx: &Cx) -> BoxFut<'_, Vec<Self::Row>>;
@@ -167,8 +211,8 @@ pub(crate) fn key_string(key: Value) -> String {
 /// Dispatches a mutation request; returns the server's row (or null on delete).
 pub async fn mutation_route<T: Table>(cx: &Cx, m: Mutation) -> Result<Value> {
     let row = match m {
-        Mutation::Update { key, changes } => serde_json::to_value(T::update(cx, key_string(key), changes).await?),
-        Mutation::Insert { row } => serde_json::to_value(T::insert(cx, row).await?),
+        Mutation::Update { key, changes } => T::to_wire(T::update(cx, key_string(key), changes).await?),
+        Mutation::Insert { row } => T::to_wire(T::insert(cx, row).await?),
         Mutation::Delete { key } => {
             T::delete(cx, key_string(key)).await?;
             return Ok(Value::Null);
@@ -188,6 +232,29 @@ pub fn check_table<T: Table>(route_name: &str) -> Result<()> {
         )))
         .into())
     }
+}
+
+/// Whether a column is part of the client schema. Used by `live_query!` at compile time.
+#[doc(hidden)]
+#[must_use]
+pub const fn has_column<T: Table>(name: &str) -> bool {
+    let columns = T::COLUMNS;
+    let mut i = 0;
+    while i < columns.len() {
+        let a = columns[i].0.as_bytes();
+        let b = name.as_bytes();
+        if a.len() == b.len() {
+            let mut j = 0;
+            while j < a.len() && a[j] == b[j] {
+                j += 1;
+            }
+            if j == a.len() {
+                return true;
+            }
+        }
+        i += 1;
+    }
+    false
 }
 
 #[cfg(test)]
@@ -216,3 +283,4 @@ mod tests {
         assert_eq!(boot["schema"]["on_unauthorized"], "error");
     }
 }
+

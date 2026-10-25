@@ -29,7 +29,7 @@ use syn::{
 mod table;
 
 /// See `hearth::Table`.
-#[proc_macro_derive(Table, attributes(table, key, index, computed))]
+#[proc_macro_derive(Table, attributes(table, key, index, computed, skip))]
 pub fn derive_table(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::DeriveInput);
     table::derive(input).unwrap_or_else(syn::Error::into_compile_error).into()
@@ -64,7 +64,7 @@ pub fn routes(input: TokenStream) -> TokenStream {
         let mutate = quote::format_ident!("__hearth_mutate_{}", snake);
         items.push(quote! {
             #[::topcoat::router::route(GET #load_path)]
-            async fn #load(cx: &::topcoat::context::Cx) -> ::topcoat::Result<::topcoat::router::content::Json<::hearth::sync::LoadBody<<#t as ::hearth::Table>::Row>>> {
+            async fn #load(cx: &::topcoat::context::Cx) -> ::topcoat::Result<::topcoat::router::content::Json<::hearth::sync::LoadBody<::hearth::__private::serde_json::Value>>> {
                 ::hearth::table::check_table::<#t>(#snake)?;
                 ::core::result::Result::Ok(::topcoat::router::content::Json(::hearth::sync::load_route::<#t>(cx).await?))
             }
@@ -338,6 +338,7 @@ fn camel(s: &str) -> String {
 
 struct Ctx {
     params: Vec<Ts>,
+    sources: Vec<(String, syn::Path)>,
 }
 
 impl E {
@@ -345,9 +346,17 @@ impl E {
         let ir = quote!(::hearth::ir);
         match self {
             E::Col(a, c) => {
+                let alias = a;
                 let a = a.to_string();
                 let c = camel(&c.to_string());
-                quote!(#ir::Expr::Col { col: (#a, #c) })
+                let Some((_, table)) = cx.sources.iter().find(|(alias, _)| *alias == a) else {
+                    return syn::Error::new_spanned(alias, "unknown query alias").to_compile_error();
+                };
+                let message = format!("column {a}.{c} is not synced (unknown or #[skip])");
+                quote!({
+                    const { assert!(::hearth::table::has_column::<#table>(#c), #message); }
+                    #ir::Expr::Col { col: (#a, #c) }
+                })
             }
             E::Lit(l) => quote!(#ir::Expr::Lit { lit: ::hearth::__private::serde_json::json!(#l) }),
             E::Param(ts) => {
@@ -381,7 +390,13 @@ impl E {
 impl Q {
     fn expand(&self) -> Ts {
         let ir = quote!(::hearth::ir);
-        let mut cx = Ctx { params: Vec::new() };
+        let mut cx = Ctx {
+            params: Vec::new(),
+            sources: std::iter::once(&self.from)
+                .chain(self.joins.iter().map(|j| &j.src))
+                .map(|s| (s.alias.to_string(), s.table.clone()))
+                .collect(),
+        };
         let row = &self.row;
         let from_alias = self.from.alias.to_string();
         let from_table = &self.from.table;
