@@ -33,20 +33,14 @@ impl BuildOpts {
         // An explicit --bin always wins and Cargo validates its name.
         let mut opts = self.clone();
         if opts.bin.is_none()
-            && let Some(mut metadata) = Metadata::workspace().await
+            && let Some(metadata) = Metadata::workspace().await
         {
-            if metadata.has_gated_binaries()
-                && let Some(resolved) = Metadata::full().await
-            {
-                metadata = resolved;
-            }
             let package = match opts.package.as_deref() {
-                Some(spec) => metadata.package_name_for_spec(spec).await,
+                Some(spec) => metadata.package_key_for_spec(spec).await,
                 None => None,
             };
-            opts.bin = metadata
-                .binary_for_build(package.as_deref().or(opts.package.as_deref()))
-                .map_err(BuildError::MultipleBins)?;
+            opts.bin =
+                metadata.default_run_for_build(package.as_deref().or(opts.package.as_deref()));
         }
         let mut child = opts
             .command()
@@ -95,6 +89,18 @@ impl BuildOpts {
             });
         }
 
+        // Cargo decides which feature-gated targets are enabled for this build.
+        // Prefer its executable outputs over a companion dynamic library.
+        let mut bins = messages.binaries();
+        match bins.len() {
+            0 => {}
+            1 => return Ok(bins.remove(0).1),
+            _ => {
+                return Err(BuildError::MultipleBins(
+                    bins.into_iter().map(|(name, _)| name).collect(),
+                ));
+            }
+        }
         let mut artifacts = messages.artifacts();
         match artifacts.len() {
             0 => Err(BuildError::NoArtifact),

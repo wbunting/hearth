@@ -229,3 +229,95 @@ fn disabled_optional_binary_does_not_block_library_bundling() {
     .unwrap();
     project.bundle(&[], "helper asset");
 }
+
+#[test]
+fn sibling_features_do_not_enable_the_selected_packages_binary() {
+    let project = Project::new();
+    project.manifest(&["helper"], None);
+    std::fs::write(project.path.join("src/lib.rs"), "pub fn value() {}\n").unwrap();
+    std::fs::create_dir_all(project.path.join("other/src")).unwrap();
+    std::fs::write(project.path.join("other/src/lib.rs"), "pub fn other() {}\n").unwrap();
+    std::fs::write(project.path.join("other/Cargo.toml"), "[package]\nname = \"other\"\nversion = \"0.1.0\"\n[dependencies]\napp = {path = \"..\", features = [\"cli\"]}\n").unwrap();
+    let manifest = std::fs::read_to_string(project.path.join("Cargo.toml")).unwrap();
+    let manifest = manifest.replace(
+        "[workspace]",
+        "[workspace]\nresolver = \"3\"\nmembers = [\"other\"]",
+    );
+    std::fs::write(project.path.join("Cargo.toml"), format!("{manifest}required-features = [\"cli\"]\n[features]\ncli = []\n[lib]\ncrate-type = [\"cdylib\", \"rlib\"]\n")).unwrap();
+    let output = project
+        .command(&["asset", "bundle", "--release", "-p", "app"])
+        .output()
+        .unwrap();
+    assert_success(&output);
+    assert!(!project.path.join("target/release/helper").is_file());
+}
+
+#[test]
+fn dependency_feature_gates_are_decided_by_cargo() {
+    let project = Project::new();
+    project.manifest(&["helper", "server"], None);
+    std::fs::create_dir_all(project.path.join("dep/src")).unwrap();
+    std::fs::write(project.path.join("dep/src/lib.rs"), "pub fn dep() {}\n").unwrap();
+    std::fs::write(
+        project.path.join("dep/Cargo.toml"),
+        "[package]\nname = \"dep\"\nversion = \"0.1.0\"\n[features]\ncli = []\n",
+    )
+    .unwrap();
+    let manifest = std::fs::read_to_string(project.path.join("Cargo.toml")).unwrap();
+    let manifest = manifest
+        .replace(
+            "[dependencies]",
+            "[dependencies]\ndep = {path = \"dep\", features = [\"cli\"]}",
+        )
+        .replace(
+            "name = \"helper\"",
+            "required-features = [\"dep/cli\"]\nname = \"helper\"",
+        );
+    std::fs::write(project.path.join("Cargo.toml"), &manifest).unwrap();
+    let output = project
+        .command(&["asset", "bundle", "--release", "-p", "app"])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    let error = String::from_utf8_lossy(&output.stderr);
+    for choice in ["--bin", "helper", "server"] {
+        assert!(error.contains(choice), "{error}");
+    }
+    std::fs::write(project.path.join("src/lib.rs"), "pub fn value() {}\n").unwrap();
+    std::fs::write(
+        project.path.join("Cargo.toml"),
+        format!(
+            "{}\n[lib]\ncrate-type = [\"cdylib\"]\n",
+            manifest.replace(
+                "[[bin]]\nname = \"server\"\npath = \"src/bin/server.rs\"",
+                ""
+            )
+        ),
+    )
+    .unwrap();
+    project.bundle(&[], "helper asset");
+}
+
+#[test]
+fn package_selection_does_not_confuse_same_name_dependency() {
+    let project = Project::new();
+    project.manifest(&["server", "helper"], Some("server"));
+    std::fs::create_dir_all(project.path.join("old/src")).unwrap();
+    std::fs::write(project.path.join("old/src/lib.rs"), "pub fn old() {}\n").unwrap();
+    std::fs::write(project.path.join("old/src/main.rs"), "fn main() {}\n").unwrap();
+    std::fs::write(project.path.join("old/Cargo.toml"), "[package]\nname = \"app\"\nversion = \"0.0.1\"\n[[bin]]\nname = \"old-helper\"\npath = \"src/main.rs\"\n").unwrap();
+    let manifest = std::fs::read_to_string(project.path.join("Cargo.toml"))
+        .unwrap()
+        .replace("[workspace]", "[workspace]\nexclude = [\"old\"]")
+        .replace(
+            "[dependencies]",
+            "[dependencies]\nold-app = {package = \"app\", path = \"old\"}",
+        );
+    std::fs::write(project.path.join("Cargo.toml"), manifest).unwrap();
+    let output = project
+        .command(&["asset", "list", "--release", "-p", "app@0.1.0"])
+        .output()
+        .unwrap();
+    assert_success(&output);
+    assert!(String::from_utf8_lossy(&output.stdout).contains("server.txt"));
+}

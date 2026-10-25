@@ -53,6 +53,17 @@ impl Messages {
         })
     }
 
+    /// Executable targets Cargo built, with their names for selection diagnostics.
+    pub(super) fn binaries(&self) -> Vec<(String, PathBuf)> {
+        self.0
+            .iter()
+            .filter_map(|message| match message {
+                Message::Artifact(artifact) => artifact.binary(),
+                _ => None,
+            })
+            .collect()
+    }
+
     /// The final linked outputs of the build, from every artifact's
     /// [`Artifact::final_outputs`].
     pub(super) fn artifacts(&self) -> Vec<PathBuf> {

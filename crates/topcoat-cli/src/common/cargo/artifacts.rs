@@ -14,6 +14,15 @@ pub(super) struct Artifact {
 }
 
 impl Artifact {
+    /// The binary target name and linked executable, excluding build scripts.
+    pub(super) fn binary(&self) -> Option<(String, PathBuf)> {
+        if self.target.crate_types.iter().any(|kind| kind == "bin") {
+            Some((self.target.name.clone()?, self.executable.clone()?))
+        } else {
+            None
+        }
+    }
+
     /// Returns the target's final executable or dynamic libraries. Skips intermediate
     /// dependencies and build-script outputs.
     pub(super) fn final_outputs(&self) -> Vec<PathBuf> {
@@ -42,6 +51,7 @@ impl Artifact {
 
 #[derive(Deserialize)]
 struct Target {
+    name: Option<String>,
     crate_types: Vec<String>,
 }
 
