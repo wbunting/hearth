@@ -85,8 +85,22 @@ impl Inputs {
         let base = path.parent().unwrap();
         let mut input = ParserInput::new(&css);
         let mut parser = Parser::new(&mut input);
+        self.rules(base, &mut parser)
+    }
+
+    fn rules(&mut self, base: &Path, parser: &mut Parser<'_, '_>) -> Result {
         let mut import_error = None;
         while let Ok(token) = parser.next().cloned() {
+            if token == Token::CurlyBracketBlock {
+                let _: std::result::Result<_, cssparser::ParseError<'_, ()>> = parser
+                    .parse_nested_block(|block| {
+                        if let Err(error) = self.rules(base, block) {
+                            import_error = Some(error);
+                        }
+                        Ok(())
+                    });
+                continue;
+            }
             let Token::AtKeyword(name) = token else {
                 continue;
             };
@@ -104,14 +118,25 @@ impl Inputs {
                             "import" | "reference" => {
                                 // Tailwind preserves url(...) imports for the browser.
                                 if let Ok(path) = rule.expect_string_cloned() {
+                                    let automatic = self.automatic;
                                     if let Err(error) = self.import(base, &path) {
                                         import_error = Some(error);
                                     }
-                                    self.scan_root(base, rule);
+                                    if name == "reference" {
+                                        self.automatic = automatic;
+                                    }
+                                    // A source modifier only controls scanning if the
+                                    // imported stylesheet supplies utilities. For other
+                                    // imports retain a conservative automatic watch.
+                                    let controls_scan = name == "import"
+                                        && (path == "tailwindcss"
+                                            || path == "tailwindcss/utilities"
+                                            || path == "tailwindcss/utilities.css");
+                                    self.scan_root(base, rule, controls_scan);
                                 }
                             }
                             "tailwind" if rule.expect_ident_matching("utilities").is_ok() => {
-                                self.scan_root(base, rule);
+                                self.scan_root(base, rule, true);
                             }
                             _ => {}
                         }
@@ -125,12 +150,14 @@ impl Inputs {
         import_error.map_or(Ok(()), Err)
     }
 
-    fn scan_root(&mut self, base: &Path, rule: &mut Parser<'_, '_>) {
+    fn scan_root(&mut self, base: &Path, rule: &mut Parser<'_, '_>, controls_scan: bool) {
         while let Ok(token) = rule.next().cloned() {
             if let Token::Function(name) = token
                 && name == "source"
             {
-                self.automatic = false;
+                if controls_scan {
+                    self.automatic = false;
+                }
                 let _: std::result::Result<_, cssparser::ParseError<'_, ()>> = rule
                     .parse_nested_block(|value| {
                         if let Ok(Token::QuotedString(path)) = value.next() {
@@ -458,6 +485,61 @@ mod tests {
             !paths
                 .iter()
                 .any(|path| root.join("app/target").starts_with(path))
+        );
+    }
+
+    #[test]
+    fn reference_imports_do_not_disable_automatic_scanning() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = fs::canonicalize(dir.path()).unwrap();
+        fs::create_dir(root.join("src")).unwrap();
+        fs::write(root.join("app.css"), "@import 'tailwindcss'; @reference './reference.css'; @import './theme.css' source(none);").unwrap();
+        fs::write(
+            root.join("reference.css"),
+            "@import 'tailwindcss' source(none);",
+        )
+        .unwrap();
+        fs::write(root.join("theme.css"), ":root { --color: red; }").unwrap();
+        let command = Command {
+            input: "app.css".into(),
+            output: "target/out.css".into(),
+            cwd: root.clone(),
+            optimize: false,
+            minify: false,
+        };
+        assert!(
+            Inputs::discover(&command, None)
+                .unwrap()
+                .paths()
+                .unwrap()
+                .contains(&root.join("src"))
+        );
+    }
+
+    #[test]
+    fn nested_utilities_track_external_sources() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = fs::canonicalize(dir.path()).unwrap();
+        fs::create_dir(root.join("app")).unwrap();
+        fs::create_dir(root.join("shared")).unwrap();
+        fs::write(
+            root.join("app/app.css"),
+            "@layer utilities { @tailwind utilities source('../shared'); }",
+        )
+        .unwrap();
+        let command = Command {
+            input: "app.css".into(),
+            output: "target/out.css".into(),
+            cwd: root.join("app"),
+            optimize: false,
+            minify: false,
+        };
+        assert!(
+            Inputs::discover(&command, None)
+                .unwrap()
+                .paths()
+                .unwrap()
+                .contains(&root.join("shared"))
         );
     }
 
