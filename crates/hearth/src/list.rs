@@ -88,7 +88,7 @@ where
             let rows = if joined { T::load(&cx).await? } else { T::load_first(&cx, &q, &p).await? };
             Ok(std::sync::Arc::new(
                 rows.into_iter()
-                    .filter_map(|r| match serde_json::to_value(r) {
+                    .filter_map(|r| match T::to_wire(r) {
                         Ok(Value::Object(m)) => Some(m),
                         _ => None,
                     })

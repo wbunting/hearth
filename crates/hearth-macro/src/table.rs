@@ -83,11 +83,26 @@ pub fn derive(input: DeriveInput) -> syn::Result<Ts> {
     let mut sql_cmp = Vec::new();
     let mut sql_order = Vec::new();
     let mut patch_fields = Vec::new();
+    let mut insert_defaults = Vec::new();
+    let mut wire_fields = Vec::new();
+    let mut wire_values = Vec::new();
+    let serde_attrs: Vec<_> = input.attrs.iter().filter(|a| a.path().is_ident("serde")).collect();
     for f in &fields.named {
         let ident = f.ident.clone().unwrap();
         let wire = camel(&ident.to_string());
         let ty = &f.ty;
         let is = |n: &str| f.attrs.iter().any(|a| a.path().is_ident(n));
+        if let Some(skip) = f.attrs.iter().find(|a| a.path().is_ident("skip")) {
+            skip.meta.require_path_only()?;
+            if is("key") || is("index") || is("computed") || o.writable.contains(&ident) {
+                return Err(syn::Error::new_spanned(
+                    f,
+                    "#[skip] cannot be combined with #[key], #[index], #[computed], or writable(...)",
+                ));
+            }
+            insert_defaults.push(quote!(row.#ident = defaults.#ident;));
+            continue;
+        }
         if is("key") {
             key = Some(wire.clone());
             indexes.push(wire.clone());
@@ -96,6 +111,9 @@ pub fn derive(input: DeriveInput) -> syn::Result<Ts> {
             indexes.push(wire.clone());
         }
         columns.push(quote!((#wire, <#ty as ::hearth::RowField>::TYPE)));
+        let serde_field_attrs: Vec<_> = f.attrs.iter().filter(|a| a.path().is_ident("serde")).collect();
+        wire_fields.push(quote!(#(#serde_field_attrs)* #ident: &'a #ty));
+        wire_values.push(quote!(#ident: &row.#ident));
         if !is("computed") {
             // Typed lowering: deserialize the JSON value as the column type,
             // then build the Toasty predicate on `Model::fields().<ident>()`.
@@ -160,13 +178,19 @@ pub fn derive(input: DeriveInput) -> syn::Result<Ts> {
                 ::std::boxed::Box::pin(async move {
                     // Missing fields take their defaults: server-owned fields
                     // (creator, timestamps, derived keys) are set by `insert`.
-                    let mut full = ::hearth::__private::serde_json::to_value(<Self as ::core::default::Default>::default())
+                    if row.keys().any(|k| !<Self as ::hearth::Table>::COLUMNS.iter().any(|(c, _)| *c == k)) {
+                        return ::core::result::Result::Err(::topcoat::router::error::bad_request("unknown insert column").into());
+                    }
+                    let defaults = <Self as ::core::default::Default>::default();
+                    let mut full = ::hearth::__private::serde_json::to_value(&defaults)
                         .map_err(|e| ::topcoat::router::error::internal_server_error(e))?;
                     if let ::hearth::__private::serde_json::Value::Object(m) = &mut full {
                         for (k, v) in row { m.insert(k, v); }
                     }
-                    let row: Self = ::hearth::__private::serde_json::from_value(full)
+                    #[allow(unused_mut)]
+                    let mut row: Self = ::hearth::__private::serde_json::from_value(full)
                         .map_err(|e| ::topcoat::router::error::bad_request(e.to_string()))?;
+                    #(#insert_defaults)*
                     #i(cx, row).await
                 })
             }
@@ -206,6 +230,19 @@ pub fn derive(input: DeriveInput) -> syn::Result<Ts> {
             const COLUMNS: &'static [(&'static str, &'static str)] = &[#(#columns),*];
             const WRITES: (bool, bool, bool) = (#can_update, #can_insert, #can_delete);
             fn indexes() -> ::std::vec::Vec<&'static str> { ::std::vec![#(#indexes),*] }
+
+            fn to_wire(row: Self) -> ::hearth::__private::serde_json::Result<::hearth::__private::serde_json::Value> {
+                // Do not serialize skipped fields, even when the app's own
+                // Serialize implementation would include them.
+                #[derive(::serde::Serialize)]
+                #(#serde_attrs)*
+                struct Wire<'a> { #(#wire_fields,)* }
+                let mut value = ::hearth::__private::serde_json::to_value(Wire { #(#wire_values,)* })?;
+                if let ::hearth::__private::serde_json::Value::Object(fields) = &mut value {
+                    fields.retain(|name, _| <Self as ::hearth::Table>::COLUMNS.iter().any(|(column, _)| *column == name));
+                }
+                ::core::result::Result::Ok(value)
+            }
 
             fn load(cx: &::topcoat::context::Cx) -> ::hearth::table::BoxFut<'_, ::std::vec::Vec<Self>> {
                 ::std::boxed::Box::pin(async move {
@@ -253,4 +290,26 @@ pub fn camel(s: &str) -> String {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn skip_rejects_conflicting_attributes() {
+        for (field, options) in [
+            (quote!(#[skip] #[key] id: String), quote!()),
+            (quote!(#[skip] #[index] secret: String), quote!()),
+            (quote!(#[skip] #[computed] secret: String), quote!()),
+            (quote!(#[skip] secret: String), quote!(, writable(secret))),
+            (quote!(#[skip(reason)] secret: String), quote!()),
+        ] {
+            let input = syn::parse2(quote! {
+                #[table(name = "rows", model = Model, scope = scope #options)]
+                struct Row { #[key] key: String, #field }
+            }).unwrap();
+            assert!(derive(input).is_err());
+        }
+    }
 }
