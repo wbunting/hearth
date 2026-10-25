@@ -84,9 +84,6 @@ pub fn derive(input: DeriveInput) -> syn::Result<Ts> {
     let mut sql_order = Vec::new();
     let mut patch_fields = Vec::new();
     let mut insert_defaults = Vec::new();
-    let mut wire_fields = Vec::new();
-    let mut wire_values = Vec::new();
-    let serde_attrs: Vec<_> = input.attrs.iter().filter(|a| a.path().is_ident("serde")).collect();
     for f in &fields.named {
         let ident = f.ident.clone().unwrap();
         let wire = camel(&ident.to_string());
@@ -111,9 +108,6 @@ pub fn derive(input: DeriveInput) -> syn::Result<Ts> {
             indexes.push(wire.clone());
         }
         columns.push(quote!((#wire, <#ty as ::hearth::RowField>::TYPE)));
-        let serde_field_attrs: Vec<_> = f.attrs.iter().filter(|a| a.path().is_ident("serde")).collect();
-        wire_fields.push(quote!(#(#serde_field_attrs)* #ident: &'a #ty));
-        wire_values.push(quote!(#ident: &row.#ident));
         if !is("computed") {
             // Typed lowering: deserialize the JSON value as the column type,
             // then build the Toasty predicate on `Model::fields().<ident>()`.
@@ -230,19 +224,6 @@ pub fn derive(input: DeriveInput) -> syn::Result<Ts> {
             const COLUMNS: &'static [(&'static str, &'static str)] = &[#(#columns),*];
             const WRITES: (bool, bool, bool) = (#can_update, #can_insert, #can_delete);
             fn indexes() -> ::std::vec::Vec<&'static str> { ::std::vec![#(#indexes),*] }
-
-            fn to_wire(row: Self) -> ::hearth::__private::serde_json::Result<::hearth::__private::serde_json::Value> {
-                // Do not serialize skipped fields, even when the app's own
-                // Serialize implementation would include them.
-                #[derive(::serde::Serialize)]
-                #(#serde_attrs)*
-                struct Wire<'a> { #(#wire_fields,)* }
-                let mut value = ::hearth::__private::serde_json::to_value(Wire { #(#wire_values,)* })?;
-                if let ::hearth::__private::serde_json::Value::Object(fields) = &mut value {
-                    fields.retain(|name, _| <Self as ::hearth::Table>::COLUMNS.iter().any(|(column, _)| *column == name));
-                }
-                ::core::result::Result::Ok(value)
-            }
 
             fn load(cx: &::topcoat::context::Cx) -> ::hearth::table::BoxFut<'_, ::std::vec::Vec<Self>> {
                 ::std::boxed::Box::pin(async move {

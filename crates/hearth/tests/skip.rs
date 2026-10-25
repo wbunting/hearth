@@ -270,3 +270,42 @@ async fn skipped_fields_stay_on_server_across_loads_seeds_and_mutations() {
             .all(|r| r.as_object().unwrap().len() == 2)
     );
 }
+
+// Row-specific Serde conversions must not be copied to a generated helper type.
+#[derive(Table, Clone, Serialize, Deserialize)]
+#[serde(into = "serde_json::Value")]
+#[table(name = "converted_accounts", model = Account, scope = scope)]
+struct ConvertedRow {
+    #[key]
+    id: String,
+    name: String,
+    #[skip]
+    secret: String,
+}
+
+impl From<Account> for ConvertedRow {
+    fn from(account: Account) -> Self {
+        Self {
+            id: account.id,
+            name: account.name,
+            secret: account.secret,
+        }
+    }
+}
+
+impl From<ConvertedRow> for Value {
+    fn from(row: ConvertedRow) -> Self {
+        json!({ "id": row.id, "name": row.name.to_uppercase(), "secret": row.secret })
+    }
+}
+
+#[test]
+fn wire_projection_preserves_custom_serde_without_exposing_skipped_fields() {
+    let wire = ConvertedRow::to_wire(ConvertedRow {
+        id: "a".to_owned(),
+        name: "Alice".to_owned(),
+        secret: "private".to_owned(),
+    })
+    .unwrap();
+    assert_eq!(wire, json!({ "id": "a", "name": "ALICE" }));
+}
