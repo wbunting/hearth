@@ -113,8 +113,19 @@ impl Metadata {
         if let Some(package) = self.package(spec) {
             return package["id"].as_str().map(str::to_owned);
         }
-        // pkgid requires a lockfile. Resolve metadata when a fresh project has none.
-        let _ = Self::full().await?;
+        // pkgid requires a lockfile, but generating it need not download sources
+        // for dependencies on platforms the selected build does not use.
+        if !self.workspace_root()?.join("Cargo.lock").is_file() {
+            let output = Command::new("cargo")
+                .arg("generate-lockfile")
+                .kill_on_drop(true)
+                .output()
+                .await
+                .ok()?;
+            if !output.status.success() {
+                return None;
+            }
+        }
         let output = Command::new("cargo")
             .args(["pkgid", "--package", spec])
             .kill_on_drop(true)

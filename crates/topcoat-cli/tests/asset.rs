@@ -321,3 +321,46 @@ fn package_selection_does_not_confuse_same_name_dependency() {
     assert_success(&output);
     assert!(String::from_utf8_lossy(&output.stdout).contains("server.txt"));
 }
+
+#[test]
+fn qualified_default_run_does_not_download_unused_platform_dependencies() {
+    let project = Project::new();
+    let home = project.path.join("cargo-home");
+    let cargo_home = std::env::var_os("CARGO_HOME").map_or_else(
+        || PathBuf::from(std::env::var_os("HOME").unwrap()).join(".cargo"),
+        PathBuf::from,
+    );
+    // Only the registry index is needed to resolve the lockfile. Deliberately do
+    // not copy crate archives or sources for the unused target dependency.
+    let registry = std::fs::read_dir(cargo_home.join("registry/index"))
+        .unwrap()
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .find(|path| path.join(".cache/it/oa/itoa").is_file())
+        .unwrap();
+    let index = home
+        .join("registry/index")
+        .join(registry.file_name().unwrap());
+    std::fs::create_dir_all(index.join(".cache/it/oa")).unwrap();
+    for file in ["config.json", ".cache/it/oa/itoa"] {
+        std::fs::copy(registry.join(file), index.join(file)).unwrap();
+    }
+    std::fs::write(project.path.join("Cargo.toml"), "[package]\nname = \"app\"\nversion = \"0.1.0\"\nedition = \"2024\"\ndefault-run = \"server\"\n[workspace]\n[target.'cfg(target_os = \"none\")'.dependencies]\nitoa = \"=1.0.18\"\n").unwrap();
+    std::fs::write(project.path.join("src/bin/server.rs"), "fn main() {}\n").unwrap();
+    std::fs::write(
+        project.path.join("src/bin/helper.rs"),
+        "compile_error!(\"must not build helper\");\nfn main() {}\n",
+    )
+    .unwrap();
+    // Check both a fresh project and an existing lockfile, without any sources.
+    for _ in 0..2 {
+        let output = project
+            .command(&["asset", "list", "--release", "-p", "app@0.1.0"])
+            .env("CARGO_HOME", &home)
+            .output()
+            .unwrap();
+        assert_success(&output);
+        assert!(project.path.join("Cargo.lock").is_file());
+    }
+    assert!(!home.join("registry/src").exists());
+}
