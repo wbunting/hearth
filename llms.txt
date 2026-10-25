@@ -91,6 +91,8 @@ Ok(view! {
 
 ## Hearth local-first tables
 
+[Toasty model registration](docs/hearth/toasty-models.md): Hearth uses crates.io Toasty 0.11. If `toasty::models!` hits rustc's recursion limit, add `#![recursion_limit = "256"]` at the affected crate root. Listing models explicitly can help isolate wildcard-discovery failures, but explicit lists themselves recurse per entry (128 entries fail at the default limit in the standalone fixture). `crate::*` uses runtime inventory discovery and compiles through 512 models in that fixture; the reported downstream wildcard failure was not reproduced.
+
 [Persistence and delta sync](docs/hearth/persistence.md): `routes!` keeps bare-array loads compatible; `?sync=1` / `?since=<cursor>` return scoped full/delta envelopes with tombstones. Browser server rows persist in a lazy IndexedDB worker, namespaced by schema fingerprint and viewer scope; include user/role identity in the scope. Optimistic overlays are never persisted. Delta cursors reset safely after schema/session changes, eviction, or restart. Server delta calculation still scans the scoped table.
 
 ## Optional HTTP integrations
