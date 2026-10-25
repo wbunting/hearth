@@ -23,6 +23,7 @@ export type RerunRequest = {
 
 /** Receives rendered content and describes the request for new renders. */
 export interface ConnectionTarget extends FrameTarget {
+	readonly documentSnapshot?: boolean;
 	rerunRequest(): RerunRequest;
 	reportError(error: unknown): void;
 	/**
@@ -242,7 +243,7 @@ export class Connection {
 		if (run.pending || ((frame.t === "snapshot" || frame.t === "swap") && /#[a-f0-9]{64}:/.test(frame.html))) {
 			// Preserve order within a run, but do not block independent shards.
 			run.pending = (run.pending ?? Promise.resolve()).then(async () => {
-				if (frame.t === "snapshot" || frame.t === "swap") await loadExpressions(frame.html);
+				if (frame.t === "snapshot" || frame.t === "swap") await loadExpressions(frame.html, frame.t === "snapshot" && run.target.documentSnapshot === true);
 				apply();
 			}).catch((error) => run.target.reportError(error));
 		} else apply();

@@ -240,7 +240,7 @@ export class NavigationController {
 			for await (const frame of request.frames()) {
 				if (!isCurrent()) return;
 				if (frame.t === "snapshot" || frame.t === "swap") {
-					await loadExpressions(frame.html);
+					await loadExpressions(frame.html, frame.t === "snapshot");
 					if (!isCurrent()) return;
 				}
 				switch (frame.t) {

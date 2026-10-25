@@ -88,11 +88,12 @@ function references(root: ParentNode): Set<string> {
 /** Loads trusted same-origin code before synchronous DOM hydration, including templates. */
 export async function loadExpressions(
 	html: string | ParentNode,
+	documentSnapshot = false,
 ): Promise<void> {
 	let root: ParentNode;
 	if (typeof html === "string") {
-		// Fragment parsing discards document-wrapper attributes.
-		if (/<(?:html|body)(?:\s|>)/i.test(html)) {
+		// The caller knows the delivery context. Capture text must not choose it.
+		if (documentSnapshot) {
 			root = new DOMParser().parseFromString(html, "text/html");
 		} else {
 			const template = document.createElement("template");

@@ -19,6 +19,7 @@ import { RenderUnit } from "./unit";
  */
 export class PageUnit extends RenderUnit {
 	protected readonly label = "Page";
+	override readonly documentSnapshot = true;
 	private devRefresh: Promise<void> | null = null;
 
 	/** The dev response still streaming into the current document, if any. */

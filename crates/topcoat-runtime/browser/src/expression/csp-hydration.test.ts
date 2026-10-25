@@ -9,7 +9,7 @@ vi.unmock("./compile");
 vi.mock("./module", () => ({
 	importExpressions: async () => ({
 		default: Object.fromEntries(
-			["b", "c", "d", "e"].map((letter) => [
+			["b", "c", "d", "e", "f"].map((letter) => [
 				letter.repeat(64),
 				(cx: any, captures: unknown[]) => () => (cx.clicked = captures[0]),
 			]),
@@ -62,7 +62,7 @@ it("preloads handlers on html and body in a navigation document", async () => {
 		'"><head></head><body data-topcoat-on:click="' +
 		ref +
 		'"><b>root</b></body></html>';
-	await loadExpressions(doc);
+	await loadExpressions(doc, true);
 	runtime = new Runtime();
 	runtime.page.replaceDocument(
 		new DOMParser().parseFromString(doc, "text/html"),
@@ -109,4 +109,41 @@ it("preloads new snapshot and swap functions through the dev refresh hooks", asy
 	expect(buttons).toHaveLength(2);
 	(buttons[1] as HTMLButtonElement).click();
 	expect((runtime.context as any).clicked).toBe("new shard");
+});
+
+it("loads a cold table-row swap when capture data contains document tag text", async () => {
+	runtime = new Runtime();
+	document.body.innerHTML =
+		"<table><tbody><!--::topcoat::region::start(a)--><tr><td>old</td></tr><!--::topcoat::region::end(a)--></tbody></table>";
+	runtime.start(document);
+	const captured = "<body><html>literal capture";
+	const ref =
+		"#" +
+		"f".repeat(64) +
+		":" +
+		JSON.stringify([captured]).replaceAll('"', "&quot;");
+	const swap = '<tr data-topcoat-on:click="' + ref + '"><td>new</td></tr>';
+	const frames = [{ t: "swap", region: "a", html: swap }];
+	vi.stubGlobal(
+		"fetch",
+		async () =>
+			new Response(frames.map((x) => JSON.stringify(x)).join("\n"), {
+				headers: { "Content-Type": "application/x-ndjson" },
+			}),
+	);
+	runtime.page.listenForDevRefresh();
+	// A live swap's parser context stays a fragment even inside a page request.
+	const { expressionResponse } = await import("./response");
+	const { readFrames } = await import("../render/frames");
+	const response = expressionResponse(
+		await fetch("/test"),
+		new AbortController().signal,
+	);
+	for await (const frame of readFrames(response)) {
+		if (frame.t === "swap")
+			runtime.page.applySwap(frame.region, frame.html, null);
+	}
+	(document.querySelector("tr") as HTMLElement).click();
+	expect((runtime.context as any).clicked).toBe(captured);
+	expect(document.querySelector("td")?.textContent).toBe("new");
 });

@@ -41,6 +41,7 @@ export class RenderRequest {
 		request: (signal: AbortSignal) => Promise<Response>,
 		apply: (frame: ServerMessage) => void,
 		label: string,
+		documentSnapshot = false,
 	): Promise<void> {
 		if (this.lifetime.aborted) return;
 		this.cancel();
@@ -64,7 +65,7 @@ export class RenderRequest {
 			for await (const frame of readFrames(response)) {
 				if (!current()) return;
 				if (frame.t === "snapshot" || frame.t === "swap") {
-					await loadExpressions(frame.html);
+					await loadExpressions(frame.html, frame.t === "snapshot" && documentSnapshot);
 					if (!current()) return;
 				}
 				// Applying a frame can replace the content, which cancels the

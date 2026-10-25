@@ -18,7 +18,7 @@ export function expressionResponse(
 				}
 				const frame = next.value;
 				if (frame.t === "snapshot" || frame.t === "swap")
-					await loadExpressions(frame.html);
+					await loadExpressions(frame.html, frame.t === "snapshot");
 				if (signal.aborted) {
 					controller.close();
 					return;
