@@ -30,7 +30,14 @@ export type TableDesc = {
 };
 type Record_<K extends string, V> = { [k in K]: V };
 
-export type Schema = { version: string; scope: string; tables: TableDesc[] };
+/** Missing policy keeps boot JSON from older servers compatible. */
+export type OnUnauthorized = { redirect: string } | "error";
+export type Schema = {
+	version: string;
+	scope: string;
+	tables: TableDesc[];
+	on_unauthorized?: OnUnauthorized;
+};
 
 type Row = { [k: string]: unknown };
 
@@ -181,7 +188,7 @@ export class LocalDb {
 			const epoch = (this.mutationEpoch.get(t.name) ?? 0);
 			const cursor = this.cursors.get(t.name);
 			const url = t.load + (t.load.includes("?") ? "&" : "?") + (cursor ? "since=" + encodeURIComponent(cursor) : "sync=1");
-			const result = await get(url) as Delta | Row[];
+			const result = await get(url, this.schema?.on_unauthorized) as Delta | Row[];
 			if (epoch !== (this.mutationEpoch.get(t.name) ?? 0) || this.pending.get(t.name)?.size) continue;
 			// Array compatibility lets old table endpoints opt out of delta sync.
 			const delta: Delta = Array.isArray(result)
@@ -290,7 +297,7 @@ export class LocalDb {
 		const k = String(plain(key));
 		this.track(table,
 			this.tables.get(table)!.update(k, changes, async (m) => {
-				const row = (await post(t.mutate, { op: "update", key: m.key, changes: m.changes })) as Row;
+				const row = (await post(t.mutate, { op: "update", key: m.key, changes: m.changes }, this.schema?.on_unauthorized)) as Row;
 				return { rows: [row] };
 			}),
 		);
@@ -305,7 +312,7 @@ export class LocalDb {
 			this.tables.get(table)!.insert(row, async (m) => {
 				// The server may store it under another key (e.g. deterministic
 				// reaction ids); the store swaps rows in one step.
-				const saved = (await post(t.mutate, { op: "insert", row: m.value })) as Row;
+				const saved = (await post(t.mutate, { op: "insert", row: m.value }, this.schema?.on_unauthorized)) as Row;
 				return { rows: [saved] };
 			}),
 		);
@@ -316,7 +323,7 @@ export class LocalDb {
 		const t = this.desc.get(table)!;
 		this.track(table,
 			this.tables.get(table)!.delete(String(plain(key)), async (m) => {
-				await post(t.mutate, { op: "delete", key: m.key });
+				await post(t.mutate, { op: "delete", key: m.key }, this.schema?.on_unauthorized);
 				return { deleted: [m.key] };
 			}),
 		);
@@ -425,22 +432,35 @@ function snake(s: string): string {
 }
 
 
-async function get(url: string): Promise<unknown> {
-	const res = await fetch(url, { headers: { accept: "application/json" } });
-	if (res.redirected && new URL(res.url).pathname.startsWith("/login")) {
-		location.href = "/login";
-		throw new Error("signed out");
+function checkUnauthorized(res: Response, policy: OnUnauthorized = { redirect: "/login" }) {
+	const target = policy === "error" ? undefined : policy.redirect;
+	let signIn = false;
+	if (target && res.redirected) {
+		const expected = new URL(target, location.href);
+		const actual = new URL(res.url);
+		// Match the sign-in endpoint, not path prefixes or a different origin.
+		// Query/fragment may contain server-generated return-to information.
+		signIn = actual.origin === expected.origin && actual.pathname === expected.pathname;
 	}
+	if (res.status !== 401 && !signIn) return;
+	if (target) location.href = target;
+	throw new Error("unauthorized");
+}
+
+async function get(url: string, policy?: OnUnauthorized): Promise<unknown> {
+	const res = await fetch(url, { headers: { accept: "application/json" } });
+	checkUnauthorized(res, policy);
 	if (!res.ok) throw new Error(`${res.status}`);
 	return res.json();
 }
 
-async function post(url: string, body: unknown): Promise<unknown> {
+async function post(url: string, body: unknown, policy?: OnUnauthorized): Promise<unknown> {
 	const res = await fetch(url, {
 		method: "POST",
 		headers: { "content-type": "application/json", accept: "application/json" },
 		body: JSON.stringify(body),
 	});
+	checkUnauthorized(res, policy);
 	if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 120)}`);
 	const t = await res.text();
 	return t ? JSON.parse(t) : null;

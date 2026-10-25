@@ -26,9 +26,9 @@ const query: Query = {
 	key: "id",
 	types: { id: "string" },
 };
-function db(rows = [{ id: "a", value: "old" }]) {
+function db(rows = [{ id: "a", value: "old" }], config: Schema = schema) {
 	const d = new LocalDb();
-	d.init(schema, { items: rows });
+	d.init(config, { items: rows });
 	d.live(query, []);
 	return d;
 }
@@ -36,6 +36,8 @@ const reply = (value: unknown) =>
 	Promise.resolve(new Response(JSON.stringify(value)));
 afterEach(() => {
 	vi.unstubAllGlobals();
+	vi.restoreAllMocks();
+	document.body.innerHTML = "";
 	vi.useRealTimers();
 });
 
@@ -57,7 +59,10 @@ describe("delta synchronization", () => {
 			},
 		);
 		d.live(query, []);
-		d.live({ ...query, from: { table: "comments", alias: "i", key: "id" } }, []);
+		d.live(
+			{ ...query, from: { table: "comments", alias: "i", key: "id" } },
+			[],
+		);
 		let release!: (r: Response) => void;
 		let started!: () => void;
 		const loading = new Promise<void>((r) => {
@@ -247,5 +252,157 @@ describe("delta synchronization", () => {
 		expect(d.get("items", "a")).toBeUndefined();
 		expect(d.get("items", "b")).toBeDefined();
 		vi.restoreAllMocks();
+	});
+});
+
+function redirected(url: string) {
+	const response = new Response("<html>Sign in</html>", {
+		headers: { "content-type": "text/html" },
+	});
+	Object.defineProperties(response, {
+		redirected: { value: true },
+		url: { value: url },
+	});
+	return response;
+}
+
+describe("unauthorized requests", () => {
+	const policies = [
+		{ name: "legacy default", policy: undefined, target: "/login" },
+		{
+			name: "custom sign-in",
+			policy: { redirect: "/account/sign-in?from=hearth" },
+			target: "/account/sign-in?from=hearth",
+		},
+		{ name: "error only", policy: "error", target: undefined },
+	] as const;
+	for (const { name, policy, target } of policies) {
+		for (const response of ["401", "redirect"] as const) {
+			if (!target && response === "redirect") continue;
+			for (const operation of ["load", "update", "insert", "delete"] as const) {
+				it(name + " " + response + " on " + operation, async () => {
+					vi.useFakeTimers();
+					vi.spyOn(console, "error").mockImplementation(() => {});
+					const location = { href: "https://app.test/issues" };
+					vi.stubGlobal("location", location);
+					vi.stubGlobal(
+						"fetch",
+						vi.fn(async () =>
+							response === "401"
+								? new Response("Unauthorized", { status: 401 })
+								: redirected("https://app.test" + target),
+						),
+					);
+					const d = db(undefined, {
+						...schema,
+						...(policy ? { on_unauthorized: policy } : {}),
+					});
+					if (operation === "load") {
+						const errors = [] as string[];
+						vi.stubGlobal("__hearthErrors", errors);
+						const save = vi.fn();
+						vi.spyOn(
+							d as unknown as { cache(): Promise<unknown> },
+							"cache",
+						).mockResolvedValue({ restore: async () => undefined, save } as never);
+						await d.backfill();
+						expect(save).not.toHaveBeenCalled();
+						expect(d.get("items", "a")?.value).toBe("old");
+						expect(errors).toHaveLength(1);
+						expect(errors[0]).toContain("unauthorized");
+					} else {
+						if (operation === "update")
+							d.update("items", "a", { value: "new" });
+						if (operation === "insert")
+							d.insert("items", { id: "b", value: "new" });
+						if (operation === "delete") d.delete("items", "a");
+						// Await rollback without starting the scheduled backfill.
+						await vi.waitFor(
+							() =>
+								expect(
+									document.querySelector(".hearth-toast")?.textContent,
+								).toContain("unauthorized"),
+							{ interval: 0 },
+						);
+						expect(d.get("items", "a")?.value).toBe("old");
+						expect(d.get("items", "b")).toBeUndefined();
+					}
+					expect(location.href).toBe(target ?? "https://app.test/issues");
+				});
+			}
+		}
+	}
+});
+
+describe("sign-in redirect matching", () => {
+	it.each([
+		["/login-help", "/login"],
+		["https://other.test/login", "/login"],
+		["/login", "/account/sign-in"],
+		["/login", null],
+	])(
+		"ignores unrelated redirect %s for sign-in %s",
+		async (destination, signIn) => {
+			vi.useFakeTimers();
+			const location = { href: "https://app.test/issues" };
+			vi.stubGlobal("location", location);
+			vi.stubGlobal(
+				"fetch",
+				vi.fn(async () => {
+					const response = redirected(new URL(destination, location.href).href);
+					// Unrelated redirects may legitimately return table rows.
+					return Object.assign(response, {
+						json: async () => [{ id: "b", value: "loaded" }],
+					});
+				}),
+			);
+			const d = db(undefined, {
+				...schema,
+				on_unauthorized: signIn ? { redirect: signIn } : "error",
+			});
+			await d.backfill();
+			expect(d.get("items", "b")?.value).toBe("loaded");
+			expect(location.href).toBe("https://app.test/issues");
+		},
+	);
+
+	it("recognizes sign-in redirects with server-added query parameters", async () => {
+		vi.useFakeTimers();
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		const location = { href: "https://app.test/issues" };
+		vi.stubGlobal("location", location);
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () =>
+				redirected("https://app.test/account/sign-in?next=issues"),
+			),
+		);
+		const d = db(undefined, {
+			...schema,
+			on_unauthorized: { redirect: "/account/sign-in" },
+		});
+		await d.backfill();
+		expect(location.href).toBe("/account/sign-in");
+	});
+
+	it("keeps forbidden mutations as ordinary rollback errors", async () => {
+		vi.useFakeTimers();
+		const location = { href: "https://app.test/issues" };
+		vi.stubGlobal("location", location);
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => new Response("Forbidden", { status: 403 })),
+		);
+		const d = db();
+		d.update("items", "a", { value: "rejected" });
+		await vi.waitFor(
+			() =>
+				expect(document.querySelector(".hearth-toast")?.textContent).toContain(
+					"403",
+				),
+			{ interval: 0 },
+		);
+		expect(d.get("items", "a")?.value).toBe("old");
+		expect(location.href).toBe("https://app.test/issues");
 	});
 });
