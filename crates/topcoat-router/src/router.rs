@@ -14,7 +14,7 @@ use topcoat_core::{
 use crate::{
     Body, Endpoint, EndpointIndex, Endpoints, Layer, Next, OriginLayer, RawPathParams, Route,
     RouteId, RouteIndex, RouterBuilder, Routes, Terminal, TrustedProxies,
-    error::{RewriteChain, RewriteError, internal_server_response, respond},
+    error::{ErrorHandler, RewriteChain, RewriteError, internal_server_response, respond},
     proxy::ClientIp,
     request::{OriginalParts, Request},
     response::{Response, ResponseHeaders, response_headers},
@@ -152,7 +152,21 @@ impl Router {
                 Err(error) => break (cx, Err(error)),
             };
         };
-        let mut response = respond(&cx, result);
+        let mut response = match result {
+            Ok(response) => response,
+            Err(error) => {
+                let response = respond(&cx, error.clone());
+                match &inner.error_handler {
+                    Some(handler)
+                        if response.status().is_client_error()
+                            || response.status().is_server_error() =>
+                    {
+                        respond(&cx, handler(&cx, &error, response))
+                    }
+                    _ => response,
+                }
+            }
+        };
         response_headers(&cx).apply(response.headers_mut());
 
         // Compression runs outside every layer, so layers see uncompressed
@@ -219,6 +233,8 @@ pub(crate) struct RouterInner {
     pub(crate) origin: OriginLayer,
     /// The proxies trusted to report the client's address.
     pub(crate) trusted_proxies: TrustedProxies,
+    /// The application renderer for unhandled HTTP errors.
+    pub(crate) error_handler: Option<Box<ErrorHandler>>,
     /// The compression applied to responses on their way out.
     #[cfg(feature = "compression")]
     pub(crate) compression: crate::Compression,
@@ -361,6 +377,7 @@ pub(crate) fn test_matched_cx(path: &crate::Path) -> Cx {
         app_context: Arc::new(AppContext::new()),
         origin: OriginLayer::new(OriginPolicy::new()),
         trusted_proxies: TrustedProxies::new(),
+        error_handler: None,
         #[cfg(feature = "compression")]
         compression: crate::Compression::new(),
     };

@@ -6,12 +6,16 @@ use std::{
     sync::Arc,
 };
 
-use topcoat_core::{base_url::BaseUrl, context::AppContext};
+use topcoat_core::{
+    base_url::BaseUrl,
+    context::{AppContext, Cx},
+    error::{Error, Result},
+};
 
 use crate::{
     Endpoint, EndpointIndex, Endpoints, Layer, Layout, Methods, OriginLayer, OriginPolicy, Page,
     PageWithLayouts, Path, Route, Router, RouterInner, Routes, TrailingSlash, TrustedProxies,
-    layers_for_path,
+    error::ErrorHandler, layers_for_path, response::Response,
 };
 
 /// Builds a [`Router`] for a Topcoat application.
@@ -47,6 +51,7 @@ pub struct RouterBuilder {
     layouts: Vec<Arc<dyn Layout>>,
     layers: Vec<Arc<dyn Layer>>,
     context: AppContext,
+    error_handler: Option<Box<ErrorHandler>>,
     origin_policy: OriginPolicy,
     trusted_proxies: TrustedProxies,
     trailing_slash: TrailingSlash,
@@ -67,6 +72,7 @@ impl RouterBuilder {
             layouts: Vec::new(),
             layers: Vec::new(),
             context,
+            error_handler: None,
             origin_policy: OriginPolicy::new(),
             trusted_proxies: TrustedProxies::new(),
             trailing_slash: TrailingSlash::default(),
@@ -178,6 +184,31 @@ impl RouterBuilder {
     #[must_use]
     pub fn layer(mut self, layer: impl Layer) -> Self {
         self.layers.push(Arc::new(layer));
+        self
+    }
+
+    /// Sets the response renderer for unhandled request errors.
+    ///
+    /// The callback receives the request context, the original error, and its
+    /// default response, including status and headers such as `Allow` and
+    /// `Retry-After`. Return that response unchanged to keep the default, or
+    /// replace it with any response. Inspect the request URI to choose a format
+    /// by URL prefix, including for requests that match no route.
+    ///
+    /// Runs after layers and rewrites, before pending response headers and
+    /// compression. Redirects, successful responses (even with an error status),
+    /// caught errors, and panics do not invoke it. Errors after streaming starts
+    /// cannot replace the HTTP response.
+    ///
+    /// If the callback returns an error, the router renders that error with its
+    /// default response without calling the callback again. Calling this method
+    /// again replaces the previous callback.
+    #[must_use]
+    pub fn error_handler<F>(mut self, handler: F) -> Self
+    where
+        F: Fn(&Cx, &Error, Response) -> Result<Response> + Send + Sync + 'static,
+    {
+        self.error_handler = Some(Box::new(handler));
         self
     }
 
@@ -512,6 +543,7 @@ impl RouterBuilder {
             app_context: Arc::new(self.context),
             origin: OriginLayer::new(self.origin_policy),
             trusted_proxies: self.trusted_proxies,
+            error_handler: self.error_handler,
             #[cfg(feature = "compression")]
             compression: self.compression,
         })

@@ -34,6 +34,10 @@ use crate::{
     response::{IntoResponse, Response},
 };
 
+/// The application callback applied to an unhandled HTTP error.
+pub(crate) type ErrorHandler =
+    dyn Fn(&Cx, &Error, Response) -> Result<Response> + Send + Sync + 'static;
+
 /// Renders any [`IntoResponse`] value into a [`Response`], falling back to the
 /// error's response if conversion fails. This is the terminal conversion the
 /// router applies to a handler's return value.

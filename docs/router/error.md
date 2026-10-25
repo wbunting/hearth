@@ -26,6 +26,40 @@ async fn post(cx: &Cx) -> Result<impl View> {
 
 The router raises some of these itself: a request that matches no route gets a [`NotFoundError`], a matched path with the wrong method a [`MethodNotAllowedError`], a request body that fails to parse a [`BadRequestError`], and a request body over the body limit a [`ContentTooLargeError`].
 
+# Custom error responses
+
+Use [`RouterBuilder::error_handler`](crate::RouterBuilder::error_handler) to render unhandled errors with an application-defined body. It also receives framework errors from request extractors, unmatched URLs, and unsupported methods. The callback receives the request context, the original error for downcasting, and the default response with its status and headers.
+
+This example returns JSON under "/v1/" and leaves other URLs unchanged:
+
+```rust
+use topcoat::{
+    router::{Router, content::Json, request::uri, response::IntoResponse},
+};
+
+let router = Router::builder()
+    .error_handler(|cx, _cause, default| {
+        if !uri(cx).path().starts_with("/v1/") {
+            return Ok(default);
+        }
+
+        let status = default.status();
+        let message = status.canonical_reason().unwrap_or("Request failed");
+        let (mut parts, _) = default.into_parts();
+        // Keep status and protocol headers, but replace body metadata.
+        parts.headers.remove("content-type");
+        parts.headers.remove("content-length");
+        (parts, Json(message)).into_response(cx)
+    })
+    .build();
+```
+
+Reuse the default response parts to keep headers such as `Allow` for a 405 and `Retry-After` for a 429 or 503. Remove or replace body-specific headers when changing the body. Return the default response unchanged to keep its behavior, or return any other response to control the status, headers, and body yourself. Do not expose the cause's message unless you know it is safe for clients.
+
+The callback runs after layers and internal rewrites, before pending response headers and compression. It sees the final dispatch's context, so `uri(cx)` uses the rewritten URI; `original_uri(cx)` uses the incoming URI. The callback does not run for redirects, errors caught by a layer or view boundary, or an explicitly returned response even if that response has an error status. It cannot replace a response after streaming starts. Panics still receive the router's bare 500 response.
+
+If the callback returns an error, the router uses that error's default response without calling the callback again. Calling `error_handler` more than once replaces the callback. Without a callback, the default error responses are unchanged.
+
 # From an `Option` or `Result`
 
 [`RouterErrorExt`] adds `ok_or_*` methods to [`Option`] and [`core::result::Result`]. They replace `None` or `Err` with a router error that you can propagate with `?`:
