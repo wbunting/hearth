@@ -1,5 +1,6 @@
 use std::{env, fs, path::PathBuf};
 
+use super::inputs::Inputs;
 use crate::build::{BuildError, Command, ExecutableSource, Result};
 
 /// File name of the default [`output`](BuildConfig::output) inside `OUT_DIR`.
@@ -94,8 +95,8 @@ impl BuildConfig {
 
     /// Read the Tailwind CLI executable from an environment variable at build
     /// time. The variable's value is interpreted like
-    /// [`executable`](Self::executable). Print `cargo:rerun-if-env-changed`
-    /// yourself if changing the variable should rerun the build script.
+    /// [`executable`](Self::executable). Changes to the variable rerun the build
+    /// script.
     ///
     /// Shorthand for [`ExecutableSource::Env`].
     #[must_use]
@@ -154,6 +155,10 @@ impl BuildConfig {
 
     /// Runs Tailwind and returns the generated CSS path.
     ///
+    /// Emits Cargo rebuild directives for input CSS, local imports, and source
+    /// directories. Source globs watch their fixed directory prefix. Inline
+    /// sources add no paths. Build output is excluded from directory watches.
+    ///
     /// Cargo's `OUT_DIR` is required for downloads and default input or output
     /// paths. The default working directory requires `CARGO_MANIFEST_DIR`.
     ///
@@ -165,6 +170,9 @@ impl BuildConfig {
     /// if `OUT_DIR` or `CARGO_MANIFEST_DIR` is unset while a default depends
     /// on it.
     pub fn render(self) -> Result<PathBuf> {
+        if let ExecutableSource::Env(name) = &self.executable_source {
+            println!("cargo::rerun-if-env-changed={name}");
+        }
         let executable = self.executable_source.resolve()?;
 
         let out_dir = env::var_os("OUT_DIR").map(PathBuf::from);
@@ -214,8 +222,74 @@ impl BuildConfig {
             optimize: self.optimize,
             minify: self.minify,
         };
+        Inputs::discover(&command, out_dir.as_deref())?.emit()?;
         executable.run(&command)?;
 
         Ok(output)
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use std::{os::unix::fs::PermissionsExt, process::Command};
+
+    use super::*;
+
+    // Run render in a subprocess so Cargo environment variables are isolated
+    // without mutating the test process's environment.
+    #[test]
+    fn render_fixture() {
+        if let Some(root) = env::var_os("TOPCOAT_TAILWIND_TEST_ROOT") {
+            BuildConfig::new()
+                .executable_env("TOPCOAT_TAILWIND_TEST_CLI")
+                .cwd(root)
+                .input("styles.css")
+                .render()
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn render_emits_inputs_on_every_run() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = fs::canonicalize(dir.path()).unwrap();
+        let out = root.join("target/release/build/fixture/out");
+        fs::create_dir_all(&out).unwrap();
+        fs::create_dir(root.join("src")).unwrap();
+        fs::write(root.join("styles.css"), "@import 'tailwindcss' source(none); @source './src'; @import './theme.css'; @source inline('p-4');").unwrap();
+        fs::write(root.join("theme.css"), ":root { --color: red; }").unwrap();
+        let cli = root.join("tailwind");
+        fs::write(&cli, "#!/bin/sh\nexit 0\n").unwrap();
+        fs::set_permissions(&cli, fs::Permissions::from_mode(0o755)).unwrap();
+        for _ in 0..2 {
+            let output = Command::new(env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "build::config::tests::render_fixture",
+                    "--nocapture",
+                ])
+                .env("TOPCOAT_TAILWIND_TEST_ROOT", &root)
+                .env("TOPCOAT_TAILWIND_TEST_CLI", &cli)
+                .env("OUT_DIR", &out)
+                .output()
+                .unwrap();
+            assert!(output.status.success(), "{output:?}");
+            let stdout = String::from_utf8(output.stdout).unwrap();
+            for input in ["styles.css", "theme.css", "src"] {
+                assert!(
+                    stdout.lines().any(|line| line
+                        == format!("cargo::rerun-if-changed={}", root.join(input).display())),
+                    "{stdout}"
+                );
+            }
+            assert!(stdout.contains("cargo::rerun-if-env-changed=TOPCOAT_TAILWIND_TEST_CLI"));
+            assert!(
+                !stdout
+                    .lines()
+                    .any(|line| line.starts_with("cargo::rerun-if-changed=")
+                        && line.contains("target")),
+                "{stdout}"
+            );
+        }
     }
 }

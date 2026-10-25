@@ -161,6 +161,8 @@ clap = "4.6.0"
 console = "0.16"
 cookie = "0.18"
 criterion = "0.8"
+cssparser = "0.36"
+tempfile = "3"
 dialoguer = { version = "0.12", default-features = false }
 elsa = "1.11"
 form_urlencoded = "1"

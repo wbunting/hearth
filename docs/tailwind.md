@@ -132,13 +132,12 @@ Example input:
 
 # Rebuild behavior
 
-[`BuildConfig::render`] prints no Cargo `rerun-if-*` directives. Cargo's default change detection reruns the build script when package files change, including when files are added or removed. Ignored files and `target/` are excluded.
+[`BuildConfig::render`] emits `cargo::rerun-if-changed` on every run for the input CSS, local CSS imports (including transitive imports), and the directories Tailwind scans. You do not need to list source directories in `build.rs`, even when another build step emits its own Cargo directives. `executable_env(name)` also emits `cargo::rerun-if-env-changed` for that variable.
 
-If your build script prints any `rerun-if-*` directive, Cargo tracks only the paths and variables you list. Include every source that can affect the stylesheet.
+Paths in `@source` and `source("...")` are relative to the stylesheet that declares them, including imported stylesheets. `source(none)` disables the default package scan. `@source inline(...)` supplies literal classes, not filesystem paths, so changes to it are covered by the stylesheet watch. Negated sources do not add watches.
 
-Do not point `rerun-if-changed` at a directory containing `target/`. Cargo scans explicitly watched directories recursively without applying `.gitignore`, so the build output could trigger another build.
+Cargo cannot watch globs or apply Tailwind's ignore rules to directory watches. A source glob therefore watches its fixed directory prefix recursively. For example, `@source "../views/**/*.rs"` watches `../views`, including new files and directories. This can rebuild CSS when a nonmatching file in that directory changes.
 
-Two situations require directives of your own:
+Directory watches exclude `target/`, Cargo's build output directory, the configured CSS output, and dependency and Git metadata directories. When a scan root contains these directories, Topcoat watches its existing files and safe subdirectories instead of the root. New files inside watched subdirectories are detected. If you add a new top-level source directory to a split root, rerun the build script once (for example, by touching the input CSS), or declare that directory with `@source`. An explicitly declared source prefix that does not exist yet is watched directly so its creation is detected. Cargo reruns build scripts while watched paths are missing, so create source directories before building to avoid repeated runs.
 
-- `executable_env(name)`: print `cargo:rerun-if-env-changed=<name>` if changing the variable should rerun the build script.
-- A `cwd` or `input` outside the package: Cargo's default only tracks package files, so print `cargo:rerun-if-changed` for the external paths.
+Package imports with custom CSS entry points are tracked conservatively at the package directory level. Dependencies loaded dynamically by JavaScript plugins may need additional `cargo::rerun-if-changed` directives in your build script. Do not watch a directory containing `target/` or another build output directory. Cargo scans explicitly watched directories recursively without applying `.gitignore`, which can cause repeated rebuilds.
