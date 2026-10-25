@@ -6,8 +6,9 @@ use topcoat_view::{AttributeValueViewParts, PartsWriter};
 
 /// JavaScript source and captured values for a runtime expression.
 ///
-/// Captured Rust values are serialized into the source. Embedding it in a
-/// view escapes it for the surrounding HTML context.
+/// Captured Rust values are serialized as data. Embedding this in a view
+/// registers the trusted code for the runtime module route and writes its
+/// reference with captures escaped for the surrounding HTML context.
 #[derive(Debug, Clone)]
 pub struct Js {
     parts: Vec<JsPart>,
@@ -25,7 +26,10 @@ enum JsPart {
 }
 
 impl Js {
-    /// Source without captured values.
+    /// Trusted JavaScript source without captured values.
+    ///
+    /// Never interpolate user input here. Use [`JsBuilder::surrogate`] for
+    /// values so they remain data and do not enter shared code modules.
     #[must_use]
     pub fn source(js: impl Into<Cow<'static, str>>) -> Self {
         Self {
@@ -60,28 +64,32 @@ impl Js {
         source
     }
 
-    /// Writes the source through `parts`, sealed for the writer's current
-    /// context: a marker comment's body or a double-quoted attribute value.
-    pub(crate) fn write(&self, parts: &mut PartsWriter<'_>) {
+    /// Returns a CSP-safe function reference with captured values kept as data.
+    ///
+    /// The router's runtime serves the trusted function body as a same-origin
+    /// module. Captured values never enter that module or its cache key.
+    #[must_use]
+    pub fn to_client(&self) -> String {
+        let mut source = String::new();
+        let mut captures = Vec::new();
         for part in &self.parts {
             match part {
-                JsPart::Source(Cow::Borrowed(js)) => {
-                    parts.push_static_str(js);
-                }
-                JsPart::Source(Cow::Owned(js)) => {
-                    parts.push_str(js);
-                }
-                JsPart::Raw(js) => {
-                    parts.push_static_str_unescaped(js);
-                }
+                JsPart::Source(js) => source.push_str(js),
+                JsPart::Raw(js) => source.push_str(js),
                 JsPart::Surrogate(json) => {
-                    parts
-                        .push_promoted_str_unescaped(&"cx.hydrate(")
-                        .push_str(json)
-                        .push_promoted_str_unescaped(&")");
+                    use std::fmt::Write;
+                    let _ = write!(source, "cx.hydrate(__topcoatCaptures[{}])", captures.len());
+                    captures.push(json.as_str());
                 }
             }
         }
+        let id = crate::expression_module::register(&source);
+        format!("#{id}:[{}]", captures.join(","))
+    }
+
+    /// Writes a function reference and captures, escaped for the HTML context.
+    pub(crate) fn write(&self, parts: &mut PartsWriter<'_>) {
+        parts.push_string(self.to_client());
     }
 }
 
@@ -115,7 +123,7 @@ impl JsBuilder {
         self
     }
 
-    /// Appends source text.
+    /// Appends trusted source text. Use [`Self::surrogate`] for user data.
     #[must_use]
     pub fn source(mut self, js: impl Into<Cow<'static, str>>) -> Self {
         self.parts.push(JsPart::Source(js.into()));
@@ -152,6 +160,29 @@ impl JsBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn client_reference_shares_code_without_sharing_captured_values() {
+        let make = |value: &str| {
+            Js::builder()
+                .source("[cx.some(")
+                .surrogate(value)
+                .source("), ")
+                .surrogate(&42)
+                .source("]")
+                .build()
+                .to_client()
+        };
+        let first = make("</script>\"&");
+        let second = make("different");
+        let (id, data) = first.split_once(':').unwrap();
+        assert_eq!(id, second.split_once(':').unwrap().0);
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(data).unwrap(),
+            serde_json::json!(["</script>\"&", 42])
+        );
+        assert_ne!(first, second);
+    }
 
     #[test]
     fn executable_source_preserves_javascript_and_capture_escaping() {

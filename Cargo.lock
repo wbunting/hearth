@@ -3974,6 +3974,7 @@ dependencies = [
  "ref-cast",
  "serde",
  "serde_json",
+ "sha2 0.11.1",
  "tokio",
  "topcoat",
  "topcoat-asset",

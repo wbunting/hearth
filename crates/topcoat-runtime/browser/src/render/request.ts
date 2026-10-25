@@ -1,4 +1,5 @@
 import { readFrames, type ServerMessage } from "./frames";
+import { loadExpressions } from "../expression/compile";
 
 /** Identifies a page rerun when set to "true" on a POST request. */
 export const RUNTIME_HEADER = "X-Topcoat-Runtime";
@@ -62,6 +63,10 @@ export class RenderRequest {
 			}
 			for await (const frame of readFrames(response)) {
 				if (!current()) return;
+				if (frame.t === "snapshot" || frame.t === "swap") {
+					await loadExpressions(frame.html);
+					if (!current()) return;
+				}
 				// Applying a frame can replace the content, which cancels the
 				// request in flight. Step aside for that cancel, then take the
 				// run back unless something else started one meanwhile.

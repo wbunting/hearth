@@ -76,7 +76,9 @@ pub trait RouterBuilderRuntimeExt {
 #[cfg(feature = "router")]
 impl RouterBuilderRuntimeExt for RouterBuilder {
     fn runtime(self) -> Self {
-        self.layer(RuntimeLayer).app_context(RuntimeSetup)
+        self.route(crate::expression_module::route())
+            .layer(RuntimeLayer)
+            .app_context(RuntimeSetup)
     }
 
     #[track_caller]

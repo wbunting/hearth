@@ -5,6 +5,7 @@ mod bind_attribute;
 mod connection;
 mod event_handler;
 mod expr;
+mod expression_module;
 #[doc(hidden)]
 pub mod internal;
 mod js;

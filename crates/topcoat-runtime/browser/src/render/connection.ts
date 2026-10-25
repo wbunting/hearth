@@ -1,3 +1,4 @@
+import { loadExpressions } from "../expression/compile";
 import {
 	applyFrame,
 	type FrameTarget,
@@ -45,7 +46,7 @@ type ConnectionMessage = {
 };
 
 /** The output of one run and the render it belongs to. */
-type Run = { target: ConnectionTarget; render: RenderToken };
+type Run = { target: ConnectionTarget; render: RenderToken; pending?: Promise<void> };
 
 /** The WebSocket state that allows sending messages. */
 const OPEN = 1;
@@ -229,10 +230,21 @@ export class Connection {
 		// Output of a stopped or superseded run is dropped.
 		const run = this.runs.get(message.run);
 		if (run === undefined) return;
-		try {
-			applyFrame(run.target, message.frame, "Connected", run.render);
-		} catch (error) {
-			run.target.reportError(error);
-		}
+		const apply = () => {
+			if (this.runs.get(message.run!) !== run) return;
+			try {
+				applyFrame(run.target, message.frame, "Connected", run.render);
+			} catch (error) {
+				run.target.reportError(error);
+			}
+		};
+		const frame = message.frame;
+		if (run.pending || ((frame.t === "snapshot" || frame.t === "swap") && /#[a-f0-9]{64}:/.test(frame.html))) {
+			// Preserve order within a run, but do not block independent shards.
+			run.pending = (run.pending ?? Promise.resolve()).then(async () => {
+				if (frame.t === "snapshot" || frame.t === "swap") await loadExpressions(frame.html);
+				apply();
+			}).catch((error) => run.target.reportError(error));
+		} else apply();
 	}
 }

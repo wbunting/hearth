@@ -1,4 +1,5 @@
 import { Runtime } from "./runtime";
+import { loadExpressions } from "./expression/compile";
 
 import { localDb } from "./hearth/db";
 import { route } from "./hearth/router";
@@ -19,10 +20,12 @@ if (boot) {
 	}, 0);
 }
 
+await loadExpressions(document);
 const runtime = new Runtime();
 const start = () => {
 	runtime.start(document);
 	runtime.page.listenForDevRefresh();
+	performance.mark("topcoat:ready");
 };
 // SSR already provides the first screen. Adopt it after the browser has a
 // chance to paint, rather than making that paint wait for live query setup.

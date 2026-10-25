@@ -46,7 +46,7 @@ pub fn when<'a>(cx: &'a Cx, cond: Expr<bool>, body: impl Fn(Cx) -> BoxView<'stat
     let cx = cx.clone();
     Box::pin(topcoat::view::internal::ScopeView::new(topcoat::view::internal::MoveView::new(async move {
         let (on, js) = cond.into_evaluated_and_js();
-        let src = js.to_source();
+        let src = js.to_client();
         let _ = NEXT.fetch_add(0, Ordering::Relaxed);
         let id = format!(
             "fc-when-{:012x}",

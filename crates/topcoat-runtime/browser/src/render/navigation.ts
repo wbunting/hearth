@@ -1,3 +1,4 @@
+import { loadExpressions } from "../expression/compile";
 import type { Runtime } from "../runtime";
 import { newRender, type RenderToken } from "./frames";
 import { PageRequest, type PageResponseHead, PrefetchCache } from "./prefetch";
@@ -238,6 +239,10 @@ export class NavigationController {
 		try {
 			for await (const frame of request.frames()) {
 				if (!isCurrent()) return;
+				if (frame.t === "snapshot" || frame.t === "swap") {
+					await loadExpressions(frame.html);
+					if (!isCurrent()) return;
+				}
 				switch (frame.t) {
 					case "snapshot": {
 						if (committed) {
