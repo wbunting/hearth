@@ -56,6 +56,7 @@ name = "refresh"
 required-features = ["fontsource-refresh"]
 
 [dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }
 topcoat = { workspace = true, features = ["view", "asset", "font-fontsource"] }
 
 [lints]

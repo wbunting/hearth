@@ -115,6 +115,26 @@ fn single_weight() {
 }
 
 #[test]
+fn full_variable_weight_range() {
+    let face = font_face! {
+        font-family: "Variable";
+        src: local("Variable");
+        font-weight: 1 1000;
+    };
+    assert!(render(&face).contains("font-weight: 1 1000"));
+}
+
+#[test]
+fn maximum_single_weight() {
+    let face = font_face! {
+        font-family: "Heavy";
+        src: local("Heavy");
+        font-weight: 1000;
+    };
+    assert!(render(&face).contains("font-weight: 1000"));
+}
+
+#[test]
 fn weight_keywords_normalize_to_numbers() {
     let face = font_face! {
         font-family: "Inter";

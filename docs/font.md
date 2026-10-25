@@ -46,7 +46,9 @@ async fn home() -> Result<impl View> {
 }
 ```
 
-The [`link`] component loads the font's stylesheet. To register a font manually, call [`font`](RouterBuilderFontExt::font) on the router builder.
+The [`link`] component loads the font's stylesheet. To register a font manually, call [`font`](RouterBuilderFontExt::font) on the router builder. Manual registration and `.discover()` can be combined in either order. Registering the same font stylesheet more than once has no effect.
+
+Numeric `font-weight` values accept integers from 1 through 1000, inclusive. Use one value for a single weight or two space-separated values for a variable font's inclusive range, such as `font-weight: 1 1000`. The range must run from the lighter weight to the heavier weight. The keywords `normal` and `bold` mean 400 and 700.
 
 Use the family name in CSS to apply the font. [`ORBITRON.family()`] returns that name when you need it in Rust.
 

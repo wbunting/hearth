@@ -62,7 +62,7 @@ Learn more on [MDN][mdn-src].
 
 ## `font-weight`
 
-A single weight, or a space-separated range carried by a variable font. Weights are the numbers `100..=900` or the keywords `normal` (`400`) and `bold` (`700`):
+A single weight, or a space-separated range carried by a variable font. Weights are integers in `1..=1000` or the keywords `normal` (`400`) and `bold` (`700`):
 
 ```rust
 # use topcoat::font::*;
@@ -83,12 +83,12 @@ A range declares the weights available from a variable font:
 font_face! {
     font-family: "Inter";
     src: local("Inter");
-    font-weight: 100 900;
+    font-weight: 1 1000;
 }
 # }
 ```
 
-Keywords may be mixed with numbers in a range, so `font-weight: normal bold` is equivalent to `400 700`.
+The range must start at or below its end. Keywords may be mixed with numbers in a range, so `font-weight: normal bold` is equivalent to `400 700`.
 
 Learn more on [MDN][mdn-font-weight].
 
