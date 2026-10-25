@@ -28,12 +28,12 @@ jobs:
       # Toolchain comes from rust-toolchain.toml (pinned 1.99.1).
       - run: rustup show
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test --locked -p hearth -p hearth-macro -p topcoat-view-grammar -p topcoat-runtime -p topcoat-router -p topcoat-tailwind
+      - run: cargo test --locked -p hearth -p hearth-macro -p topcoat-view-grammar -p topcoat-runtime -p topcoat-router -p topcoat-tailwind -p topcoat-cli
       - run: cargo test --locked -p hearth-tracker
       - run: cargo test --locked -p topcoat-font -p topcoat-font-grammar -p topcoat-font-macro
       - run: cargo clippy --locked -p topcoat-font -p topcoat-font-grammar -p topcoat-font-macro --all-targets -- -D warnings
       - run: cargo build --locked --release -p hearth-tracker
-      - run: cargo clippy --locked -p hearth -p hearth-macro -p hearth-tracker -p topcoat-router -p topcoat-tailwind -- -D warnings
+      - run: cargo clippy --locked -p hearth -p hearth-macro -p hearth-tracker -p topcoat-router -p topcoat-tailwind -p topcoat-cli -- -D warnings
 
   runtime:
     name: runtime (browser)

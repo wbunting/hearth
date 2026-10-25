@@ -28,6 +28,7 @@ impl Metadata {
             .args(extra_args)
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
+            .kill_on_drop(true)
             .spawn()
             .ok()?
             .wait_with_output()
@@ -83,43 +84,64 @@ impl Metadata {
             .map(str::to_owned)
     }
 
-    /// The bin target `[package] default-run` selects in the package a build targets, or
-    /// `None` when that package declares no default run.
-    ///
-    /// `package` is the `--package` the build was given; without one, a build compiles
-    /// the package containing the current directory.
+    /// The default run of the selected package, if a single package is selected.
     pub fn default_run_for_build(&self, package: Option<&str>) -> Option<String> {
-        let package = match package {
-            Some(package) => package,
-            None => self.package_containing_dir(&std::env::current_dir().ok()?)?,
-        };
-        self.default_run(package)
+        self.default_run(package.or_else(|| self.default_package())?)
+    }
+
+    /// Cargo reports the packages selected from the current directory as default members.
+    fn default_package(&self) -> Option<&str> {
+        let members = self.0["workspace_default_members"].as_array()?;
+        if members.len() != 1 {
+            return None;
+        }
+        self.0["packages"]
+            .as_array()?
+            .iter()
+            .find(|package| package["id"] == members[0])?["id"]
+            .as_str()
     }
 
     fn package(&self, name: &str) -> Option<&serde_json::Value> {
-        self.0["packages"]
-            .as_array()?
-            .iter()
-            .find(|package| package["name"].as_str() == Some(name))
+        self.0["packages"].as_array()?.iter().find(|package| {
+            package["id"].as_str() == Some(name) || package["name"].as_str() == Some(name)
+        })
     }
 
-    /// The name of the local package whose manifest directory contains `dir`.
-    ///
-    /// The deepest match wins, so a package nested in another still wins over the one
-    /// that merely contains it.
-    fn package_containing_dir(&self, dir: &Path) -> Option<&str> {
+    /// Resolve Cargo package ID specifications without duplicating Cargo's grammar.
+    pub async fn package_key_for_spec(&self, spec: &str) -> Option<String> {
+        if let Some(package) = self.package(spec) {
+            return package["id"].as_str().map(str::to_owned);
+        }
+        // pkgid requires a lockfile, but generating it need not download sources
+        // for dependencies on platforms the selected build does not use.
+        if !self.workspace_root()?.join("Cargo.lock").is_file() {
+            let output = Command::new("cargo")
+                .arg("generate-lockfile")
+                .kill_on_drop(true)
+                .output()
+                .await
+                .ok()?;
+            if !output.status.success() {
+                return None;
+            }
+        }
+        let output = Command::new("cargo")
+            .args(["pkgid", "--package", spec])
+            .kill_on_drop(true)
+            .output()
+            .await
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let id = String::from_utf8(output.stdout).ok()?;
         self.0["packages"]
             .as_array()?
             .iter()
-            .filter(|package| package["source"].is_null())
-            .filter_map(|package| {
-                let manifest = Path::new(package["manifest_path"].as_str()?);
-                let root = manifest.parent()?;
-                dir.starts_with(root)
-                    .then_some((root.components().count(), package))
-            })
-            .max_by_key(|(depth, _)| *depth)
-            .and_then(|(_, package)| package["name"].as_str())
+            .find(|package| package["id"].as_str() == Some(id.trim()))?["id"]
+            .as_str()
+            .map(str::to_owned)
     }
 }
 
@@ -178,6 +200,16 @@ mod tests {
     }
 
     #[test]
+    fn default_member_identity_selects_the_right_package() {
+        let mut metadata = two_bin_app(Some("cli"));
+        metadata.0["packages"][0]["id"] = json!("app-id");
+        metadata.0["workspace_default_members"] = json!(["app-id"]);
+        assert_eq!(metadata.default_run_for_build(None).as_deref(), Some("cli"));
+        metadata.0["workspace_default_members"] = json!(["app-id", "other-id"]);
+        assert_eq!(metadata.default_run_for_build(None), None);
+    }
+
+    #[test]
     fn default_run_naming_the_default_target_is_resolved() {
         let metadata = two_bin_app(Some("app"));
         assert_eq!(metadata.default_run("app").as_deref(), Some("app"));
@@ -230,69 +262,5 @@ mod tests {
             ]),
         )]));
         assert_eq!(metadata.default_run("app").as_deref(), Some("app"));
-    }
-
-    /// The package containing `dir` is the one a build without `--package` compiles,
-    /// so a `default-run` in a sibling package must not be picked up.
-    #[test]
-    fn the_package_containing_the_current_directory_wins() {
-        let metadata = Metadata(json!({
-            "packages": [
-                { "name": "workspace-root", "source": null, "manifest_path": "/w/Cargo.toml" },
-                {
-                    "name": "app",
-                    "source": null,
-                    "manifest_path": "/w/examples/app/Cargo.toml",
-                    "default_run": "cli",
-                    "targets": [bin("cli", "/w/examples/app/src/bin/cli.rs")],
-                },
-            ],
-        }));
-        assert_eq!(
-            metadata.package_containing_dir(Path::new("/w/examples/app/src")),
-            Some("app")
-        );
-        assert_eq!(metadata.default_run("app").as_deref(), Some("cli"));
-    }
-
-    #[test]
-    fn a_directory_outside_every_package_matches_none() {
-        let metadata = Metadata(json!({
-            "packages": [
-                { "name": "app", "source": null, "manifest_path": "/w/app/Cargo.toml" },
-            ],
-        }));
-        assert_eq!(
-            metadata.package_containing_dir(Path::new("/elsewhere")),
-            None
-        );
-    }
-
-    /// A package prefix that is not a path-component prefix is not a match:
-    /// `/w/app` is not inside `/w/app-two`.
-    #[test]
-    fn package_matching_respects_path_components() {
-        let metadata = Metadata(json!({
-            "packages": [
-                { "name": "app-two", "source": null, "manifest_path": "/w/app-two/Cargo.toml" },
-            ],
-        }));
-        assert_eq!(
-            metadata.package_containing_dir(Path::new("/w/app/src")),
-            None
-        );
-    }
-
-    #[test]
-    fn registry_dependencies_are_never_the_build_package() {
-        let metadata = Metadata(json!({
-            "packages": [
-                { "name": "dep", "source": "registry+https://github.com/rust-lang/crates.io-index", "manifest_path": "/reg/dep/Cargo.toml" },
-            ],
-        }));
-        assert_eq!(
-            metadata.package_containing_dir(Path::new("/reg/dep/src")),
-            None
-        );
     }
 }
