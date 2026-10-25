@@ -3,7 +3,7 @@ Derives a builder that checks required properties at compile time.
 For `ButtonProps`, the derive generates `ButtonPropsBuilder`. Its `build()` method is available only after every required property has been set.
 
 ```rust
-# use topcoat::view::Props;
+# use hearth::view::Props;
 # enum ButtonKind { Primary }
 #[derive(Props)]
 struct ButtonProps {

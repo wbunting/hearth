@@ -1,8 +1,8 @@
-use topcoat::asset::RouterBuilderAssetExt;
+use hearth::asset::RouterBuilderAssetExt;
 
 mod echo;
 
-use topcoat::{
+use hearth::{
     Result,
     asset::{AssetBundle, asset},
     router::{module_router, page},
@@ -15,7 +15,7 @@ async fn main() {
         .assets(AssetBundle::load().unwrap())
         .build();
 
-    topcoat::start(router).await.unwrap();
+    hearth::start(router).await.unwrap();
 }
 
 #[page]
@@ -25,7 +25,7 @@ async fn home() -> Result<impl View> {
         <html>
             <head>
                 <title>"WebSocket echo"</title>
-                topcoat::dev::script()
+                hearth::dev::script()
             </head>
             <body>
                 <h1>"WebSocket echo"</h1>

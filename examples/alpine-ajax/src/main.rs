@@ -2,7 +2,7 @@ mod increment;
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use topcoat::{
+use hearth::{
     Result,
     alpine_ajax::ajax_request,
     context::{Cx, app_context},
@@ -12,7 +12,7 @@ use topcoat::{
 
 #[tokio::main]
 async fn main() {
-    topcoat::start(
+    hearth::start(
         module_router!()
             .app_context(Counter(AtomicU64::new(0)))
             .build(),
@@ -42,7 +42,7 @@ async fn root(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
                         src="https://cdn.jsdelivr.net/npm/alpinejs@3.15.0/dist/cdn.min.js"
                     ></script>
 
-                    topcoat::dev::script()
+                    hearth::dev::script()
                 </head>
                 <body>(slot)</body>
             </html>

@@ -5,7 +5,7 @@ Declare web fonts in Rust and serve their CSS through the router. Each [`@font-f
 [`font!`] declares a font family and its [`@font-face`] rules. Write the family name once, followed by the rules. Register the font on the router and add its stylesheet to the page's `<head>`:
 
 ```rust,no_run
-use topcoat::{
+use hearth::{
     Result,
     font::{Font, font},
     router::{RouterBuilderDiscoverExt, module_router, page},
@@ -27,7 +27,7 @@ const ORBITRON: Font = font! {
 async fn main() {
     // Discover the font and page.
     let router = module_router!().discover().build();
-    topcoat::start(router).await.unwrap();
+    hearth::start(router).await.unwrap();
 }
 
 #[page]
@@ -36,7 +36,7 @@ async fn home() -> Result<impl View> {
         <!DOCTYPE html>
         <html>
             <head>
-                topcoat::font::link(font: ORBITRON)
+                hearth::font::link(font: ORBITRON)
             </head>
             <body>
                 <h1 style="font-family: 'Orbitron'">"Hello!"</h1>
@@ -57,7 +57,7 @@ Use the family name in CSS to apply the font. [`ORBITRON.family()`] returns that
 Pass an [`Asset`] to `url(...)` to bundle the font file and serve it from your application:
 
 ```rust
-use topcoat::{asset::asset, font::{Font, font}};
+use hearth::{asset::asset, font::{Font, font}};
 
 const INTER: Font = font! {
     "Inter",
@@ -79,14 +79,14 @@ Use `url(asset!("./fonts/inter-400.woff2"))` for a local file. Enable the `asset
 Fontsource support lives behind the `font-fontsource` feature:
 
 ```toml
-topcoat = { version = "0.10.0", features = ["font-fontsource"] }
+hearth = { version = "0.1.0", features = ["font-fontsource"] }
 ```
 
 Choose a font from [`families`]. By default, the declaration includes all its weights and styles in its default character subset. The browser loads the files from [jsDelivr]:
 
 ```rust
 # #[cfg(feature = "font-fontsource")]
-# use topcoat::font::{Font, fontsource::fontsource_font};
+# use hearth::font::{Font, fontsource::fontsource_font};
 # #[cfg(feature = "font-fontsource")]
 const ROBOTO: Font = fontsource_font!(ROBOTO);
 ```
@@ -99,7 +99,7 @@ Each combination of weight, style, and subset needs a separate font file. Includ
 
 ```rust
 # #[cfg(feature = "font-fontsource")]
-# use topcoat::font::{Font, fontsource::fontsource_font};
+# use hearth::font::{Font, fontsource::fontsource_font};
 # #[cfg(feature = "font-fontsource")]
 const ROBOTO: Font = fontsource_font!(
     ROBOTO,
@@ -113,12 +113,12 @@ See [`fontsource_font!`] for the details of each argument.
 
 ## Self-hosting Fontsource fonts
 
-Pass `host: Asset` to bundle the font files as Topcoat [assets] and serve them from your application:
+Pass `host: Asset` to bundle the font files as Hearth [assets] and serve them from your application:
 
 ```rust,no_run
 # #[cfg(feature = "font-fontsource")]
 # fn example() {
-use topcoat::{
+use hearth::{
     asset::{AssetBundle, RouterBuilderAssetExt},
     font::{Font, fontsource::fontsource_font},
     router::{RouterBuilderDiscoverExt, module_router},

@@ -76,12 +76,12 @@ async fn user_avatar(user: User) -> Html {
 
 Passing data explicitly works well when it belongs to the caller. For request-wide data, intermediate components may have to accept a value only to pass it on.
 
-# What to do in Topcoat
+# What to do in Hearth
 
 Write composable request functions instead. Each function adds one small piece of logic, accepts `&Cx`, and can be called from any page, layout, or component.
 
 ```rust
-use topcoat::{
+use hearth::{
     context::{app_context, memoize, Cx},
     router::{error::{RouterErrorExt, UnauthorizedError}, request::headers},
     Result,
@@ -117,7 +117,7 @@ async fn fetch_current_user(cx: &Cx) -> Option<&User> {
     fetch_user(cx, user_id).await
 }
 
-/// Returns the current user or falls through to Topcoat's unauthorized response.
+/// Returns the current user or falls through to Hearth's unauthorized response.
 async fn require_auth(cx: &Cx) -> Result<&User, UnauthorizedError> {
     fetch_current_user(cx).await.ok_or_unauthorized()
 }
@@ -128,15 +128,15 @@ async fn require_auth(cx: &Cx) -> Result<&User, UnauthorizedError> {
 Now the component that needs authentication declares it by calling `require_auth(cx)`:
 
 ```rust
-use topcoat::{
+use hearth::{
     context::Cx,
     view::{View, component, view},
     Result,
 };
 
-# use topcoat::router::error::UnauthorizedError;
+# use hearth::router::error::UnauthorizedError;
 # struct User { avatar_url: &'static str, name: &'static str }
-# async fn require_auth(_: &Cx) -> Result<&User, UnauthorizedError> { Err(topcoat::router::error::unauthorized()) }
+# async fn require_auth(_: &Cx) -> Result<&User, UnauthorizedError> { Err(hearth::router::error::unauthorized()) }
 #
 /// Renders the current user's avatar and requires authentication wherever it is used.
 #[component]
@@ -168,12 +168,12 @@ Use several focused helpers instead of one large auth function:
 That keeps each function reusable. Public UI can call `fetch_current_user(cx)` and render a signed-out state. Private UI can call `require_auth(cx).await?` and fail closed. Admin UI can build on the same pattern:
 
 ```rust
-use topcoat::{context::Cx, router::error::RouterErrorExt, Result};
+use hearth::{context::Cx, router::error::RouterErrorExt, Result};
 
-# use topcoat::router::error::UnauthorizedError;
+# use hearth::router::error::UnauthorizedError;
 # struct User;
 # impl User { fn is_admin(&self) -> bool { false } }
-# async fn require_auth(_: &Cx) -> Result<&User, UnauthorizedError> { Err(topcoat::router::error::unauthorized()) }
+# async fn require_auth(_: &Cx) -> Result<&User, UnauthorizedError> { Err(hearth::router::error::unauthorized()) }
 #
 /// Returns the current user if they have admin permissions.
 async fn require_admin(cx: &Cx) -> Result<&User> {

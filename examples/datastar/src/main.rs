@@ -1,15 +1,15 @@
 mod increment;
 
-use serde::{Deserialize, Serialize};
-use topcoat::{
+use hearth::{
     Result,
     router::{href, module_router, page},
     view::{View, view},
 };
+use serde::{Deserialize, Serialize};
 
 #[tokio::main]
 async fn main() {
-    topcoat::start(module_router!().build()).await.unwrap();
+    hearth::start(module_router!().build()).await.unwrap();
 }
 
 #[page]
@@ -27,7 +27,7 @@ async fn home() -> Result<impl View> {
                     src="https://cdn.jsdelivr.net/gh/starfederation/datastar@1.0.2/bundles/datastar.js"
                 ></script>
 
-                topcoat::dev::script()
+                hearth::dev::script()
             </head>
 
             <body data-signals:count="0">

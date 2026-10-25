@@ -1,4 +1,4 @@
-use topcoat::{
+use hearth::{
     Result,
     asset::{AssetBundle, RouterBuilderAssetExt},
     router::{Slot, layout, module_router, page},
@@ -12,7 +12,7 @@ async fn main() {
         .assets(AssetBundle::load().unwrap())
         .build();
 
-    topcoat::start(router).await.unwrap();
+    hearth::start(router).await.unwrap();
 }
 
 #[layout]
@@ -21,7 +21,7 @@ async fn root_layout(slot: Slot<'_>) -> Result<impl View> {
         <!DOCTYPE html>
         <html>
             <head>
-                topcoat::dev::script()
+                hearth::dev::script()
 
                 // The stylesheet build.rs generated, served as an asset.
                 <link rel="stylesheet" href=(tailwind::stylesheet!())>
@@ -59,7 +59,7 @@ async fn home() -> Result<impl View> {
             </p>
 
             <h1 class="mt-4 text-2xl font-bold tracking-tight text-slate-900">
-                "Topcoat + Tailwind"
+                "Hearth + Tailwind"
             </h1>
 
             <p class="mt-2 text-slate-600">

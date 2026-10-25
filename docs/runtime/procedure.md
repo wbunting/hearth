@@ -1,7 +1,7 @@
 A procedure is an async server function called from a runtime [expression](macro.expr.html). Use it when browser code needs server resources, such as a database. Each procedure has an HTTP endpoint. **Validate its arguments and authorize access inside the procedure**, since callers can send their own requests.
 
 ```rust
-use topcoat::{Result, runtime::procedure};
+use hearth::{Result, runtime::procedure};
 
 #[procedure]
 async fn double(value: usize) -> Result<usize> {
@@ -14,7 +14,7 @@ async fn double(value: usize) -> Result<usize> {
 Inside a runtime expression, call a procedure like an ordinary async function and `.await` its result:
 
 ```rust
-# use topcoat::{Result, context::Cx, view::*, runtime::{procedure, signal}};
+# use hearth::{Result, context::Cx, view::*, runtime::{procedure, signal}};
 # #[procedure]
 # async fn double(value: usize) -> Result<usize> { Ok(value * 2) }
 # #[component]
@@ -47,7 +47,7 @@ Argument types and the `Ok` type of the returned [`Result`] must belong to the s
 A parameter named `cx` of type `&Cx` receives the server request context. Callers omit this argument:
 
 ```rust
-use topcoat::{Result, context::Cx, runtime::procedure};
+use hearth::{Result, context::Cx, runtime::procedure};
 
 #[procedure]
 async fn search(cx: &Cx, query: String) -> Result<String> {
@@ -66,8 +66,8 @@ Awaiting a call yields the procedure's `Ok` value. If the procedure returns `Err
 Register a procedure on the [`Router`] before calling it from the browser. It implements [`Route`], so pass its name to `.route()`:
 
 ```rust,standalone_crate
-use topcoat::router::module_router;
-# use topcoat::{Result, router::Router, runtime::procedure};
+use hearth::router::module_router;
+# use hearth::{Result, router::Router, runtime::procedure};
 # #[procedure]
 # async fn double(value: usize) -> Result<usize> { Ok(value * 2) }
 let router = module_router!().route(double).build();
@@ -77,10 +77,10 @@ With the `discover` feature enabled, `.discover()` registers all procedures link
 
 # Path
 
-Topcoat generates an internal path for each procedure from its name and source location. This path changes when the procedure is renamed or moved. To choose a stable endpoint, pass an absolute path to `#[procedure]`:
+Hearth generates an internal path for each procedure from its name and source location. This path changes when the procedure is renamed or moved. To choose a stable endpoint, pass an absolute path to `#[procedure]`:
 
 ```rust
-use topcoat::{Result, runtime::procedure};
+use hearth::{Result, runtime::procedure};
 
 #[procedure("/api/double")]
 async fn double(value: usize) -> Result<usize> {

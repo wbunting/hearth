@@ -1,11 +1,11 @@
-Declare static files with [`asset!`](asset) and use the returned [`Asset`] as a URL in your views. Topcoat bundles the files after building your application. You can serve the bundle through the router or upload it to an external host.
+Declare static files with [`asset!`](asset) and use the returned [`Asset`] as a URL in your views. Hearth bundles the files after building your application. You can serve the bundle through the router or upload it to an external host.
 
 # Declaring assets
 
 Use [`asset!`](asset) anywhere in your app:
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     asset::{Asset, asset},
     router::page,
@@ -25,9 +25,9 @@ async fn about_page() -> Result<impl View> {
 You can also call the macro inline:
 
 ```rust
-# use topcoat::{asset::asset, view::{View, view}};
-# #[topcoat::view::component]
-# async fn example() -> topcoat::Result<impl topcoat::view::View> {
+# use hearth::{asset::asset, view::{View, view}};
+# #[hearth::view::component]
+# async fn example() -> hearth::Result<impl hearth::view::View> {
 Ok(view! {
     <script
         type="module"
@@ -37,10 +37,10 @@ Ok(view! {
 # }
 ```
 
-When an [`Asset`] appears inside [`view!`](crate::view::view), Topcoat renders it as the URL of the bundled file. For example, an image might render as:
+When an [`Asset`] appears inside [`view!`](crate::view::view), Hearth renders it as the URL of the bundled file. For example, an image might render as:
 
 ```html
-<img src="/_topcoat/assets/ferris-1a2b3c4d5e6f7a8b.png">
+<img src="/_hearth/assets/ferris-1a2b3c4d5e6f7a8b.png">
 ```
 
 The hash in the filename is based on the file contents, so URLs are safe to cache aggressively.
@@ -52,7 +52,7 @@ Assets with unused handles may be removed during compilation. Only declarations 
 Load the generated asset bundle while building the router, before `.build()`. Use [`AssetBundle::load`] for the default bundle location:
 
 ```rust,no_run
-use topcoat::{
+use hearth::{
     asset::{AssetBundle, RouterBuilderAssetExt},
     router::{Router, RouterBuilderDiscoverExt, module_router},
 };
@@ -67,18 +67,18 @@ pub fn router() -> Router {
 
 Use [`AssetBundle::load_dir`] when you write the bundle to a custom location.
 
-[`RouterBuilderAssetExt::assets`] serves the bundled files under `/_topcoat/assets` and resolves their URLs in views.
+[`RouterBuilderAssetExt::assets`] serves the bundled files under `/_hearth/assets` and resolves their URLs in views.
 
 Rendering an [`Asset`] that is missing from the loaded bundle panics. Deploy the binary and bundle from the same build.
 
 # Bundling
 
-During development, `topcoat dev` builds the app and bundles assets after each successful build:
+During development, `hearth dev` builds the app and bundles assets after each successful build:
 
 ```sh
-topcoat dev
+hearth dev
 # or
-cargo topcoat dev
+cargo hearth dev
 ```
 
 By default, the bundle is written to an `assets` directory next to the executable it was scanned from:
@@ -90,24 +90,24 @@ By default, the bundle is written to an `assets` directory next to the executabl
 The download/cache directory for remote assets is:
 
 ```text
-<cargo-target>/topcoat/cache/assets
+<cargo-target>/hearth/cache/assets
 ```
 
 For a manual build, use the asset subcommands:
 
 ```sh
-topcoat asset list
-topcoat asset bundle
-topcoat asset clean
+hearth asset list
+hearth asset bundle
+hearth asset clean
 ```
 
-`topcoat asset bundle`, `topcoat asset list`, and `topcoat dev` use the same binary selection. Pass `--bin` to choose a binary explicitly. Otherwise, they use the package's `[package] default-run` or its only binary. A package with several binaries and no `default-run` requires `--bin`; the error lists the choices. Assets are bundled from the selected binary only, not merged across binaries. Implicit selection skips binaries whose required features are disabled. Packages with no enabled binaries can still bundle a dynamic library. Workspace selection follows Cargo's default members unless `--package` is supplied.
+`hearth asset bundle`, `hearth asset list`, and `hearth dev` use the same binary selection. Pass `--bin` to choose a binary explicitly. Otherwise, they use the package's `[package] default-run` or its only binary. A package with several binaries and no `default-run` requires `--bin`; the error lists the choices. Assets are bundled from the selected binary only, not merged across binaries. Implicit selection skips binaries whose required features are disabled. Packages with no enabled binaries can still bundle a dynamic library. Workspace selection follows Cargo's default members unless `--package` is supplied.
 
 Use `--package` (`-p`) to select a workspace package, and `--bin` to select a binary within it:
 
 ```sh
-topcoat asset bundle -p my-package --bin my-app
-topcoat dev -p my-package --bin my-app
+hearth asset bundle -p my-package --bin my-app
+hearth dev -p my-package --bin my-app
 ```
 
 Set `default-run = "my-app"` in the manifest's `[package]` section to make that binary the default for both commands. An explicit `--bin` overrides it.
@@ -115,8 +115,8 @@ Set `default-run = "my-app"` in the manifest's `[package]` section to make that 
 The subcommands build the application to scan it, and they accept the same profile flags as `cargo build`. Bundle with the profile you are going to run, since each profile keeps its own bundle:
 
 ```sh
-topcoat asset bundle --release
-topcoat asset bundle --profile my-profile
+hearth asset bundle --release
+hearth asset bundle --profile my-profile
 ```
 
 Do not reuse a bundle from another build, even when the source files are unchanged. Build settings and generated file paths can affect asset identifiers.
@@ -124,11 +124,11 @@ Do not reuse a bundle from another build, even when the source files are unchang
 To write the bundle somewhere else, pass `--out` and load the same directory at runtime:
 
 ```sh
-topcoat asset bundle --out dist/assets
+hearth asset bundle --out dist/assets
 ```
 
 ```rust,no_run
-# use topcoat::{asset::{AssetBundle, RouterBuilderAssetExt}, router::{RouterBuilderDiscoverExt, module_router}};
+# use hearth::{asset::{AssetBundle, RouterBuilderAssetExt}, router::{RouterBuilderDiscoverExt, module_router}};
 let router = module_router!()
     .discover()
     .assets(AssetBundle::load_dir("dist/assets").unwrap())
@@ -156,7 +156,7 @@ Use `./` or `../` when the asset should move with the module. Use a bare relativ
 [`asset!`](asset) accepts optional named arguments that affect the bundled filename:
 
 ```rust
-use topcoat::asset::{Asset, asset};
+use hearth::asset::{Asset, asset};
 
 const RUST_LOGO: Asset = asset!(
     "https://upload.wikimedia.org/wikipedia/commons/r/rust-logo.png",
@@ -181,7 +181,7 @@ Use `checksum` for remote assets when you want deployments to fail if the remote
 To serve assets from an external host, register its base URL with [`AssetConfig::hosted_at`]:
 
 ```rust,no_run
-# use topcoat::{asset::{AssetBundle, AssetConfig, RouterBuilderAssetExt}, router::{RouterBuilderDiscoverExt, module_router}};
+# use hearth::{asset::{AssetBundle, AssetConfig, RouterBuilderAssetExt}, router::{RouterBuilderDiscoverExt, module_router}};
 let router = module_router!()
     .discover()
     .assets(AssetConfig::hosted_at(
@@ -198,7 +198,7 @@ Upload the bundle as part of deploying the matching binary. The filenames includ
 The application needs the bundle's [`AssetCatalog`] to resolve URLs. The catalog maps asset IDs to filenames and can be loaded from `manifest.toml` without the files themselves. If your application cannot read the filesystem, embed the manifest with `include_str!` and pass the parsed [`Manifest`] in place of the bundle:
 
 ```rust,ignore
-use topcoat::router::module_router;
+use hearth::router::module_router;
 let manifest = Manifest::parse(include_str!("../dist/assets/manifest.toml"))?;
 let router = module_router!()
     .assets(AssetConfig::hosted_at("https://static.example.com/assets", manifest))

@@ -7,12 +7,13 @@
 //! - routing: `if $(path...)` regions switch list ↔ detail without a request
 //! - detail: per-issue queries (comments, labels, reactions) keyed off the route
 
-use hearth::{json_script, live_query, route, table_handle};
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
+    json_script, live_query, route,
     router::{href, page},
     runtime::{Event, signal},
+    table_handle,
     view::{View, attributes, class, component, view},
 };
 
@@ -146,8 +147,9 @@ async fn tracker(cx: &Cx) -> Result<impl View> {
     let comments_t = table_handle::<CommentRow>();
     let emojis_t = table_handle::<EmojiRow>();
 
-    let schema = client_schema(me.fingerprint())
-        .on_unauthorized(hearth::OnUnauthorized::Redirect(href!(super::login::page).resolve(cx)));
+    let schema = client_schema(me.fingerprint()).on_unauthorized(hearth::OnUnauthorized::Redirect(
+        href!(super::login::page).resolve(cx),
+    ));
     let boot = serde_json::json!({ "schema": schema, "snapshot": {} });
 
     Ok(view! {
@@ -247,8 +249,8 @@ async fn tracker(cx: &Cx) -> Result<impl View> {
 /// Labels on an issue: chips you can toggle (membership rows).
 #[component]
 async fn issue_labels(
-    issue_id: topcoat::runtime::Expr<String>,
-    labels_t: topcoat::runtime::Expr<hearth::mutate::TableHandle<IssueLabelRow>>,
+    issue_id: hearth::runtime::Expr<String>,
+    labels_t: hearth::runtime::Expr<hearth::mutate::TableHandle<IssueLabelRow>>,
 ) -> Result<impl View> {
     let all = live_query! {
         LabelItem from l in LabelRow
@@ -294,9 +296,9 @@ async fn issue_labels(
 /// Reaction bar for an issue or comment.
 #[component]
 async fn reactions(
-    subject: topcoat::runtime::Expr<String>,
+    subject: hearth::runtime::Expr<String>,
     me: String,
-    emojis_t: topcoat::runtime::Expr<hearth::mutate::TableHandle<EmojiRow>>,
+    emojis_t: hearth::runtime::Expr<hearth::mutate::TableHandle<EmojiRow>>,
 ) -> Result<impl View> {
     let mine = live_query! {
         ReactionItem from e in EmojiRow
@@ -331,11 +333,11 @@ async fn reactions(
 /// Comments with their own reactions, and an optimistic composer.
 #[component]
 async fn comments(
-    issue_id: topcoat::runtime::Expr<String>,
+    issue_id: hearth::runtime::Expr<String>,
     me: String,
-    comments_t: topcoat::runtime::Expr<hearth::mutate::TableHandle<CommentRow>>,
-    emojis_t: topcoat::runtime::Expr<hearth::mutate::TableHandle<EmojiRow>>,
-    draft: topcoat::runtime::Signal<String>,
+    comments_t: hearth::runtime::Expr<hearth::mutate::TableHandle<CommentRow>>,
+    emojis_t: hearth::runtime::Expr<hearth::mutate::TableHandle<EmojiRow>>,
+    draft: hearth::runtime::Signal<String>,
 ) -> Result<impl View> {
     let list = live_query! {
         CommentItem from c in CommentRow

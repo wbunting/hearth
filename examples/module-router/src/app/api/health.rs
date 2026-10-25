@@ -1,4 +1,4 @@
-use topcoat::{Result, router::route};
+use hearth::{Result, router::route};
 
 // Routes also derive their path from the module tree: app::api::health -> GET /api/health.
 #[route(GET)]

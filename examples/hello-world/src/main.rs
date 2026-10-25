@@ -1,4 +1,4 @@
-use topcoat::{
+use hearth::{
     Result,
     router::{module_router, page},
     view::{View, component, view},
@@ -7,7 +7,7 @@ use topcoat::{
 #[tokio::main]
 async fn main() {
     // `module_router!` derives page, layout, and route paths from Rust modules.
-    topcoat::start(module_router!().build()).await.unwrap();
+    hearth::start(module_router!().build()).await.unwrap();
 }
 
 #[page]
@@ -19,7 +19,7 @@ async fn home() -> Result<impl View> {
                 <title>"Hello world"</title>
 
                 // Reloads the browser when the dev server rebuilds the app.
-                topcoat::dev::script()
+                hearth::dev::script()
             </head>
             <body>hello(name: "World")</body>
         </html>

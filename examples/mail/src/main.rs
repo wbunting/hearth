@@ -1,15 +1,15 @@
-use topcoat::mail::RouterBuilderMailExt;
+use hearth::mail::RouterBuilderMailExt;
 
 mod send;
 mod sent;
 
-use serde::Deserialize;
-use topcoat::{
+use hearth::{
     Result,
     mail::{FileTransport, MailConfig},
     router::{Slot, href, layout, module_router, page},
     view::{View, view},
 };
+use serde::Deserialize;
 
 const OUTBOX: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/outbox");
 
@@ -22,7 +22,7 @@ async fn main() {
         .transport(FileTransport::new(OUTBOX))
         .build();
 
-    topcoat::start(module_router!().mail(config).build())
+    hearth::start(module_router!().mail(config).build())
         .await
         .unwrap();
 }
@@ -34,7 +34,7 @@ async fn root(slot: Slot<'_>) -> Result<impl View> {
         <html>
             <head>
                 <title>"Mail"</title>
-                topcoat::dev::script()
+                hearth::dev::script()
             </head>
             <body>(slot)</body>
         </html>
@@ -68,7 +68,7 @@ const FERRIS: &[u8] = include_bytes!("./ferris.png");
 const GETTING_STARTED: &str = "\
 1. Start the dev server with `cargo run`.
 2. Open http://localhost:3000.
-3. Read the guides at https://docs.rs/topcoat.
+3. Read the guides at https://docs.rs/hearth.
 ";
 
 fn outbox() -> Result<Vec<String>> {

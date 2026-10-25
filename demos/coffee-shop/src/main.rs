@@ -16,5 +16,5 @@ async fn main() {
     db.push_schema().await.unwrap();
     models::seed(&mut db).await.unwrap();
 
-    topcoat::start(app::router(db)).await.unwrap();
+    hearth::start(app::router(db)).await.unwrap();
 }

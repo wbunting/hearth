@@ -1,4 +1,4 @@
-Module routing is the recommended default for Topcoat applications. The `module_router!` macro derives a handler's path from its enclosing Rust module. Use `#[page]`, `#[layout]`, `#[layer]`, and `#[route(GET)]` without path strings, and organize routes in modules.
+Module routing is the recommended default for Hearth applications. The `module_router!` macro derives a handler's path from its enclosing Rust module. Use `#[page]`, `#[layout]`, `#[layer]`, and `#[route(GET)]` without path strings, and organize routes in modules.
 
 A handler whose path string starts with `./` is served below the module path. Absolute path strings are ignored by the module router entirely. Use them when a handler's URL needs to be independent of the module tree, and register that handler separately as described under "Explicit absolute paths".
 
@@ -8,14 +8,14 @@ Call `module_router!()` from the root module of the route tree. That module maps
 
 ```rust,standalone_crate
 // src/app.rs
-use topcoat::router::{Router, module_router};
+use hearth::router::{Router, module_router};
 
 pub fn router() -> Router {
     module_router!().build()
 }
 ```
 
-`module_router!` uses link-time discovery and requires the `discover` feature. The `topcoat` crate enables it by default.
+`module_router!` uses link-time discovery and requires the `discover` feature. The `hearth` crate enables it by default.
 
 The macro does not scan the filesystem. Rust must compile each route module through a `mod` declaration:
 
@@ -37,7 +37,7 @@ Every module-derived `#[page]`, `#[layout]`, `#[layer]`, and `#[route]` under th
 Call `RouterBuilderDiscoverExt::discover` to add explicit-path handlers and other items collected through discovery:
 
 ```rust,standalone_crate
-use topcoat::router::{Router, RouterBuilderDiscoverExt, module_router};
+use hearth::router::{Router, RouterBuilderDiscoverExt, module_router};
 
 pub fn router() -> Router {
     module_router!().discover().build()
@@ -47,7 +47,7 @@ pub fn router() -> Router {
 Anything that is registered as a value is passed in by hand. The asset bundle is the common case: a view that renders an `Asset`, such as a Tailwind stylesheet or a self-hosted font, needs the bundle on the router.
 
 ```rust,no_run
-use topcoat::{
+use hearth::{
     asset::{AssetBundle, RouterBuilderAssetExt},
     router::{Router, RouterBuilderDiscoverExt, module_router},
 };
@@ -82,7 +82,7 @@ Use [`href!`](macro.href.html) to link to a handler by its Rust name, such as `h
 A `#[page]` serves `GET` unless the attribute declares other methods, such as `#[page(POST)]`. A `#[layout]` wraps pages in its module and descendant modules.
 
 ```rust
-# use topcoat::{Result, router::{Slot, layout, page}, view::{View, view}};
+# use hearth::{Result, router::{Slot, layout, page}, view::{View, view}};
 // src/app.rs: both handlers use "/"
 #[layout]
 async fn root_layout(slot: Slot<'_>) -> Result<impl View> {
@@ -98,7 +98,7 @@ async fn home() -> Result<impl View> {
 ```
 
 ```rust
-# use topcoat::{Result, router::page, view::{View, view}};
+# use hearth::{Result, router::page, view::{View, view}};
 // src/app/about.rs: GET /about
 #[page]
 async fn about() -> Result<impl View> {
@@ -109,7 +109,7 @@ async fn about() -> Result<impl View> {
 An API route declares one method, a method list, or every method:
 
 ```rust
-# use topcoat::{Result, router::route};
+# use hearth::{Result, router::route};
 // src/app/api/health.rs: GET /api/health
 #[route(GET)]
 async fn health() -> Result<&'static str> {
@@ -121,7 +121,7 @@ A layer uses its module path as a prefix:
 
 ```rust
 // src/app/api.rs: wraps handlers under /api
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{Body, Next, layer, response::Response},
@@ -140,7 +140,7 @@ async fn api_log(cx: &Cx, body: Body, next: Next<'_>) -> Result<Response> {
 A relative path string starting with `./` is joined onto the module path. This places a handler below its module without adding a module for it.
 
 ```rust
-# use topcoat::{Result, router::page, view::{View, view}};
+# use hearth::{Result, router::page, view::{View, view}};
 // src/app/settings.rs: GET /settings
 #[page]
 async fn settings() -> Result<impl View> {
@@ -157,7 +157,7 @@ async fn export() -> Result<impl View> {
 This can also be used to add a trailing slash to the end of your module path. A bare `./` serves the module path itself with a trailing slash, and a relative path ending in a slash keeps it.
 
 ```rust
-# use topcoat::{Result, router::page, view::{View, view}};
+# use hearth::{Result, router::page, view::{View, view}};
 // src/app/settings.rs: GET /settings/
 #[page("./")]
 async fn settings() -> Result<impl View> {
@@ -190,7 +190,7 @@ src/
 
 ```rust
 // src/app/posts/post_id.rs
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{module_param, page, path_param},
@@ -214,7 +214,7 @@ The parameter name comes from `post_id` in the declaration, not from the filenam
 
 - With `module_param!(slug)`, `path_param::<Slug>(cx)` returns the decoded segment as `&str`. It does not parse the value, so there is no parse error to handle.
 - With `module_param!(post_id: u64)`, `path_param::<PostId>(cx)` parses the value using `FromStr` and returns `Result<&u64, &<u64 as FromStr>::Err>`.
-- An `error = ...` option maps a parse failure to a router error. See the [`path_param!` reference](https://docs.rs/topcoat/latest/topcoat/router/macro.path_param.html) for the supported forms.
+- An `error = ...` option maps a parse failure to a router error. See the [`path_param!` reference](https://docs.rs/hearth/latest/hearth/router/macro.path_param.html) for the supported forms.
 
 Parsing occurs once per request. Later calls return the memoized result.
 
@@ -233,7 +233,7 @@ Prefix a parameter name with `*` when its module should capture the remaining pa
 
 ```rust
 // src/app/docs/path.rs contributes /docs/{*path}.
-# use topcoat::router::module_param;
+# use hearth::router::module_param;
 module_param!(*path);
 ```
 
@@ -241,7 +241,7 @@ The declaration emits a `CatchAll` segment override. The module must be the last
 
 Handlers read an unparsed catch-all as [`CatchAllSegments`](crate::CatchAllSegments) or add a segment type to read a parsed slice.
 
-See the [`path_param!` macro reference](https://docs.rs/topcoat/latest/topcoat/router/macro.path_param.html) for value shapes, construction, parsing, and errors.
+See the [`path_param!` macro reference](https://docs.rs/hearth/latest/hearth/router/macro.path_param.html) for value shapes, construction, parsing, and errors.
 
 A manual `segment!(kind = CatchAll)` capture remains available through [`raw_path_params`](crate::raw_path_params). Its value carries the encoded tail, with `/` separators intact, next to its separately decoded segments.
 
@@ -250,7 +250,7 @@ A manual `segment!(kind = CatchAll)` capture remains available through [`raw_pat
 Query parameters do not affect module-derived paths. Declare a named-field struct with `#[query_params]`, then read it from any handler that takes `cx: &Cx`.
 
 ```rust
-# use topcoat::{
+# use hearth::{
 #     Result,
 #     context::Cx,
 #     router::{page, query_params},
@@ -288,7 +288,7 @@ async fn posts(cx: &Cx) -> Result<impl View> {
 | `segment!(kind = Param, rename = "id")` | `/{id}` |
 | `segment!(kind = CatchAll, rename = "path")` | `/{*path}` |
 
-`Static` is the default kind for regular modules. `Group` is the default for modules whose names start with `_`. A rename is used as written; Topcoat does not kebab-case it.
+`Static` is the default kind for regular modules. `Group` is the default for modules whose names start with `_`. A rename is used as written; Hearth does not kebab-case it.
 
 `module_param!` already sets the module's segment to `Param` or `CatchAll`. Use either `module_param!` or `segment!` in a module, not both. Using `segment!` alone captures the parameter but does not create a type for reading it with `path_param::<T>(cx)`.
 
@@ -313,18 +313,18 @@ The two groups can apply different layouts to top-level URLs.
 Use an explicit kind when the module name should not select the default:
 
 ```rust
-use topcoat::router::segment;
+use hearth::router::segment;
 // src/app/marketing.rs: hide `marketing` from served URLs.
 segment!(kind = Group);
 ```
 
 ```rust
-use topcoat::router::segment;
+use hearth::router::segment;
 // src/app/_internal.rs: serve the module at /internal.
 segment!(kind = Static);
 ```
 
-Group names remain part of Topcoat's logical paths. A layout or layer in `_marketing` applies only to descendants of `_marketing`, even though the group name is absent from request URLs.
+Group names remain part of Hearth's logical paths. A layout or layer in `_marketing` applies only to descendants of `_marketing`, even though the group name is absent from request URLs.
 
 # Explicit absolute paths
 
@@ -333,14 +333,14 @@ Adding an absolute path string to `#[page]`, `#[layout]`, `#[layer]`, or `#[rout
 `module_router!()` discovers module-derived handlers. Register an absolute-path handler by name:
 
 ```rust,standalone_crate
-use topcoat::router::module_router;
-# use topcoat::{Result, router::page, view::{View, view}};
+use hearth::router::module_router;
+# use hearth::{Result, router::page, view::{View, view}};
 #[page("/legacy")]
 async fn legacy() -> Result<impl View> {
     Ok(view! { <h1>"Legacy"</h1> })
 }
 
-pub fn router() -> topcoat::router::Router {
+pub fn router() -> hearth::router::Router {
     module_router!()
         .page(legacy)
         .build()

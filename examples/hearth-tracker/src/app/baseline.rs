@@ -1,16 +1,15 @@
 //! Benchmark baselines: the same issue tracker as `/issues`, built two
 //! other ways, doing the same work (same data, UI, classes and writes).
 //!
-//! - `/bench/topcoat`: *plain Topcoat*, server-authoritative. Filters are
-//!   signals read by a shard, so each change round-trips to the server,
-//!   which runs SQL and re-renders. Navigation uses `runtime::link`
-//!   (server-rendered page, prefetch on intent). Writes are procedures; the
+//! - `/bench/hearth`: *plain Hearth*, server-authoritative. Filters are signals read by a shard, so
+//!   each change round-trips to the server, which runs SQL and re-renders. Navigation uses
+//!   `runtime::link` (server-rendered page, prefetch on intent). Writes are procedures; the
 //!   affected shard re-renders after they return (no optimistic updates).
 //! - `/bench/react`: React 19 + TanStack DB SPA (benchmarks/localfirst/react).
 
 use std::collections::HashMap;
 
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{error::RouterErrorExt, href, page, path_param},
@@ -31,13 +30,13 @@ async fn header(cx: &Cx) -> Result<impl View> {
     Ok(view! {
         <header class="sticky top-0 z-10 flex items-center gap-3 border-b border-zinc-200 bg-white/80 px-4 py-2 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
             <a class="mr-auto font-semibold tracking-tight" (nav(cx, href!(list_page)))>"hearth tracker"</a>
-            <span class="text-zinc-500">(me.login) " · plain topcoat"</span>
+            <span class="text-zinc-500">(me.login) " · plain hearth"</span>
         </header>
     })
 }
 
 /// `runtime::link` behaviour on our own `<a>` (server-rendered navigation).
-fn nav(cx: &Cx, href: impl topcoat::view::AttributeValueViewParts) -> topcoat::view::Attributes {
+fn nav(cx: &Cx, href: impl hearth::view::AttributeValueViewParts) -> hearth::view::Attributes {
     link_attrs(cx, href, prefetch_mode(cx))
 }
 
@@ -49,7 +48,7 @@ async fn people(cx: &Cx) -> Result<Vec<User>> {
 
 // ---------------------------------------------------------------- list
 
-#[page("/bench/topcoat")]
+#[page("/bench/hearth")]
 async fn list_page(cx: &Cx) -> Result<impl View> {
     let show = signal(cx, || "open".to_owned());
     let creator = signal(cx, String::new);
@@ -82,11 +81,22 @@ async fn list_page(cx: &Cx) -> Result<impl View> {
 }
 
 #[shard]
-async fn issue_rows(cx: &Cx, show: Signal<String>, creator: Signal<String>, assignee: Signal<String>, text: Signal<String>) -> Result<impl View> {
+async fn issue_rows(
+    cx: &Cx,
+    show: Signal<String>,
+    creator: Signal<String>,
+    assignee: Signal<String>,
+    text: Signal<String>,
+) -> Result<impl View> {
     let v = viewer(cx).await?;
     let mut db = hearth::db(cx);
     let mut filter: Option<toasty::stmt::Expr<bool>> = None;
-    let mut and = |e: toasty::stmt::Expr<bool>| filter = Some(match filter.take() { Some(f) => f.and(e), None => e });
+    let mut and = |e: toasty::stmt::Expr<bool>| {
+        filter = Some(match filter.take() {
+            Some(f) => f.and(e),
+            None => e,
+        })
+    };
     match show.get().as_str() {
         "open" => and(Issue::fields().open().eq(true)),
         "closed" => and(Issue::fields().open().eq(false)),
@@ -103,14 +113,25 @@ async fn issue_rows(cx: &Cx, show: Signal<String>, creator: Signal<String>, assi
     }
     let t = text.get();
     if !t.is_empty() {
-        and(Issue::fields().title().like_with_escape(hearth::sql::contains_pattern(&t), '\\'));
+        and(Issue::fields()
+            .title()
+            .like_with_escape(hearth::sql::contains_pattern(&t), '\\'));
     }
     let q = match filter {
         Some(f) => Issue::filter(f),
         None => Issue::all(),
     };
-    let issues = q.order_by(Issue::fields().modified().desc()).limit(200).exec(&mut db).await?;
-    let users: HashMap<String, String> = User::all().exec(&mut db).await?.into_iter().map(|u| (u.id, u.login)).collect();
+    let issues = q
+        .order_by(Issue::fields().modified().desc())
+        .limit(200)
+        .exec(&mut db)
+        .await?;
+    let users: HashMap<String, String> = User::all()
+        .exec(&mut db)
+        .await?
+        .into_iter()
+        .map(|u| (u.id, u.login))
+        .collect();
     Ok(view! {
         <ul class="divide-y divide-zinc-100 dark:divide-zinc-900" id="bench-rows">
             #[key(i.id.clone())]
@@ -139,7 +160,7 @@ async fn issue_rows(cx: &Cx, show: Signal<String>, creator: Signal<String>, assi
 
 path_param!(short_id: i64);
 
-#[page("/bench/topcoat/issue/{short_id}")]
+#[page("/bench/hearth/issue/{short_id}")]
 async fn detail_page(cx: &Cx) -> Result<impl View> {
     let short = *path_param::<ShortId>(cx).ok_or_not_found()?;
     Ok(view! {
@@ -154,21 +175,39 @@ async fn detail_page(cx: &Cx) -> Result<impl View> {
 async fn issue_detail(cx: &Cx, short_id: i64) -> Result<impl View> {
     let me = viewer(cx).await?;
     let mut db = hearth::db(cx);
-    let issue = Issue::filter_by_short_id(short_id).first().exec(&mut db).await?.ok_or_not_found()?;
+    let issue = Issue::filter_by_short_id(short_id)
+        .first()
+        .exec(&mut db)
+        .await?
+        .ok_or_not_found()?;
     if !me.can_see(&issue.visibility) {
-        return Err(topcoat::router::error::forbidden().into());
+        return Err(hearth::router::error::forbidden().into());
     }
     // Re-render trigger after writes (procedures don't re-render by themselves).
     let rev = signal(cx, || 0i64);
     let _ = rev.get();
     let users = people(cx).await?;
-    let login: HashMap<String, String> = users.iter().map(|u| (u.id.clone(), u.login.clone())).collect();
+    let login: HashMap<String, String> = users
+        .iter()
+        .map(|u| (u.id.clone(), u.login.clone()))
+        .collect();
     let mut all_labels = Label::all().exec(&mut db).await?;
     all_labels.sort_by(|a, b| a.name.cmp(&b.name));
-    let on: Vec<String> = IssueLabel::filter_by_issue_id(issue.id.clone()).exec(&mut db).await?.into_iter().map(|l| l.label_id).collect();
-    let mut on_labels: Vec<Label> = all_labels.iter().filter(|l| on.contains(&l.id)).cloned().collect();
+    let on: Vec<String> = IssueLabel::filter_by_issue_id(issue.id.clone())
+        .exec(&mut db)
+        .await?
+        .into_iter()
+        .map(|l| l.label_id)
+        .collect();
+    let mut on_labels: Vec<Label> = all_labels
+        .iter()
+        .filter(|l| on.contains(&l.id))
+        .cloned()
+        .collect();
     on_labels.sort_by(|a, b| a.name.cmp(&b.name));
-    let mut comments = Comment::filter_by_issue_id(issue.id.clone()).exec(&mut db).await?;
+    let mut comments = Comment::filter_by_issue_id(issue.id.clone())
+        .exec(&mut db)
+        .await?;
     comments.sort_by_key(|c| c.created);
     let mut subjects = vec![issue.id.clone()];
     subjects.extend(comments.iter().map(|c| c.id.clone()));
@@ -257,8 +296,17 @@ async fn issue_detail(cx: &Cx, short_id: i64) -> Result<impl View> {
 }
 
 #[component]
-async fn reaction_bar(subject: String, es: Vec<Emoji>, me: String, rev: Signal<i64>) -> Result<impl View> {
-    let mut mine: Vec<String> = es.iter().filter(|e| e.creator_id == me).map(|e| e.value.clone()).collect();
+async fn reaction_bar(
+    subject: String,
+    es: Vec<Emoji>,
+    me: String,
+    rev: Signal<i64>,
+) -> Result<impl View> {
+    let mut mine: Vec<String> = es
+        .iter()
+        .filter(|e| e.creator_id == me)
+        .map(|e| e.value.clone())
+        .collect();
     mine.sort();
     Ok(view! {
         <div class="mt-2 flex flex-wrap items-center gap-1">
@@ -307,20 +355,24 @@ async fn add_comment(cx: &Cx, issue_id: String, body: String) -> Result<()> {
 /// The React SPA shell (any `/bench/react…` path; client-routed). Same
 /// Tailwind stylesheet as the hearth app; the signed-in user id is the
 /// only data inlined (React fetches everything else after boot).
-#[topcoat::router::route(GET "/bench/react")]
-async fn react_shell(cx: &Cx) -> Result<topcoat::router::content::Html<String>> {
-    Ok(topcoat::router::content::Html(react_html(cx).await?))
+#[hearth::router::route(GET "/bench/react")]
+async fn react_shell(cx: &Cx) -> Result<hearth::router::content::Html<String>> {
+    Ok(hearth::router::content::Html(react_html(cx).await?))
 }
 
-#[topcoat::router::route(GET "/bench/react/issue/{n}")]
-async fn react_shell_issue(cx: &Cx) -> Result<topcoat::router::content::Html<String>> {
-    Ok(topcoat::router::content::Html(react_html(cx).await?))
+#[hearth::router::route(GET "/bench/react/issue/{n}")]
+async fn react_shell_issue(cx: &Cx) -> Result<hearth::router::content::Html<String>> {
+    Ok(hearth::router::content::Html(react_html(cx).await?))
 }
 
 async fn react_html(cx: &Cx) -> Result<String> {
     let me = viewer(cx).await?;
-    let index = concat!(env!("CARGO_MANIFEST_DIR"), "/../../benchmarks/localfirst/react/dist/index.html");
-    let html = std::fs::read_to_string(index).unwrap_or_else(|_| "<p>run pnpm build in benchmarks/localfirst/react</p>".into());
+    let index = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../benchmarks/localfirst/react/dist/index.html"
+    );
+    let html = std::fs::read_to_string(index)
+        .unwrap_or_else(|_| "<p>run pnpm build in benchmarks/localfirst/react</p>".into());
     let head = format!(
         r#"<link rel="stylesheet" href="{}"><script>window.__me={}</script>"#,
         crate::app::tailwind_url(cx),

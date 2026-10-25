@@ -1,4 +1,4 @@
-use topcoat::{
+use hearth::{
     Result,
     icon::{icon, iconify::iconify_icon},
     view::{Attributes, Length, View, attributes, class, component, view},

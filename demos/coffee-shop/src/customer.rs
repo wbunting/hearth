@@ -3,7 +3,7 @@
 //! Call [`current_customer`] with the request context wherever the name is
 //! needed.
 
-use topcoat::{
+use hearth::{
     context::Cx,
     cookie::{Cookies, cookie, cookies, time::Duration},
 };

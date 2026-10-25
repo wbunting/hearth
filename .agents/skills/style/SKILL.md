@@ -1,6 +1,6 @@
 ---
 name: style
-description: Always use this skill before writing or editing Rust code or documentation in the Topcoat repository
+description: Always use this skill before writing or editing Rust code or documentation in the Hearth repository
 ---
 
 # Code Style

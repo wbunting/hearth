@@ -637,7 +637,7 @@ dependencies = [
  "serde_json",
  "tikv-jemallocator",
  "tokio",
- "topcoat-tailwind",
+ "hearth-tailwind",
 ]
 
 [[package]]
@@ -729,7 +729,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "topcoat-core"
+name = "hearth-foundation"
 version = "0.8.1"
 dependencies = [
  "anymap3",
@@ -743,12 +743,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "topcoat-tailwind"
+name = "hearth-tailwind"
 version = "0.8.1"
 dependencies = [
  "sha2",
  "thiserror",
- "topcoat-core",
+ "hearth-foundation",
  "ureq",
 ]
 

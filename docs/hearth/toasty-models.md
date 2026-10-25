@@ -25,7 +25,7 @@ With crates.io `toasty = "=0.11.0"`, rustc 1.99.1, edition 2024, independent mod
 
 The reported `stenly-share` wildcard failure (DEV-128) was not reproduced by this model-count fixture. Its read-only source has seven models and now lists them explicitly. Copying that model module unchanged into the standalone Toasty-only crate also compiles with `crate::*` at the default limit. There is no measured wildcard model-count threshold to report.
 
-The reproduced failure is upstream in `toasty/src/schema/register.rs`, in the exported `macro_rules! models`, not in `toasty-macros` or a Hearth/Topcoat macro. Each explicit entry expands `models!(@internal ...)` for the remaining entries. The outer call plus 128 entries exceeds the default limit. The wildcard arm instead calls `DiscoverItem::add_all_from_crate_to`, which scans inventory at runtime. Model derives submit inventory items independently; wildcard expansion depth does not grow with the number of models.
+The reproduced failure is upstream in `toasty/src/schema/register.rs`, in the exported `macro_rules! models`, not in `toasty-macros` or a Hearth/Hearth macro. Each explicit entry expands `models!(@internal ...)` for the remaining entries. The outer call plus 128 entries exceeds the default limit. The wildcard arm instead calls `DiscoverItem::add_all_from_crate_to`, which scans inventory at runtime. Model derives submit inventory items independently; wildcard expansion depth does not grow with the number of models.
 
 ## Minimal standalone reproduction
 

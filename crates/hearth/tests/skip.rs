@@ -1,15 +1,15 @@
 //! Wire-level regression tests for server-only table fields.
 
-use hearth::{Table, live_query};
-use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
-use toasty::Db;
-use topcoat::{
-    Result,
+use hearth::{
+    Result, Table,
     context::Cx,
+    live_query,
     router::{Body, Router, to_bytes},
     view::view,
 };
+use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
+use toasty::Db;
 
 #[derive(toasty::Model)]
 struct Account {
@@ -95,8 +95,8 @@ struct DisplayRow {
     name: String,
 }
 
-#[topcoat::router::page("/first")]
-async fn first(cx: &Cx) -> Result<impl topcoat::view::View> {
+#[hearth::router::page("/first")]
+async fn first(cx: &Cx) -> Result<impl hearth::view::View> {
     let query = live_query! {
         DisplayRow from a in AccountRow
         select { id: a.id, name: a.name }

@@ -1,6 +1,6 @@
 use futures_core::Stream;
 use futures_util::stream;
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     datastar::{ElementPatchMode, PatchElements, PatchSignals, Signals},

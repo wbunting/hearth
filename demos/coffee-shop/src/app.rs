@@ -1,8 +1,6 @@
 mod menu;
 
-use serde::Deserialize;
-use toasty::Db;
-use topcoat::{
+use hearth::{
     Result,
     asset::{AssetBundle, RouterBuilderAssetExt, asset},
     context::Cx,
@@ -18,6 +16,8 @@ use topcoat::{
     tailwind,
     view::{View, attributes, class, view},
 };
+use serde::Deserialize;
+use toasty::Db;
 
 use crate::{
     components::{
@@ -31,7 +31,7 @@ use crate::{
 };
 
 /// The theme's sans font, pulled from the Fontsource catalog and self-hosted
-/// as a Topcoat asset.
+/// as a Hearth asset.
 const GEIST: Font = fontsource_font!(GEIST, host: Asset);
 
 pub fn router(db: Db) -> Router {
@@ -53,12 +53,12 @@ async fn shell(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
         <html>
             <head>
                 <title>"Little Crema"</title>
-                topcoat::dev::script()
+                hearth::dev::script()
 
                 // Enable browser interactions.
-                topcoat::runtime::script()
+                hearth::runtime::script()
 
-                topcoat::font::link(font: GEIST)
+                hearth::font::link(font: GEIST)
                 <link rel="stylesheet" href=(tailwind::stylesheet!())>
             </head>
             <body class="flex min-h-screen flex-col">
@@ -120,7 +120,7 @@ pub async fn page(cx: &Cx) -> Result<impl View> {
             <h1 class="text-4xl font-bold tracking-tight">"Little Crema"</h1>
 
             <p class="max-w-md text-muted-foreground">
-                "Six drinks, one tiny counter, and a Topcoat feature in every pour."
+                "Six drinks, one tiny counter, and a Hearth feature in every pour."
             </p>
 
             <a

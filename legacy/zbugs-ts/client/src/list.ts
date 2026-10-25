@@ -1,6 +1,6 @@
 // Keyed list renderer driven by an ordered TanStack DB live query.
 //
-// This is the piece Topcoat lacks (its `for` is server-only). It's
+// This is the piece Hearth lacks (its `for` is server-only). It's
 // deliberately small and generic: P3 will drive it from a Rust `for_live`
 // template instead of handwritten `create`/`update` callbacks.
 //

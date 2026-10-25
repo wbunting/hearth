@@ -3,7 +3,7 @@ The [`live!`] and [`emit!`] macros stream updates to part of a page. Use them to
 [`live!`] marks a region of the page whose content can still change while the response streams. Its body is ordinary async Rust. Inside the body, [`emit!`] renders markup into the region, and every emission replaces the previous one in the browser.
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn example() -> Result<impl View> {
 Ok(view! {
@@ -29,7 +29,7 @@ Use [`suspense`] to show a fallback while content loads, or [`error_boundary`] t
 [`emit!`] accepts the same syntax as [`view!`]. The surrounding body is ordinary async Rust. Emit repeatedly to show the progress of a task:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn example() -> Result<impl View> {
 Ok(view! {
@@ -55,7 +55,7 @@ A live region must emit at least once. Its body returns [`Result<EmitToken>`][`R
 If the body cannot end with an emission, return the token explicitly:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn example() -> Result<impl View> {
 Ok(view! {
@@ -75,14 +75,14 @@ Returning `Ok(EmitToken)` satisfies the return type but does not emit content. T
 
 # Long-lived Connections
 
-Call [`connected(cx)`] to keep a live region updating after the HTTP response finishes. During HTTP rendering, it returns `false` and asks the browser to connect the enclosing page or shard. Once the response finishes, the browser opens a WebSocket and renders that page or shard again, with `connected(cx)` returning `true`. Enable `.runtime()` on the router and include `topcoat::runtime::script()` in the document, as shown in the [runtime setup guide].
+Call [`connected(cx)`] to keep a live region updating after the HTTP response finishes. During HTTP rendering, it returns `false` and asks the browser to connect the enclosing page or shard. Once the response finishes, the browser opens a WebSocket and renders that page or shard again, with `connected(cx)` returning `true`. Enable `.runtime()` on the router and include `hearth::runtime::script()` in the document, as shown in the [runtime setup guide].
 
 One WebSocket carries the connected renders of a whole browser tab: one for each connected page or shard that is not inside another one. The server limits how many run at once on each WebSocket and refuses more with `429 Too Many Requests`. The limit is 64 by default; change it with `.max_runs_per_connection(n)` on the router.
 
 The same live body runs from the top on both renders. Emit the current content during the HTTP render, then finish. During the connected render, emit fresh content and keep listening for changes. For example, a chat can subscribe to message notifications and reload the list each time one arrives:
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     context::{Cx, app_context},
     router::page,
@@ -133,7 +133,7 @@ When a connection closes, its render and subscriptions are dropped. The browser 
 If markup fails to render, [`emit!`] returns `Err`. Propagate the error with `?`, or handle it and emit a fallback:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn forecast() -> Result<impl View> { Ok(view! { <p>"Sunny"</p> }) }
 # #[component]
@@ -160,7 +160,7 @@ An error the body returns propagates like any other rendering error. When it hap
 A live region implements `View`. A component can return it directly:
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     view::{View, component, emit, live, view},
 };
@@ -193,7 +193,7 @@ Regions need a stable identity across renders. When a `view!` loop contains live
 Inside a [`component`], the request context is available implicitly. In a plain function, pass it at the start of the live region:
 
 ```rust
-use topcoat::{context::Cx, view::{View, emit, live}};
+use hearth::{context::Cx, view::{View, emit, live}};
 
 fn greeting(cx: &Cx) -> impl View {
     live! { cx => emit! { <p>"Hello"</p> } }
@@ -207,7 +207,7 @@ With `cx =>`, the returned view owns a clone of the supplied context. Without `c
 The [`suspense`] component shows a fallback while its child content loads. If the child is ready immediately, the fallback never appears:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn quote() -> Result<impl View> { Ok(view! { <blockquote>"..."</blockquote> }) }
 # #[component]
@@ -224,7 +224,7 @@ Ok(view! {
 The [`error_boundary`] component renders its child content and swaps in a fallback built from the error when any part of it fails:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn stats() -> Result<impl View> { Ok(view! { <p>"3 visits today"</p> }) }
 # #[component]
@@ -245,13 +245,13 @@ Use [`live!`] directly when you need to control the updates, such as showing pro
 [`EmitToken`]: struct.EmitToken.html
 [`Result`]: ../type.Result.html
 [`component`]: attr.component.html
-[`connected(cx)`]: https://docs.rs/topcoat/latest/topcoat/runtime/fn.connected.html
-[`connected_untracked(cx)`]: https://docs.rs/topcoat/latest/topcoat/runtime/fn.connected_untracked.html
+[`connected(cx)`]: https://docs.rs/hearth/latest/hearth/runtime/fn.connected.html
+[`connected_untracked(cx)`]: https://docs.rs/hearth/latest/hearth/runtime/fn.connected_untracked.html
 [`emit!`]: macro.emit.html
 [`error_boundary`]: struct.error_boundary.html
 [`live!`]: macro.live.html
 [`suspense`]: struct.suspense.html
 [`view!`]: macro.view.html
-[router's error guide]: https://docs.rs/topcoat/latest/topcoat/router/error/index.html
-[runtime setup guide]: https://docs.rs/topcoat/latest/topcoat/runtime/index.html#setup
-[chat example]: https://github.com/tokio-rs/topcoat/blob/main/examples/live/src/chat.rs
+[router's error guide]: https://docs.rs/hearth/latest/hearth/router/error/index.html
+[runtime setup guide]: https://docs.rs/hearth/latest/hearth/runtime/index.html#setup
+[chat example]: https://github.com/wbunting/hearth/blob/main/examples/live/src/chat.rs

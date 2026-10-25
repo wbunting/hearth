@@ -1,4 +1,4 @@
-use topcoat::{
+use hearth::{
     Result,
     view::{Attributes, Child, View, class, component, view},
 };

@@ -9,7 +9,7 @@ The [`view!`] macro builds HTML from markup and Rust expressions. It follows HTM
 Write text nodes in quotes.
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn example() -> Result<impl View> {
 Ok(view! {
@@ -32,7 +32,7 @@ Ok(view! {
 Element names can contain dashes for custom elements:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn example() -> Result<impl View> {
 Ok(view! {
@@ -48,7 +48,7 @@ Use parentheses to interpolate a Rust expression into markup.
 In child position, the expression becomes a node:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # struct User { name: &'static str }
 # #[component]
 # async fn example() -> Result<impl View> {
@@ -64,7 +64,7 @@ Ok(view! {
 In attribute value position, the expression becomes the value:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn example() -> Result<impl View> {
 # let url = "/posts";
@@ -78,7 +78,7 @@ Ok(view! {
 Use parentheses for dynamic attribute and element names too:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn example() -> Result<impl View> {
 let tag = "section";
@@ -93,7 +93,7 @@ Ok(view! {
 Use a quoted string for literal text or an expression for computed text:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn example() -> Result<impl View> {
 # let computed_text = "Computed";
@@ -113,7 +113,7 @@ Use Rust control flow with markup in its branches and loop bodies.
 Use `if`, `else if`, and `else` to choose which markup is emitted.
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn example() -> Result<impl View> {
 # let user: Option<()> = None;
@@ -130,7 +130,7 @@ Ok(view! {
 In attributes, each branch emits attributes instead of child nodes:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn example() -> Result<impl View> {
 # let current = true;
@@ -153,7 +153,7 @@ Ok(view! {
 Use `for pat in expr { ... }` to render the body once for each item.
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # struct Post { url: &'static str, title: &'static str }
 # #[component]
 # async fn example() -> Result<impl View> {
@@ -173,7 +173,7 @@ Ok(view! {
 In attributes, a loop can emit zero or more attributes. This is useful when you already have attributes represented as data:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn example() -> Result<impl View> {
 # let attrs = vec![("data-id", "1")];
@@ -192,7 +192,7 @@ Ok(view! {
 Use `match` to choose markup from patterns. Match arms can also use guards.
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # enum Status { Draft, Published { title: &'static str }, Archived }
 # #[component]
 # async fn example() -> Result<impl View> {
@@ -212,7 +212,7 @@ Ok(view! {
 A match arm body is one view node. If a branch needs multiple sibling nodes, wrap them in a block:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # struct User { name: &'static str }
 # #[component]
 # async fn example() -> Result<impl View> {
@@ -232,7 +232,7 @@ Ok(view! {
 In attributes, each arm can emit attribute nodes:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # enum State { Open, Closed }
 # #[component]
 # async fn example() -> Result<impl View> {
@@ -253,7 +253,7 @@ Ok(view! {
 Use `let pat = expr;` to bind values for later nodes in the same body.
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # struct Post { title: &'static str, url: &'static str }
 # #[component]
 # async fn example() -> Result<impl View> {
@@ -272,7 +272,7 @@ Ok(view! {
 The same works in an attribute list. The binding is in scope for attributes that follow it:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # struct Post { slug: &'static str, title: &'static str }
 # impl Post { fn url(&self) -> &str { "/hello" } }
 # #[component]
@@ -295,7 +295,7 @@ Ok(view! {
 Call components with comma-separated `name: value` arguments. If a component accepts a `child` property, place child nodes after the named arguments. Child nodes do not need commas:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn panel(title: &str, #[default] child: Child<'_>) -> Result<impl View> { Ok(view! { <section>(title)(child)</section> }) }
 # #[component]
@@ -320,7 +320,7 @@ Ok(view! {
 You can also pass the child view explicitly:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn panel(title: &str, #[default] child: Child<'_>) -> Result<impl View> { Ok(view! { <section>(title)(child)</section> }) }
 # #[component]
@@ -350,7 +350,7 @@ See how to define components in the [`component`] macro guide.
 Each component call has a stable identity that associates its state with the same call across renders. In a `for` loop, use `#[key(expr)]` to distinguish iterations and the components they render:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # struct Post { id: u64, title: &'static str }
 # #[component]
 # async fn post_card(title: &str) -> Result<impl View> { Ok(view! { <article>(title)</article> }) }
@@ -379,7 +379,7 @@ A [`view!`] expression creates a value implementing [`View`]. Expressions inside
 A view captures variables by moving them, like an `async move` block:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn example() -> Result<impl View> {
 let title = String::from("Hello");
@@ -410,7 +410,7 @@ Treat component bodies and template expressions as computations without side eff
 [Boolean HTML attributes](https://developer.mozilla.org/en-US/docs/Glossary/Boolean/HTML) such as `disabled` are true when present and false when absent. Use an empty string to include one unconditionally:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn example() -> Result<impl View> {
 Ok(view! {
@@ -422,7 +422,7 @@ Ok(view! {
 Use a [`bool`] expression for a conditional boolean attribute. [`true`] renders an empty attribute and [`false`] omits it. For attributes with values, use [`Some`] to include the value or [`None`] to omit the attribute:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn example() -> Result<impl View> {
 let is_disabled = false;
@@ -446,7 +446,7 @@ The rendered opening tag includes `aria-current="page"`, but leaves out `disable
 This omission logic applies to expression attributes. Literal attributes are always present:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn example() -> Result<impl View> {
 Ok(view! {
@@ -458,7 +458,7 @@ Ok(view! {
 Attributes that take the literal strings `"true"` and `"false"` as values, such as `aria-expanded` or `contenteditable`, are enumerated attributes, not boolean attributes. For them, `"false"` means something different than omitting the attribute, so pass strings instead of booleans:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn example() -> Result<impl View> {
 # let expanded = false;
@@ -475,7 +475,7 @@ Use [`attributes!`] to build an attribute collection separately from its element
 Use [`class!`] when a class list combines base classes with conditional, optional, or supplied classes. The macro joins the entries with spaces and skips absent entries:
 
 ```rust
-use topcoat::{Result, view::{View, class, component, view}};
+use hearth::{Result, view::{View, class, component, view}};
 
 #[component]
 async fn save_button(is_pending: bool, #[default] extra_class: Option<&str>) -> Result<impl View> {
@@ -497,8 +497,8 @@ Keep a fixed class list as `class="btn btn-primary"`. For composed lists, prefer
 A view can declare the status code and headers of the HTTP response it renders into. A [`StatusCode`] in node position sets the response status, and a [`HeaderMap`] or a single `(HeaderName, HeaderValue)` pair adds response headers. None of them render any content.
 
 ```rust
-# use topcoat::{Result, view::*};
-# use topcoat::router::{StatusCode, HeaderValue, header};
+# use hearth::{Result, view::*};
+# use hearth::router::{StatusCode, HeaderValue, header};
 # #[component]
 # async fn example() -> Result<impl View> {
 Ok(view! {
@@ -513,8 +513,8 @@ The first status code in markup order wins. For each header name, the first decl
 
 ```rust
 // src/app/docs.rs
-# use topcoat::{Result, view::*};
-# use topcoat::router::{HeaderValue, Slot, header, layout};
+# use hearth::{Result, view::*};
+# use hearth::router::{HeaderValue, Slot, header, layout};
 #[layout]
 async fn docs_layout(slot: Slot<'_>) -> Result<impl View> {
     Ok(view! {
@@ -528,14 +528,14 @@ Every page under `/docs` gets `Cache-Control: max-age=60` unless it declares its
 
 A status code in node position never renders text. To display one, render one of its accessors instead, such as `(status.as_u16())`.
 
-These declarations require the `router` feature (or the `topcoat-view` crate's `http` feature) and take effect when the rendered view becomes a response; rendering a view to a plain string discards them.
+These declarations require the `router` feature (or the `hearth-view` crate's `http` feature) and take effect when the rendered view becomes a response; rendering a view to a plain string discards them.
 
 # Rendering Outside A Component
 
 Inside a [`component`], the request context is available implicitly. In a plain function, pass the context at the start of the macro:
 
 ```rust
-# use topcoat::{Result, context::Cx, view::*};
+# use hearth::{Result, context::Cx, view::*};
 # #[component]
 # async fn greeting(name: &str) -> Result<impl View> { Ok(view! { <h1>(name)</h1> }) }
 async fn render(cx: &Cx) -> Result<impl View> {
@@ -560,10 +560,10 @@ Each trait method receives a [`PartsWriter`] for the position being filled. Ever
 For example, a type can opt into child-node rendering by implementing [`NodeViewParts`]:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn example() -> Result<impl View> {
-use topcoat::{context::Cx, view::{NodeViewParts, PartsWriter}};
+use hearth::{context::Cx, view::{NodeViewParts, PartsWriter}};
 
 struct Badge(String);
 
@@ -582,10 +582,10 @@ Ok(view! {
 For attribute values, implement [`AttributeValueViewParts`]. Its [`attribute_present`][AttributeValueViewParts::attribute_present] method controls whether the containing attribute is rendered at all.
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn example() -> Result<impl View> {
-use topcoat::{context::Cx, view::{AttributeValueViewParts, PartsWriter}};
+use hearth::{context::Cx, view::{AttributeValueViewParts, PartsWriter}};
 
 struct DataId(Option<String>);
 
@@ -615,7 +615,7 @@ Ok(view! {
 [`NodeViewParts`]: trait.NodeViewParts.html
 [`PartsWriter`]: struct.PartsWriter.html
 [`component`]: attr.component.html
-[`memoize`]: https://docs.rs/topcoat/latest/topcoat/context/attr.memoize.html
+[`memoize`]: https://docs.rs/hearth/latest/hearth/context/attr.memoize.html
 [`attributes!`]: macro.attributes.html
 [`class!`]: macro.class.html
 [`bool`]: https://doc.rust-lang.org/std/primitive.bool.html
@@ -623,8 +623,8 @@ Ok(view! {
 [`true`]: https://doc.rust-lang.org/std/keyword.true.html
 [`None`]: https://doc.rust-lang.org/std/option/enum.Option.html#variant.None
 [`Some`]: https://doc.rust-lang.org/std/option/enum.Option.html#variant.Some
-[`topcoat::view::Attributes`]: struct.Attributes.html
-[`topcoat::view::Class`]: struct.Class.html
+[`hearth::view::Attributes`]: struct.Attributes.html
+[`hearth::view::Class`]: struct.Class.html
 [`view!`]: macro.view.html
 [`View`]: trait.View.html
 [`Identity`]: ../core/identity/struct.Identity.html

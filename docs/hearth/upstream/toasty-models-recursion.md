@@ -1,6 +1,6 @@
 Title: models! with 128 explicit entries exceeds the default macro recursion limit
 
-Using crates.io `toasty = "=0.11.0"`, rustc 1.99.1, edition 2024, a direct `toasty::models!(M0, ..., M127)` invocation fails with `recursion limit reached while expanding $crate::models!`. The same fixture with 127 entries compiles. No Hearth or Topcoat dependency is required.
+Using crates.io `toasty = "=0.11.0"`, rustc 1.99.1, edition 2024, a direct `toasty::models!(M0, ..., M127)` invocation fails with `recursion limit reached while expanding $crate::models!`. The same fixture with 127 entries compiles. No Hearth or Hearth dependency is required.
 
 Repro:
 

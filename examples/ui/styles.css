@@ -1,4 +1,4 @@
-/* Neutral, the built-in Topcoat theme.
+/* Neutral, the built-in Hearth theme.
 
    The theme is a small set of design tokens. Components refer to tokens only,
    never to raw colors, so a project restyles itself by editing the values in
@@ -32,7 +32,7 @@
    color at reduced opacity. The sidebar has its own accent token for
    interactive rows, so it can be themed independently.
 
-   The Geist font is not bundled here; provide it with topcoat-font. */
+   The Geist font is not bundled here; provide it with hearth-font. */
 
 @import "tailwindcss";
 

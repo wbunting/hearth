@@ -1,8 +1,8 @@
 Creates one [`FontFace`] from the [Fontsource] catalog. Write the family name first, followed by `name: value` arguments in any order. Include `weight` and `style` to select the face:
 
 ```rust
-# use topcoat::font::*;
-# use topcoat::font::fontsource::*;
+# use hearth::font::*;
+# use hearth::font::fontsource::*;
 # fn example() -> FontFace {
 fontsource_font_face!(
     ROBOTO,
@@ -26,11 +26,11 @@ The **family** comes first, as the name of its [`families`] constant (e.g. `ROBO
 
 **`display`** sets how text appears while the font loads. It accepts a [`FontDisplay`] value and defaults to `Swap`.
 
-**`host`** selects where the font file is loaded from. It defaults to [`JsDelivr`]. Use [`Asset`] to bundle the file as a Topcoat [asset][asset-type] and serve it yourself. This requires the `asset` feature.
+**`host`** selects where the font file is loaded from. It defaults to [`JsDelivr`]. Use [`Asset`] to bundle the file as a Hearth [asset][asset-type] and serve it yourself. This requires the `asset` feature.
 
 ```rust
-# use topcoat::font::*;
-# use topcoat::font::fontsource::*;
+# use hearth::font::*;
+# use hearth::font::fontsource::*;
 # fn example() -> FontFace {
 fontsource_font_face!(
     ROBOTO,

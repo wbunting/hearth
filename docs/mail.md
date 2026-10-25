@@ -1,11 +1,11 @@
 Declare email with [`mail!`] and deliver it with [`send`]. A [`Transport`] determines how messages are delivered.
 
-Everything below is re-exported from `topcoat::mail` and gated behind the `mail` feature. The SMTP transport additionally needs the `mail-smtp` feature.
+Everything below is re-exported from `hearth::mail` and gated behind the `mail` feature. The SMTP transport additionally needs the `mail-smtp` feature.
 
 ```toml
 # Cargo.toml
 [dependencies]
-topcoat = { version = "0.10.0", features = ["mail", "mail-smtp"] }
+hearth = { version = "0.1.0", features = ["mail", "mail-smtp"] }
 ```
 
 # Setup
@@ -13,7 +13,7 @@ topcoat = { version = "0.10.0", features = ["mail", "mail-smtp"] }
 Choose a transport in [`MailConfig`] and register it with the router's [`mail`](RouterBuilderMailExt::mail) method:
 
 ```rust,standalone_crate
-use topcoat::{
+use hearth::{
     mail::{FileTransport, MailConfig, RouterBuilderMailExt},
     router::{Router, RouterBuilderDiscoverExt, module_router},
 };
@@ -38,7 +38,7 @@ The [`mail!`] macro creates a [`Mail`] from `name: value` fields. Its `html` fie
 
 ```rust
 // src/app/api/welcome.rs
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     mail::{mail, send},
@@ -48,7 +48,7 @@ use topcoat::{
 #[route(POST)]
 async fn welcome(cx: &Cx) -> Result<&'static str> {
     let mail = mail! {
-        from: ("Topcoat", "welcome@example.com"),
+        from: ("Hearth", "welcome@example.com"),
         to: "ada@example.com",
         subject: "Welcome, Ada!",
         html: {
@@ -63,7 +63,7 @@ async fn welcome(cx: &Cx) -> Result<&'static str> {
 }
 ```
 
-Addresses accept strings, `(name, address)` pairs, or [`Mailbox`] values. Recipient fields also accept collections. Topcoat derives a plain-text body from the HTML by default. See [`mail!`] for field details or use [`MailBuilder`] to create a message without the macro.
+Addresses accept strings, `(name, address)` pairs, or [`Mailbox`] values. Recipient fields also accept collections. Hearth derives a plain-text body from the HTML by default. See [`mail!`] for field details or use [`MailBuilder`] to create a message without the macro.
 
 [`send`] returns a [`Receipt`] with the message's `Message-ID`. Use that ID in `in_reply_to` and `references` to link a later reply. The receipt confirms that the transport accepted the message. It does not confirm inbox delivery.
 
@@ -74,8 +74,8 @@ Sending returns a [`SendError`] if the message lacks a sender, recipients, or bo
 Add files with the `attachments` field. Use [`Attachment::new`] for a downloadable file or [`Attachment::inline`] for content referenced by a `cid:` URL in the HTML:
 
 ```rust
-# use topcoat::{Result, context::Cx};
-# use topcoat::mail::{Attachment, mail};
+# use hearth::{Result, context::Cx};
+# use hearth::mail::{Attachment, mail};
 # async fn example(cx: &Cx) -> Result<()> {
 let mail = mail! {
     subject: "Your invoice",
@@ -103,8 +103,8 @@ Choose a transport for your delivery environment, or implement [`Transport`] for
 
 ```rust,no_run
 # #[cfg(feature = "mail-smtp")]
-# fn example() -> Result<(), topcoat::mail::SmtpError> {
-use topcoat::mail::SmtpTransport;
+# fn example() -> Result<(), hearth::mail::SmtpError> {
+use hearth::mail::SmtpTransport;
 
 let explicit = SmtpTransport::relay("smtp.example.com")?
     .credentials("username", "password")
@@ -124,12 +124,12 @@ let from_url = SmtpTransport::from_url("smtps://user:pass@smtp.example.com:465")
 [`MemoryTransport`] captures messages for tests. Clones share the captured messages, so the test can inspect what the application sent:
 
 ```rust
-use topcoat::{
+use hearth::{
     context::CxTestBuilder,
     mail::{MailConfig, MemoryTransport, Mailbox, mail, send},
 };
 
-# async fn test() -> topcoat::Result<()> {
+# async fn test() -> hearth::Result<()> {
 let transport = MemoryTransport::new();
 let config = MailConfig::builder().transport(transport.clone()).build();
 let cx = CxTestBuilder::new().app_context(config).build();

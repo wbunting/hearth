@@ -1,6 +1,6 @@
 [Tailwind CSS](https://tailwindcss.com) generates CSS from the utility classes in your markup, such as `flex` and `text-center`.
 
-Topcoat runs the standalone Tailwind CLI from a Cargo build script. The generated stylesheet is bundled as a Topcoat [asset](crate::asset).
+Hearth runs the standalone Tailwind CLI from a Cargo build script. The generated stylesheet is bundled as a Hearth [asset](crate::asset).
 
 # Setup
 
@@ -8,10 +8,10 @@ Enable the `tailwind` feature for both your runtime dependency and your build de
 
 ```toml
 [dependencies]
-topcoat = { version = "0.10.0", features = ["tailwind"] }
+hearth = { version = "0.1.0", features = ["tailwind"] }
 
 [build-dependencies]
-topcoat = { version = "0.10.0", default-features = false, features = ["tailwind"] }
+hearth = { version = "0.1.0", default-features = false, features = ["tailwind"] }
 ```
 
 Add a `build.rs` next to `Cargo.toml`:
@@ -19,14 +19,14 @@ Add a `build.rs` next to `Cargo.toml`:
 ```rust,no_run
 # #[allow(clippy::needless_doctest_main)]
 fn main() {
-    topcoat::tailwind::BuildConfig::new().render().unwrap();
+    hearth::tailwind::BuildConfig::new().render().unwrap();
 }
 ```
 
 Then link the generated stylesheet from your layout:
 
 ```rust,ignore
-use topcoat::{
+use hearth::{
     Result,
     router::{Slot, layout},
     tailwind,
@@ -49,16 +49,16 @@ async fn layout(slot: Slot<'_>) -> Result<impl View> {
 }
 ```
 
-[`stylesheet!`](stylesheet) returns the generated CSS as an asset. `topcoat dev` bundles it after each successful build. For a manual build, run:
+[`stylesheet!`](stylesheet) returns the generated CSS as an asset. `hearth dev` bundles it after each successful build. For a manual build, run:
 
 ```sh
-topcoat asset bundle
+hearth asset bundle
 ```
 
 At runtime, load the asset bundle on the router:
 
 ```rust,no_run
-use topcoat::{
+use hearth::{
     asset::{AssetBundle, RouterBuilderAssetExt},
     router::{RouterBuilderDiscoverExt, module_router},
 };
@@ -83,7 +83,7 @@ Cargo provides the environment variables used by the defaults. To run outside a 
 
 # CLI executable
 
-By default, Topcoat downloads the Tailwind CLI from GitHub. `BuildConfig` offers alternatives:
+By default, Hearth downloads the Tailwind CLI from GitHub. `BuildConfig` offers alternatives:
 
 - `version("4.3.2")`: pin the release to download.
 - `version_checksum("4.3.2", "sha256:b800b065...")`: additionally verify the downloaded binary's hash. The prefix selects the algorithm; only `sha256` is supported.
@@ -113,7 +113,7 @@ The generated input is enough for default Tailwind output. Use `input(...)` when
 ```rust,no_run
 # #[allow(clippy::needless_doctest_main)]
 fn main() {
-    topcoat::tailwind::BuildConfig::new()
+    hearth::tailwind::BuildConfig::new()
         .input("src/styles/app.css")
         .render()
         .unwrap();
@@ -138,6 +138,6 @@ Paths in `@source` and `source("...")` are relative to the stylesheet that decla
 
 Cargo cannot watch globs or apply Tailwind's ignore rules to directory watches. A source glob therefore watches its fixed directory prefix recursively. For example, `@source "../views/**/*.rs"` watches `../views`, including new files and directories. This can rebuild CSS when a nonmatching file in that directory changes.
 
-Directory watches exclude `target/`, Cargo's build output directory, the configured CSS output, and dependency and Git metadata directories. When a scan root contains these directories, Topcoat watches its existing files and safe subdirectories instead of the root. New files inside watched subdirectories are detected. If you add a new top-level source directory to a split root, rerun the build script once (for example, by touching the input CSS), or declare that directory with `@source`. An explicitly declared source prefix that does not exist yet is watched directly so its creation is detected. Cargo reruns build scripts while watched paths are missing, so create source directories before building to avoid repeated runs.
+Directory watches exclude `target/`, Cargo's build output directory, the configured CSS output, and dependency and Git metadata directories. When a scan root contains these directories, Hearth watches its existing files and safe subdirectories instead of the root. New files inside watched subdirectories are detected. If you add a new top-level source directory to a split root, rerun the build script once (for example, by touching the input CSS), or declare that directory with `@source`. An explicitly declared source prefix that does not exist yet is watched directly so its creation is detected. Cargo reruns build scripts while watched paths are missing, so create source directories before building to avoid repeated runs.
 
 Package imports with custom CSS entry points are tracked conservatively at the package directory level. Dependencies loaded dynamically by JavaScript plugins may need additional `cargo::rerun-if-changed` directives in your build script. Do not watch a directory containing `target/` or another build output directory. Cargo scans explicitly watched directories recursively without applying `.gitignore`, which can cause repeated rebuilds.

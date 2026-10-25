@@ -5,5 +5,5 @@ Handler errors rendered as HTTP responses and custom error pages. A layout catch
 Run it with:
 
 ```sh
-cargo topcoat dev -p error
+cargo hearth dev -p error
 ```

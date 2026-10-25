@@ -1,4 +1,4 @@
-use topcoat::{
+use hearth::{
     Result,
     icon::{IconData, icon, iconify},
     router::{module_router, page},
@@ -18,7 +18,7 @@ iconify::include!("feather");
 
 #[tokio::main]
 async fn main() {
-    topcoat::start(module_router!().build()).await.unwrap();
+    hearth::start(module_router!().build()).await.unwrap();
 }
 
 #[page]
@@ -28,7 +28,7 @@ async fn home() -> Result<impl View> {
         <html>
             <head>
                 <title>"Icons"</title>
-                topcoat::dev::script()
+                hearth::dev::script()
             </head>
 
             <body>

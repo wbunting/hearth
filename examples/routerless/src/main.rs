@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use topcoat::{
+use hearth::{
     Result,
     context::{AppContext, Cx, app_context, request_context},
     view::{Child, View, ViewExt, component, view},
@@ -19,7 +19,7 @@ async fn main() -> Result<()> {
     // App context can be assembled and shared without a router.
     let mut app = AppContext::new();
     app.insert(Site {
-        title: "Routerless Topcoat",
+        title: "Routerless Hearth",
     });
     let app = Arc::new(app);
 

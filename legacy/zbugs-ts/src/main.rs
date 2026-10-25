@@ -25,7 +25,7 @@ async fn main() {
             let db = db::connect().await.unwrap();
             // Built once from the Toasty schema; embedded in every app page.
             let schema = client_schema::build(&db);
-            topcoat::start(app::router().app_context(db).app_context(schema).build()).await.unwrap();
+            hearth::start(app::router().app_context(db).app_context(schema).build()).await.unwrap();
         }
     }
 }

@@ -1,5 +1,6 @@
 use serde::Serialize;
-use topcoat::view::Unescaped;
+
+use crate::view::Unescaped;
 
 /// An inert JSON script whose payload cannot terminate the element.
 ///

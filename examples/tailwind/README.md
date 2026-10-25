@@ -1,9 +1,9 @@
 # Tailwind
 
-A Tailwind stylesheet generated from Rust source by a build script and served as a Topcoat asset.
+A Tailwind stylesheet generated from Rust source by a build script and served as a Hearth asset.
 
 Run it with:
 
 ```sh
-cargo topcoat dev -p tailwind
+cargo hearth dev -p tailwind
 ```

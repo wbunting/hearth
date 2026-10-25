@@ -21,31 +21,31 @@ For a catch-all, `raw_path_params` provides the rest of the path as an encoded s
 # Examples
 
 ```rust
-use topcoat::router::segment;
+use hearth::router::segment;
 // src/app/blog_post.rs: module URL becomes `/articles` instead of `/blog-post`.
 segment!(rename = "articles");
 ```
 
 ```rust
-use topcoat::router::segment;
+use hearth::router::segment;
 // src/app/marketing.rs: `marketing` contributes no URL segment.
 segment!(kind = Group);
 ```
 
 ```rust
-use topcoat::router::segment;
+use hearth::router::segment;
 // src/app/_group.rs: `_group` is reachable as `/group`.
 segment!(kind = Static);
 ```
 
 ```rust
-use topcoat::router::segment;
+use hearth::router::segment;
 // src/app/users/id.rs: pages in this module serve `/users/{id}`.
 segment!(kind = Param);
 ```
 
 ```rust
-use topcoat::router::segment;
+use hearth::router::segment;
 // src/app/docs/rest.rs: pages in this module serve `/docs/{*path}`.
 segment!(kind = CatchAll, rename = "path");
 ```

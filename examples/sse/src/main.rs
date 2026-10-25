@@ -1,15 +1,15 @@
-use topcoat::asset::RouterBuilderAssetExt;
+use hearth::asset::RouterBuilderAssetExt;
 
 mod job;
 mod ticks;
 
-use serde::Serialize;
-use topcoat::{
+use hearth::{
     Result,
     asset::{AssetBundle, asset},
     router::{module_router, page},
     view::{View, view},
 };
+use serde::Serialize;
 
 #[tokio::main]
 async fn main() {
@@ -17,7 +17,7 @@ async fn main() {
         .assets(AssetBundle::load().unwrap())
         .build();
 
-    topcoat::start(router).await.unwrap();
+    hearth::start(router).await.unwrap();
 }
 
 #[page]
@@ -27,7 +27,7 @@ async fn home() -> Result<impl View> {
         <html>
             <head>
                 <title>"Server-sent events"</title>
-                topcoat::dev::script()
+                hearth::dev::script()
             </head>
             <body>
                 <h1>"Server-sent events"</h1>

@@ -59,6 +59,6 @@ lib-features = ["hydrate"]
 lib-default-features = false
 lib-profile-release = "wasm-release"
 
-# Detached from the Topcoat workspace on purpose: this app pulls in the whole
+# Detached from the Hearth workspace on purpose: this app pulls in the whole
 # Leptos dependency tree and has its own wasm profile.
 [workspace]

@@ -6,11 +6,11 @@ publish = false
 
 [dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-topcoat = { workspace = true, features = ["tailwind"] }
+hearth = { workspace = true, features = ["tailwind"] }
 
 [build-dependencies]
 # We cannot use `workspace = true` with `default-features = false`.
-topcoat = { path = "../../crates/topcoat/", default-features = false, features = ["tailwind"] }
+hearth = { path = "../../crates/hearth/", default-features = false, features = ["tailwind"] }
 
 [lints]
 workspace = true

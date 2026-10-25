@@ -1,4 +1,4 @@
-use topcoat::{cookie::RouterBuilderCookieExt, session::RouterBuilderSessionExt};
+use hearth::{cookie::RouterBuilderCookieExt, session::RouterBuilderSessionExt};
 
 mod login;
 mod logout;
@@ -9,20 +9,20 @@ use std::{
     time::SystemTime,
 };
 
-use serde::Deserialize;
-use topcoat::{
+use hearth::{
     Result,
     context::{Cx, app_context},
     router::{Slot, href, layout, module_router, page},
     session::{self, SessionConfig, TokenHash},
     view::{View, view},
 };
+use serde::Deserialize;
 
 #[tokio::main]
 async fn main() {
-    // Topcoat issues and carries the session token; where the session records
+    // Hearth issues and carries the session token; where the session records
     // live is up to the application, here the in-memory `Database` below.
-    topcoat::start(
+    hearth::start(
         module_router!()
             .cookies()
             .sessions(SessionConfig::default())
@@ -40,7 +40,7 @@ async fn root(slot: Slot<'_>) -> Result<impl View> {
         <html>
             <head>
                 <title>"Sessions"</title>
-                topcoat::dev::script()
+                hearth::dev::script()
             </head>
             <body>(slot)</body>
         </html>

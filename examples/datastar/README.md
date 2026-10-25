@@ -5,5 +5,5 @@ A counter updated with Datastar. The browser sends signals to the server, which 
 Run it with:
 
 ```sh
-cargo topcoat dev -p datastar
+cargo hearth dev -p datastar
 ```

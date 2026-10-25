@@ -9,7 +9,7 @@ The faces can be given in one of two forms.
 Follow the family name with one or more [`@font-face`] blocks. Each block uses [`font_face!`] syntax and inherits the family name:
 
 ```rust
-# use topcoat::font::{Font, font};
+# use hearth::font::{Font, font};
 #
 const INTER: Font = font! {
     "Inter",
@@ -29,7 +29,7 @@ const INTER: Font = font! {
 To build faces in Rust, pass an expression that converts into [`FontFaces`], such as a `Vec<FontFace>`:
 
 ```rust
-# use topcoat::font::{Font, FontFace, FontFormat, FontSource, font};
+# use hearth::font::{Font, FontFace, FontFormat, FontSource, font};
 #
 fn inter_faces() -> Vec<FontFace> {
     vec![FontFace::new(

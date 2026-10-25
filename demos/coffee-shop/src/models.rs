@@ -1,8 +1,8 @@
 mod drink;
 
 pub use drink::*;
+use hearth::context::{Cx, app_context};
 use toasty::Db;
-use topcoat::context::{Cx, app_context};
 
 pub(crate) fn db(cx: &Cx) -> Db {
     app_context::<Db>(cx).clone()

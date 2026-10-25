@@ -1,6 +1,6 @@
 ---
 name: prose
-description: Always use this skill before writing long form markdown documentation for Topcoat.
+description: Always use this skill before writing long form markdown documentation for Hearth.
 ---
 
 # Prose

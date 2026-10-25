@@ -9,7 +9,7 @@ Values are identified by their Rust type. The router accepts one value of each t
 Build the router and chain `.app_context(value)` for every value you want to share:
 
 ```rust,standalone_crate
-use topcoat::router::{Router, RouterBuilderDiscoverExt, module_router};
+use hearth::router::{Router, RouterBuilderDiscoverExt, module_router};
 
 pub fn router() -> Router {
     module_router!()
@@ -23,7 +23,7 @@ pub fn router() -> Router {
 Registering two values of the same type panics. Wrap them in distinct types when you need to share both:
 
 ```rust,standalone_crate
-use topcoat::router::module_router;
+use hearth::router::module_router;
 struct PrimaryDb(Database);
 struct ReplicaDb(Database);
 
@@ -38,7 +38,7 @@ module_router!()
 Inside any handler that has access to a `Cx`, call `app_context::<T>(cx)` to borrow the registered value:
 
 ```rust
-use topcoat::{
+use hearth::{
     context::{Cx, app_context},
     Result,
     router::page,
@@ -58,7 +58,7 @@ The requested type must exactly match the registered type. `app_context` panics 
 When an app context value is intentionally optional, use `try_app_context::<T>(cx)` instead. It returns `None` when the type was not registered:
 
 ```rust
-use topcoat::context::{Cx, try_app_context};
+use hearth::context::{Cx, try_app_context};
 #
 # struct FeatureConfig;
 

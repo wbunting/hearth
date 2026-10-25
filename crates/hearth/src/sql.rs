@@ -5,12 +5,11 @@
 //! order-by from JSON values. [`base_query`] walks the base-table part of a
 //! query's IR and pushes everything it can into SQL:
 //!
-//! - `where`: conjunctions/disjunctions/negations of column-vs-param/literal
-//!   comparisons on the base alias; `if $(cond) { … }` is resolved with the
-//!   param value (dropped when falsy). Anything else (e.g. a predicate on a
-//!   joined alias) is left for the in-memory pass.
-//! - `order by` on base columns, `limit` (only when the whole `where` was
-//!   pushed down; otherwise over-fetch).
+//! - `where`: conjunctions/disjunctions/negations of column-vs-param/literal comparisons on the
+//!   base alias; `if $(cond) { … }` is resolved with the param value (dropped when falsy). Anything
+//!   else (e.g. a predicate on a joined alias) is left for the in-memory pass.
+//! - `order by` on base columns, `limit` (only when the whole `where` was pushed down; otherwise
+//!   over-fetch).
 //!
 //! Joins are then satisfied with one `in_list` query per joined table on
 //! the join keys collected from the base rows.
@@ -35,19 +34,40 @@ pub struct Lowered {
     pub complete: bool,
 }
 
+#[must_use]
 pub fn lower_where<C: SqlColumns>(q: &Query, params: &[Value]) -> Lowered {
     match &q.where_ {
-        None => Lowered { filter: None, complete: true },
+        None => Lowered {
+            filter: None,
+            complete: true,
+        },
         Some(w) => match lower::<C>(w, q.from.alias, params) {
-            Some(Some(f)) => Lowered { filter: Some(f), complete: true },
-            Some(None) => Lowered { filter: None, complete: true }, // always-true
-            None => Lowered { filter: partial::<C>(w, q.from.alias, params), complete: false },
+            Some(Some(f)) => Lowered {
+                filter: Some(f),
+                complete: true,
+            },
+            Some(None) => Lowered {
+                filter: None,
+                complete: true,
+            }, // always-true
+            None => Lowered {
+                filter: partial::<C>(w, q.from.alias, params),
+                complete: false,
+            },
         },
     }
 }
 
 /// `Some(Some(f))` = filter f; `Some(None)` = always true; `None` = not lowerable.
-fn lower<C: SqlColumns>(e: &Expr, alias: &str, params: &[Value]) -> Option<Option<toasty::stmt::Expr<bool>>> {
+#[allow(
+    clippy::option_option,
+    reason = "None means unsupported; Some(None) means no filter"
+)]
+fn lower<C: SqlColumns>(
+    e: &Expr,
+    alias: &str,
+    params: &[Value],
+) -> Option<Option<toasty::stmt::Expr<bool>>> {
     match e {
         Expr::Bin { op, l, r } => {
             let (col, val, op) = match (&**l, &**r) {
@@ -68,22 +88,39 @@ fn lower<C: SqlColumns>(e: &Expr, alias: &str, params: &[Value]) -> Option<Optio
                 }
             }
             let mut it = parts.into_iter();
-            let Some(first) = it.next() else { return Some(None) };
-            Some(Some(it.fold(first, |acc, f| if *op == "and" { acc.and(f) } else { acc.or(f) })))
+            let Some(first) = it.next() else {
+                return Some(None);
+            };
+            Some(Some(it.fold(first, |acc, f| {
+                if *op == "and" { acc.and(f) } else { acc.or(f) }
+            })))
         }
         // `!true` = false: leave it to the in-memory pass.
         Expr::Not { arg, .. } => lower::<C>(arg, alias, params)?.map(|f| Some(f.not())),
         Expr::If { cond, then, .. } => {
-            if crate::ir::truthy(&value(cond, params)?) { lower::<C>(then, alias, params) } else { Some(None) }
+            if crate::ir::truthy(&value(cond, params)?) {
+                lower::<C>(then, alias, params)
+            } else {
+                Some(None)
+            }
         }
         _ => None,
     }
 }
 
 /// Best-effort: the lowerable conjuncts of a top-level `and`.
-fn partial<C: SqlColumns>(e: &Expr, alias: &str, params: &[Value]) -> Option<toasty::stmt::Expr<bool>> {
-    let Expr::Many { op: "and", args } = e else { return None };
-    let parts: Vec<_> = args.iter().filter_map(|a| lower::<C>(a, alias, params).flatten()).collect();
+fn partial<C: SqlColumns>(
+    e: &Expr,
+    alias: &str,
+    params: &[Value],
+) -> Option<toasty::stmt::Expr<bool>> {
+    let Expr::Many { op: "and", args } = e else {
+        return None;
+    };
+    let parts: Vec<_> = args
+        .iter()
+        .filter_map(|a| lower::<C>(a, alias, params).flatten())
+        .collect();
     let mut it = parts.into_iter();
     let first = it.next()?;
     Some(it.fold(first, toasty::stmt::Expr::and))
@@ -112,6 +149,7 @@ fn flip(op: &'static str) -> &'static str {
 /// evaluator, so the first page is identical everywhere (otherwise equal
 /// sort keys come back in arbitrary SQL order and the list reshuffles on
 /// hydration).
+#[must_use]
 pub fn order<C: SqlColumns>(q: &Query, params: &[Value]) -> Vec<toasty::stmt::OrderByExpr> {
     let _ = params;
     let key = q.from.key;
@@ -124,7 +162,10 @@ pub fn order<C: SqlColumns>(q: &Query, params: &[Value]) -> Vec<toasty::stmt::Or
         })
         .collect();
     let complete = out.len() == q.order.len();
-    let by_key = q.order.iter().any(|o| matches!(&o.expr, Expr::Col { col: (a, c) } if *a == q.from.alias && *c == key));
+    let by_key = q
+        .order
+        .iter()
+        .any(|o| matches!(&o.expr, Expr::Col { col: (a, c) } if *a == q.from.alias && *c == key));
     if complete && !by_key && !out.is_empty() {
         out.extend(C::order(key, false));
     }

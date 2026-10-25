@@ -1,6 +1,6 @@
 # Runtime
 
-These pages show how to build interactive views with Topcoat's browser runtime:
+These pages show how to build interactive views with Hearth's browser runtime:
 
 - `counter` updates a signal in response to browser events.
 - `show` binds an HTML attribute to a signal's value.
@@ -12,5 +12,5 @@ These pages show how to build interactive views with Topcoat's browser runtime:
 Start the example with:
 
 ```sh
-cargo topcoat dev -p runtime
+cargo hearth dev -p runtime
 ```

@@ -5,5 +5,5 @@ An app whose routes and nested layouts follow its Rust module tree through `modu
 Run it with:
 
 ```sh
-cargo topcoat dev -p module-router
+cargo hearth dev -p module-router
 ```

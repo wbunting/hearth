@@ -44,14 +44,14 @@ mean() {
     # are buffered so the columns can be padded to a common width; the raw
     # markdown then lines up when read as plain text, and still renders in any
     # markdown viewer.
-    headers=("Framework" "req/s (avg)" "vs topcoat" "p50 ms" "p90 ms" "p99 ms" "bytes/resp" "success")
+    headers=("Framework" "req/s (avg)" "vs hearth" "p50 ms" "p90 ms" "p99 ms" "bytes/resp" "success")
     aligns=(l r r r r r r r)
     rows=()
 
     # Per framework: the median across runs for each route, averaged over all
     # routes. Success is the minimum seen across every run of every route.
     base_rps=""
-    for framework in topcoat nextjs leptos axum_maud; do
+    for framework in hearth nextjs leptos axum_maud; do
         rps_vals=() p50_vals=() p90_vals=() p99_vals=()
         all_tput=() all_rate=()
         for i in "${!ROUTE_LABELS[@]}"; do
@@ -82,10 +82,10 @@ mean() {
         size=$(jq -s '[.[].summary.sizePerRequest] | add / length | round' "${all_rate[@]}")
         success=$(jq -s '[.[].summary.successRate] | min' "${all_tput[@]}" "${all_rate[@]}")
 
-        # Throughput relative to topcoat, the framework under test. Topcoat
+        # Throughput relative to hearth, the framework under test. Hearth
         # is the baseline; the others report how many times faster or slower
-        # they served on average (by req/s). "n/a" when topcoat is absent.
-        if [ "$framework" = topcoat ]; then
+        # they served on average (by req/s). "n/a" when hearth is absent.
+        if [ "$framework" = hearth ]; then
             base_rps="$rps"
             rel="baseline"
         elif [ -n "$base_rps" ] && [ "$base_rps" -gt 0 ]; then

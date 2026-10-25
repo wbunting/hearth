@@ -7,7 +7,7 @@ publish = false
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-topcoat = { workspace = true, features = ["mail"] }
+hearth = { workspace = true, features = ["mail"] }
 
 [lints]
 workspace = true

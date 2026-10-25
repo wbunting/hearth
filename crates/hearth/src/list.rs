@@ -1,28 +1,30 @@
 //! `for row in $(query) { body }` (forked `view!` grammar) lowers to
 //! [`client_for`]. On the server it:
 //! 1. evaluates the query's params (`$()` exprs → server value + JS),
-//! 2. runs the base-table part in SQL (via `Table::load_first`) and the rest
-//!    of the IR in memory → first-view rows,
+//! 2. runs the base-table part in SQL (via `Table::load_first`) and the rest of the IR in memory →
+//!    first-view rows,
 //! 3. renders `body` per row between `::hearth::item` markers,
-//! 4. renders `body` once more with a placeholder row into a `<template>`
-//!    (so the browser can clone it with all `$()` markers intact),
+//! 4. renders `body` once more with a placeholder row into a `<template>` (so the browser can clone
+//!    it with all `$()` markers intact),
 //! 5. emits `::hearth::list::start(<IR + param JS + template id>)`.
 //!
-//! The browser side is `topcoat-runtime/browser/src/hearth/list.ts`.
+//! The browser side is `hearth-runtime/browser/src/hearth/list.ts`.
 
-use std::{collections::HashMap, sync::atomic::{AtomicU64, Ordering}};
+use std::{
+    collections::HashMap,
+    fmt::Write as _,
+    sync::atomic::{AtomicU64, Ordering},
+};
 
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
-use topcoat::{
-    context::Cx,
-    runtime::Expr,
-    view::{BoxView, Unescaped, ViewExt},
-};
 
 use crate::{
+    context::Cx,
     ir::{self, JsonRow, Query},
     row::Row,
+    runtime::Expr,
+    view::{BoxView, Unescaped, ViewExt},
 };
 
 /// A compiled `live_query!`: the IR, its `$()` params, and how to load the
@@ -37,11 +39,17 @@ pub struct LiveQuery<R> {
     pub _row: std::marker::PhantomData<fn() -> R>,
 }
 
-pub type LoaderFn = for<'a> fn(&'a Cx, &'a Query, &'a [Value]) -> crate::table::BoxFut<'a, Vec<JsonRow>>;
+pub type LoaderFn =
+    for<'a> fn(&'a Cx, &'a Query, &'a [Value]) -> crate::table::BoxFut<'a, Vec<JsonRow>>;
 
 impl<R> Clone for LiveQuery<R> {
     fn clone(&self) -> Self {
-        Self { ir: self.ir.clone(), params: self.params.clone(), loaders: self.loaders.clone(), _row: std::marker::PhantomData }
+        Self {
+            ir: self.ir.clone(),
+            params: self.params.clone(),
+            loaders: self.loaders.clone(),
+            _row: std::marker::PhantomData,
+        }
     }
 }
 
@@ -49,17 +57,24 @@ impl<R> LiveQuery<R> {
     #[doc(hidden)]
     pub fn param<T: Serialize>(e: Expr<T>) -> (Value, String) {
         let (value, js) = e.into_evaluated_and_js();
-        (serde_json::to_value(&value).unwrap_or(Value::Null), js.to_client())
+        (
+            serde_json::to_value(&value).unwrap_or(Value::Null),
+            js.to_client(),
+        )
     }
 }
 
-/// Loader adaptor for a [`crate::Table`].
+/// Loader adaptor for a [`hearth::Table`].
 ///
 /// Per-request memoized: lists that load the same table with the same
 /// pushed-down query (e.g. `users` joined by three lists on one page) share
 /// one SQL round trip.
 #[doc(hidden)]
-pub fn loader<T: crate::Table>(cx: &Cx, q: &Query, p: &[Value]) -> crate::table::BoxFut<'static, Vec<JsonRow>>
+pub fn loader<T: crate::Table>(
+    cx: &Cx,
+    q: &Query,
+    p: &[Value],
+) -> crate::table::BoxFut<'static, Vec<JsonRow>>
 where
     T::Row: 'static,
 {
@@ -75,17 +90,31 @@ where
         let shape = if whole {
             format!("{}#all", std::any::type_name::<T>())
         } else {
-            serde_json::to_string(&(std::any::type_name::<T>(), &q.from, &q.where_, &q.order, q.limit, &p)).unwrap_or_default()
+            serde_json::to_string(&(
+                std::any::type_name::<T>(),
+                &q.from,
+                &q.where_,
+                &q.order,
+                q.limit,
+                &p,
+            ))
+            .unwrap_or_default()
         };
         let cell = request_loads(&cx);
         let slot = {
             let mut m = cell.lock().expect("load cache poisoned");
-            m.entry(shape).or_insert_with(|| std::sync::Arc::new(tokio_once::OnceAsync::default())).clone()
+            m.entry(shape)
+                .or_insert_with(|| std::sync::Arc::new(tokio_once::OnceAsync::default()))
+                .clone()
         };
         slot.get_or_try_init(|| async {
             // A joined table must not get the base query's where/order/limit
             // (they're about another table): load all of its scoped rows.
-            let rows = if joined { T::load(&cx).await? } else { T::load_first(&cx, &q, &p).await? };
+            let rows = if joined {
+                T::load(&cx).await?
+            } else {
+                T::load_first(&cx, &q, &p).await?
+            };
             Ok(std::sync::Arc::new(
                 rows.into_iter()
                     .filter_map(|r| match T::to_wire(r) {
@@ -100,11 +129,13 @@ where
     })
 }
 
-type LoadCache = std::sync::Mutex<HashMap<String, std::sync::Arc<tokio_once::OnceAsync<std::sync::Arc<Vec<JsonRow>>>>>>;
+type LoadCache = std::sync::Mutex<
+    HashMap<String, std::sync::Arc<tokio_once::OnceAsync<std::sync::Arc<Vec<JsonRow>>>>>,
+>;
 
 /// One load cache per request (the memoize cache is per request).
 fn request_loads(cx: &Cx) -> &LoadCache {
-    topcoat::context::memoize_cache(cx).memoize(cx, "hearth::loads", (), |_, ()| LoadCache::default())
+    crate::context::memoize_cache(cx).memoize(cx, "hearth::loads", (), |_, ()| LoadCache::default())
 }
 
 /// A minimal async once-cell (no extra dependency): the first caller runs the
@@ -122,7 +153,9 @@ mod tokio_once {
     }
     impl<T> Default for OnceAsync<T> {
         fn default() -> Self {
-            Self { state: Mutex::new(State::Empty) }
+            Self {
+                state: Mutex::new(State::Empty),
+            }
         }
     }
     impl<T: Clone> OnceAsync<T> {
@@ -173,6 +206,10 @@ pub const SSR_ROWS: usize = 50;
 static NEXT_SEED: AtomicU64 = AtomicU64::new(0);
 
 /// Server half of a client list. `body` renders one row.
+///
+/// # Panics
+///
+/// Panics if a row key cannot be serialized as JSON.
 pub fn client_for<'a, R, F>(cx: &'a Cx, query: LiveQuery<R>, body: F) -> BoxView<'a>
 where
     R: DeserializeOwned + Default + Send + 'static,
@@ -181,7 +218,12 @@ where
     let cx = cx.clone();
     let cx2 = cx.clone();
     let fut = async move {
-        let LiveQuery { ir, params, loaders, .. } = query;
+        let LiveQuery {
+            ir,
+            params,
+            loaders,
+            ..
+        } = query;
         let param_values: Vec<Value> = params.iter().map(|(v, _)| plain_json(v)).collect();
         // Inside a `<template>`: structure only. No SQL, no rows, no seed.
         let in_template = crate::row::in_template(&cx);
@@ -195,7 +237,10 @@ where
                 if alias == ir.from.alias {
                     ir.from.table
                 } else {
-                    ir.joins.iter().find(|j| j.alias == alias).map_or(alias, |j| j.table)
+                    ir.joins
+                        .iter()
+                        .find(|j| j.alias == alias)
+                        .map_or(alias, |j| j.table)
                 }
             };
             let mut first_alias: HashMap<&str, &str> = HashMap::new();
@@ -235,7 +280,8 @@ where
             "fc-list-{:012x}",
             crate::table::fnv64(ir_json.as_bytes()) & 0xffff_ffff_ffff
         );
-        let seed_id = (!in_template).then(|| format!("fc-seed-{}", NEXT_SEED.fetch_add(1, Ordering::Relaxed)));
+        let seed_id = (!in_template)
+            .then(|| format!("fc-seed-{}", NEXT_SEED.fetch_add(1, Ordering::Relaxed)));
         let marker = serde_json::json!({
             "query": ir,
             "params": params.iter().map(|(_, js)| js).collect::<Vec<_>>(),
@@ -247,7 +293,7 @@ where
         let trailers = crate::row::Trailers::default();
         let inner_cx = cx.with(trailers.clone());
         let mut html = String::new();
-        html.push_str(&format!("<!--::hearth::list::start({marker})-->"));
+        let _ = write!(html, "<!--::hearth::list::start({marker})-->");
         // Every SSR row repeats the same `$()` JS (only the row data differs,
         // and that comes from `cx.row(..)`). Dedupe: each distinct JS string
         // is emitted once in a per-list table, rows reference it by index.
@@ -269,39 +315,63 @@ where
         let handles = futures_join_all(views).await;
         for (row, handle) in rows.iter().zip(handles) {
             let key = row.get(ir.key).map(json_key).unwrap_or_default();
-            html.push_str(&format!("<!--::hearth::item({})-->", comment_escape(&serde_json::to_string(&key).unwrap())));
+            let _ = write!(
+                html,
+                "<!--::hearth::item({})-->",
+                comment_escape(&serde_json::to_string(&key).unwrap())
+            );
             dedupe.rewrite_into(&handle?.render(&cx), &mut html);
             html.push_str("<!--::hearth::item-end-->");
         }
         html.push_str(&dedupe.table_comment());
         html.push_str("<!--::hearth::list::end-->");
         let nested = crate::row::Trailers::default();
-        let tcx = inner_cx.with(crate::row::TemplateRender).with(nested.clone());
-        let tpl = body(tcx.clone(), Row::bind(R::default(), &id)).single().await?.render(&tcx);
-        let mut trailer = format!(r#"{}<template id="{id}">{tpl}{}</template>"#, trailers.take(), nested.take());
+        let tcx = inner_cx
+            .with(crate::row::TemplateRender)
+            .with(nested.clone());
+        let tpl = body(tcx.clone(), Row::bind(R::default(), &id))
+            .single()
+            .await?
+            .render(&tcx);
+        let mut trailer = format!(
+            r#"{}<template id="{id}">{tpl}{}</template>"#,
+            trailers.take(),
+            nested.take()
+        );
         if let Some(seed_id) = seed_id {
             trailer.push_str(&crate::json_script(&seed_id, &seed));
         }
         crate::row::trailer(&cx, &mut html, &trailer);
-        Ok::<_, topcoat::Error>(Unescaped::new_unchecked(html))
+        Ok::<_, crate::Error>(Unescaped::new_unchecked(html))
     };
-    Box::pin(topcoat::view::internal::ScopeView::new(topcoat::view::internal::MoveView::new(async move {
-        let html = fut.await?;
-        let __cx = &cx2;
-        topcoat::view::internal::MoveView::drive(topcoat::view::view! { (html) }).await
-    })))
+    Box::pin(crate::view::internal::ScopeView::new(
+        crate::view::internal::MoveView::new(async move {
+            let html = fut.await?;
+            let __cx = &cx2;
+            crate::view::internal::MoveView::drive(crate::view::view! { (html) }).await
+        }),
+    ))
 }
 
 /// Evaluate the IR over loaded rows: base filter/order/limit, then joins.
-fn evaluate<'t>(q: &Query, tables: &'t HashMap<&str, Vec<JsonRow>>, params: &[Value]) -> Vec<JsonRow> {
+fn evaluate<'t>(
+    q: &Query,
+    tables: &'t HashMap<&str, Vec<JsonRow>>,
+    params: &[Value],
+) -> Vec<JsonRow> {
     static EMPTY: Vec<JsonRow> = Vec::new();
     let empty: &'t [JsonRow] = &EMPTY;
     let base: &'t [JsonRow] = tables.get(q.from.alias).map_or(empty, Vec::as_slice);
     // Same plan as the browser (db.ts): filter/order/limit before joins when
     // they only touch the base alias, otherwise after.
     let early = q.joins.is_empty()
-        || (q.where_.as_ref().is_none_or(|w| aliases(w).iter().all(|a| *a == q.from.alias))
-            && q.order.iter().all(|o| aliases(&o.expr).iter().all(|a| *a == q.from.alias)));
+        || (q
+            .where_
+            .as_ref()
+            .is_none_or(|w| aliases(w).iter().all(|a| *a == q.from.alias))
+            && q.order
+                .iter()
+                .all(|o| aliases(&o.expr).iter().all(|a| *a == q.from.alias)));
 
     // Hash indexes on each joined table's join column.
     let mut join_idx: Vec<HashMap<String, Vec<&'t JsonRow>>> = Vec::new();
@@ -309,12 +379,15 @@ fn evaluate<'t>(q: &Query, tables: &'t HashMap<&str, Vec<JsonRow>>, params: &[Va
         let mut m: HashMap<String, Vec<&'t JsonRow>> = HashMap::new();
         for rr in tables.get(j.alias).map_or(empty, Vec::as_slice) {
             let e = HashMap::from([(j.alias, rr)]);
-            m.entry(ir::eval(&j.on.1, &e, params).to_string()).or_default().push(rr);
+            m.entry(ir::eval(&j.on.1, &e, params).to_string())
+                .or_default()
+                .push(rr);
         }
         join_idx.push(m);
     }
     let join = |r: &'t JsonRow| -> Vec<HashMap<&'static str, &'t JsonRow>> {
-        let mut envs: Vec<HashMap<&'static str, &'t JsonRow>> = vec![HashMap::from([(q.from.alias, r)])];
+        let mut envs: Vec<HashMap<&'static str, &'t JsonRow>> =
+            vec![HashMap::from([(q.from.alias, r)])];
         for (j, idx) in q.joins.iter().zip(&join_idx) {
             let mut next = Vec::new();
             for env in envs {
@@ -335,7 +408,11 @@ fn evaluate<'t>(q: &Query, tables: &'t HashMap<&str, Vec<JsonRow>>, params: &[Va
         }
         envs
     };
-    let keep = |env: &HashMap<&str, &JsonRow>| q.where_.as_ref().is_none_or(|w| ir::truthy(&ir::eval(w, env, params)));
+    let keep = |env: &HashMap<&str, &JsonRow>| {
+        q.where_
+            .as_ref()
+            .is_none_or(|w| ir::truthy(&ir::eval(w, env, params)))
+    };
     let order = |a: &HashMap<&str, &JsonRow>, b: &HashMap<&str, &JsonRow>| {
         for o in &q.order {
             let ord = ir::cmp(&ir::eval(&o.expr, a, params), &ir::eval(&o.expr, b, params));
@@ -346,18 +423,28 @@ fn evaluate<'t>(q: &Query, tables: &'t HashMap<&str, Vec<JsonRow>>, params: &[Va
         }
         // Tie-break by the base row's key, like SQL (`sql::order`) and the
         // browser engine, so all three agree on the first page.
-        let k = |e: &HashMap<&str, &JsonRow>| e.get(q.from.alias).and_then(|r| r.get(q.from.key)).map(json_key).unwrap_or_default();
+        let k = |e: &HashMap<&str, &JsonRow>| {
+            e.get(q.from.alias)
+                .and_then(|r| r.get(q.from.key))
+                .map(json_key)
+                .unwrap_or_default()
+        };
         k(a).cmp(&k(b))
     };
 
     let envs: Vec<HashMap<&'static str, &'t JsonRow>> = if early {
-        let mut rows: Vec<HashMap<&'static str, &'t JsonRow>> =
-            base.iter().map(|r| HashMap::from([(q.from.alias, r)])).filter(|e| keep(e)).collect();
+        let mut rows: Vec<HashMap<&'static str, &'t JsonRow>> = base
+            .iter()
+            .map(|r| HashMap::from([(q.from.alias, r)]))
+            .filter(|e| keep(e))
+            .collect();
         rows.sort_by(|a, b| order(a, b));
         if let Some(n) = q.limit {
             rows.truncate(n);
         }
-        rows.into_iter().flat_map(|e| join(e[q.from.alias])).collect()
+        rows.into_iter()
+            .flat_map(|e| join(e[q.from.alias]))
+            .collect()
     } else {
         let mut rows: Vec<_> = base.iter().flat_map(join).filter(|e| keep(e)).collect();
         rows.sort_by(|a, b| order(a, b));
@@ -378,7 +465,6 @@ fn evaluate<'t>(q: &Query, tables: &'t HashMap<&str, Vec<JsonRow>>, params: &[Va
 }
 
 fn aliases(e: &ir::Expr) -> Vec<&'static str> {
-    let mut out = Vec::new();
     fn walk(e: &ir::Expr, out: &mut Vec<&'static str>) {
         match e {
             ir::Expr::Col { col: (a, _) } => out.push(a),
@@ -395,32 +481,49 @@ fn aliases(e: &ir::Expr) -> Vec<&'static str> {
             }
         }
     }
+    let mut out = Vec::new();
     walk(e, &mut out);
     out
 }
 
-fn seed_rows(q: &Query, tables: &HashMap<&str, Vec<JsonRow>>, out_rows: &[JsonRow]) -> serde_json::Map<String, Value> {
+fn seed_rows(
+    q: &Query,
+    tables: &HashMap<&str, Vec<JsonRow>>,
+    out_rows: &[JsonRow],
+) -> serde_json::Map<String, Value> {
     let mut seed = serde_json::Map::new();
     let empty = Vec::new();
-    let keys: std::collections::HashSet<String> =
-        out_rows.iter().filter_map(|r| r.get(q.key)).map(json_key).collect();
+    let keys: std::collections::HashSet<String> = out_rows
+        .iter()
+        .filter_map(|r| r.get(q.key))
+        .map(json_key)
+        .collect();
     let base: Vec<Value> = tables
         .get(q.from.alias)
         .unwrap_or(&empty)
         .iter()
-        .filter(|r| r.get(q.from.key).map(json_key).is_some_and(|k| keys.contains(&k)))
+        .filter(|r| {
+            r.get(q.from.key)
+                .map(json_key)
+                .is_some_and(|k| keys.contains(&k))
+        })
         .map(|r| Value::Object(r.clone()))
         .collect();
     seed.insert(q.from.table.to_owned(), Value::Array(base));
     for j in &q.joins {
         // Small join tables (users/labels) ship whole; that's what P0.5 did too.
-        let rows: Vec<Value> = tables.get(j.alias).unwrap_or(&empty).iter().map(|r| Value::Object(r.clone())).collect();
+        let rows: Vec<Value> = tables
+            .get(j.alias)
+            .unwrap_or(&empty)
+            .iter()
+            .map(|r| Value::Object(r.clone()))
+            .collect();
         seed.entry(j.table.to_owned()).or_insert(Value::Array(rows));
     }
     seed
 }
 
-/// Topcoat surrogates serialize as `{t, v}` tagged values; the IR wants plain JSON.
+/// Hearth surrogates serialize as `{t, v}` tagged values; the IR wants plain JSON.
 fn plain_json(v: &Value) -> Value {
     match v {
         Value::Object(m) if m.contains_key("t") && m.contains_key("v") => {
@@ -466,8 +569,7 @@ fn comment_escape(s: &str) -> String {
     out
 }
 
-
-/// Minimal join_all (no extra dependency): polls all futures concurrently.
+/// Minimal `join_all` (no extra dependency): polls all futures concurrently.
 async fn futures_join_all<F: std::future::Future>(futs: Vec<F>) -> Vec<F::Output> {
     use std::{pin::Pin, task::Poll};
     let mut futs: Vec<Pin<Box<F>>> = futs.into_iter().map(Box::pin).collect();
@@ -485,7 +587,9 @@ async fn futures_join_all<F: std::future::Future>(futs: Vec<F>) -> Vec<F::Output
         if done { Poll::Ready(()) } else { Poll::Pending }
     })
     .await;
-    out.into_iter().map(|o| o.expect("all futures completed")).collect()
+    out.into_iter()
+        .map(|o| o.expect("all futures completed"))
+        .collect()
 }
 
 #[cfg(test)]
@@ -495,12 +599,13 @@ mod tests {
         task::{Context, Poll, Waker},
     };
 
-    use topcoat::view::View;
-
     use super::*;
-    use crate::ir::{
-        Expr as E, From, Join, Order,
-        indexmap_lite::{Map, Types},
+    use crate::{
+        ir::{
+            Expr as E, From, Join, Order,
+            indexmap_lite::{Map, Types},
+        },
+        view::View,
     };
 
     fn load<'a>(_: &'a Cx, _: &'a Query, _: &'a [Value]) -> crate::table::BoxFut<'a, Vec<JsonRow>> {
@@ -518,7 +623,7 @@ mod tests {
     fn seed_and_template_follow_rows_and_cannot_end_the_json_script() {
         let cx = Cx::default();
         let view = client_for(&cx, query("things"), |cx, _| {
-            Box::pin(topcoat::view::view! { cx => <li>"row"</li> })
+            Box::pin(crate::view::view! { cx => <li>"row"</li> })
         });
         let html = render(&cx, view);
         let row = html.find("<li>").unwrap();
@@ -547,7 +652,11 @@ mod tests {
     fn query(table: &'static str) -> LiveQuery<String> {
         LiveQuery {
             ir: Query {
-                from: ir::From { table, alias: "t", key: "id" },
+                from: ir::From {
+                    table,
+                    alias: "t",
+                    key: "id",
+                },
                 joins: vec![],
                 where_: None,
                 order: vec![],
@@ -563,23 +672,23 @@ mod tests {
     }
 
     fn nested_rows(cx: Cx) -> BoxView<'static> {
-        Box::pin(topcoat::view::view! {
+        Box::pin(crate::view::view! {
             cx =>
             <li>
                 "outer"
                 (crate::route::when(
                     &cx,
-                    Expr::evaluate_dynamic(true, topcoat::runtime::Js::source("true")),
+                    Expr::evaluate_dynamic(true, crate::runtime::Js::source("true")),
                     |cx| {
                         Box::pin(
-                            topcoat::view::view! {
+                            crate::view::view! {
                                 cx =>
                                 <ul>
                                     (client_for(
                                         &cx,
                                         query("inner"),
                                         |cx, _| {
-                                            Box::pin(topcoat::view::view! { cx => <li>"inner"</li> })
+                                            Box::pin(crate::view::view! { cx => <li>"inner"</li> })
                                         },
                                     ))
                                 </ul>
@@ -609,9 +718,9 @@ mod tests {
         let cx = Cx::default();
         let view = crate::route::when(
             &cx,
-            Expr::evaluate_dynamic(true, topcoat::runtime::Js::source("Boolean(1)")),
+            Expr::evaluate_dynamic(true, crate::runtime::Js::source("Boolean(1)")),
             |cx| {
-                Box::pin(topcoat::view::view! {
+                Box::pin(crate::view::view! {
                     cx =>
                     <ul>(client_for(&cx, query("outer"), |cx, _| nested_rows(cx)))</ul>
                 })

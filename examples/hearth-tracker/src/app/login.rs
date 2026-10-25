@@ -1,7 +1,6 @@
-//! Demo login: pick a seeded user. A real Topcoat session gates every table.
+//! Demo login: pick a seeded user. A real Hearth session gates every table.
 
-use serde::Deserialize;
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{
@@ -11,6 +10,7 @@ use topcoat::{
     },
     view::{View, attributes, view},
 };
+use serde::Deserialize;
 
 use crate::{
     auth,

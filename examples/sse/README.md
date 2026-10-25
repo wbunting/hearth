@@ -5,5 +5,5 @@ Event streams that send updates to the browser, including reconnection and progr
 Run it with:
 
 ```sh
-cargo topcoat dev -p sse
+cargo hearth dev -p sse
 ```

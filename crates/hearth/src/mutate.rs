@@ -7,19 +7,21 @@
 //! }
 //! ```
 //! In JS this is `cx.db.update("issues", key, { open: value })`: an
-//! optimistic TanStack mutation whose persist step POSTs to the table's
+//! optimistic `TanStack` mutation whose persist step POSTs to the table's
 //! mutation endpoint, where `Table::update` validates it. A rejection rolls
 //! back automatically.
 //!
 //! The handle is a captured value whose JS is `cx.db.table("issues")`, so
-//! method calls pass straight through Topcoat's `$()` lowering.
+//! method calls pass straight through Hearth's `$()` lowering.
 
 use std::marker::PhantomData;
 
 use serde::{Serialize, Serializer};
-use topcoat::runtime::{Expr, Js, Surrogate, Surrogated};
 
-use crate::Table;
+use crate::{
+    Table,
+    runtime::{Expr, Js, Surrogate, Surrogated},
+};
 
 /// Browser-side handle to a synced table, usable inside `$()`.
 pub struct TableHandle<T: Table>(PhantomData<fn() -> T>);
@@ -33,7 +35,14 @@ impl<T: Table> Clone for TableHandle<T> {
 /// Handle for `T`, to capture in `$()` handlers.
 #[must_use]
 pub fn table<T: Table>() -> Expr<TableHandle<T>> {
-    Expr::evaluate_dynamic(TableHandle(PhantomData), Js::builder().compiled("cx.db.table(__topcoatCaptures.values[0])").source(format!("cx.db.table({:?})", T::NAME)).capture(T::NAME).build())
+    Expr::evaluate_dynamic(
+        TableHandle(PhantomData),
+        Js::builder()
+            .compiled("cx.db.table(__hearthCaptures.values[0])")
+            .source(format!("cx.db.table({:?})", T::NAME))
+            .capture(T::NAME)
+            .build(),
+    )
 }
 
 /// The surrogate (Rust-side type inside `$()`) for a table handle.
@@ -65,7 +74,7 @@ fn browser_only() -> ! {
     panic!("hearth table writes run in the browser only")
 }
 
-use topcoat::runtime::StrSurrogate as S;
+use crate::runtime::StrSurrogate as S;
 
 /// Writes are typed on the Rust side (field names are `&str`, values any
 /// `$()` value); the server's `Table::update/insert` validates them.
@@ -85,26 +94,62 @@ impl<T: Table> TableSurrogate<T> {
     pub fn insert2<A: Surrogate, B: Surrogate>(&self, _f1: &S, _v1: A, _f2: &S, _v2: B) {
         browser_only()
     }
-    pub fn insert3<A: Surrogate, B: Surrogate, C: Surrogate>(&self, _f1: &S, _v1: A, _f2: &S, _v2: B, _f3: &S, _v3: C) {
+    pub fn insert3<A: Surrogate, B: Surrogate, C: Surrogate>(
+        &self,
+        _f1: &S,
+        _v1: A,
+        _f2: &S,
+        _v2: B,
+        _f3: &S,
+        _v3: C,
+    ) {
         browser_only()
     }
-    #[allow(clippy::too_many_arguments, reason = "field/value pairs mirror the JS varargs call")]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "field/value pairs mirror the JS varargs call"
+    )]
     pub fn insert4<A: Surrogate, B: Surrogate, C: Surrogate, D: Surrogate>(
-        &self, _f1: &S, _v1: A, _f2: &S, _v2: B, _f3: &S, _v3: C, _f4: &S, _v4: D,
+        &self,
+        _f1: &S,
+        _v1: A,
+        _f2: &S,
+        _v2: B,
+        _f3: &S,
+        _v3: C,
+        _f4: &S,
+        _v4: D,
     ) {
         browser_only()
     }
     /// Delete `key` if present, else insert the given fields (membership rows
     /// like issue labels or reactions).
-    pub fn toggle2<K: Surrogate, A: Surrogate, B: Surrogate>(&self, _key: K, _f1: &S, _v1: A, _f2: &S, _v2: B) {
+    pub fn toggle2<K: Surrogate, A: Surrogate, B: Surrogate>(
+        &self,
+        _key: K,
+        _f1: &S,
+        _v1: A,
+        _f2: &S,
+        _v2: B,
+    ) {
         browser_only()
     }
-    #[allow(clippy::too_many_arguments, reason = "field/value pairs mirror the JS varargs call")]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "field/value pairs mirror the JS varargs call"
+    )]
     pub fn toggle3<K: Surrogate, A: Surrogate, B: Surrogate, C: Surrogate>(
-        &self, _key: K, _f1: &S, _v1: A, _f2: &S, _v2: B, _f3: &S, _v3: C,
+        &self,
+        _key: K,
+        _f1: &S,
+        _v1: A,
+        _f2: &S,
+        _v2: B,
+        _f3: &S,
+        _v3: C,
     ) {
         browser_only()
     }
 }
 
- topcoat::runtime::internal::inventory::submit! { topcoat::runtime::expression_module::ExpressionSource("cx.db.table(__topcoatCaptures.values[0])") }
+crate::runtime::internal::inventory::submit! { crate::runtime::expression_module::ExpressionSource("cx.db.table(__hearthCaptures.values[0])") }

@@ -1,4 +1,4 @@
-Server-sent events for Topcoat routes.
+Server-sent events for Hearth routes.
 
 Server-sent events (SSE) send events from the server to a client over one HTTP response. Enable the `sse` feature and return an [`Sse`] response containing a stream of [`Event`]s. In a browser, use `EventSource` to subscribe and reconnect when the connection is lost.
 
@@ -9,7 +9,7 @@ Return [`Sse`] with the stream of events to send. Build each [`Event`] with [`da
 ```rust
 // src/app/events.rs
 use futures_core::Stream;
-use topcoat::{
+use hearth::{
     Result,
     router::{
         content::sse::{Event, KeepAlive, Sse},
@@ -35,7 +35,7 @@ A stream outlives the handler that returned it, so it cannot borrow the `Cx` the
 ```rust
 // src/app/greetings.rs
 use futures_core::Stream;
-use topcoat::{
+use hearth::{
     Result,
     context::{Cx, request_context},
     router::{
@@ -70,7 +70,7 @@ A reconnecting `EventSource` echoes the [`id`](Event::id) of the last event it r
 ```rust
 // src/app/ticks.rs
 use futures_core::Stream;
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{

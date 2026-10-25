@@ -1,6 +1,6 @@
 //! SSR size: rows of a client list share their `$()` JavaScript. Rewrites
-//! `<!--::topcoat::expr::start("JS")-->` and `data-topcoat-on:x="JS"` /
-//! `data-topcoat-bind:x="JS"` in row markup to `@N` references into a table
+//! `<!--::hearth::expr::start("JS")-->` and `data-hearth-on:x="JS"` /
+//! `data-hearth-bind:x="JS"` in row markup to `@N` references into a table
 //! emitted once per list (`<!--::hearth::js(...)-->`). The browser runtime
 //! resolves `@N` before compiling. Measured: 2,530 markers / 18 unique.
 //!
@@ -8,10 +8,10 @@
 
 use std::collections::HashMap;
 
-const EXPR: &str = "<!--::topcoat::expr::start(\"";
+const EXPR: &str = "<!--::crate::expr::start(\"";
 const EXPR_END: &str = "\")-->";
-const ON: &str = " data-topcoat-on:";
-const BIND: &str = " data-topcoat-bind:";
+const ON: &str = " data-hearth-on:";
+const BIND: &str = " data-hearth-bind:";
 const NESTED_START: &str = "<!--::hearth::list::start(";
 const NESTED_END: &str = "<!--::hearth::list::end";
 const TEMPLATE_START: &str = "<template";
@@ -37,7 +37,10 @@ impl Dedupe {
     /// Rewrites one row's HTML into `out`. Nested list regions are copied
     /// verbatim: they carry their own JS table, and the browser resolves
     /// `@N` inside them against that one.
-    #[allow(clippy::collapsible_if, reason = "scanner branches read clearer nested")]
+    #[allow(
+        clippy::collapsible_if,
+        reason = "scanner branches read clearer nested"
+    )]
     pub fn rewrite_into(&mut self, html: &str, out: &mut String) {
         let bytes = html.as_bytes();
         let mut copied = 0;
@@ -154,43 +157,43 @@ mod tests {
     #[test]
     fn rewrites_and_shares() {
         let mut d = Dedupe::default();
-        let row = r#"<li><button data-topcoat-on:click="(e) => x()"><!--::topcoat::expr::start("(cx.row(&quot;a&quot;)).title")-->T<!--::topcoat::expr::end--></button></li>"#;
+        let row = r#"<li><button data-hearth-on:click="(e) => x()"><!--::crate::expr::start("(cx.row(&quot;a&quot;)).title")-->T<!--::crate::expr::end--></button></li>"#;
         let mut out = String::new();
         d.rewrite_into(row, &mut out);
         d.rewrite_into(row, &mut out);
         assert_eq!(d.table.len(), 2);
-        assert!(out.contains(r#"data-topcoat-on:click="@0""#));
-        assert!(out.contains(r#"<!--::topcoat::expr::start("@1")-->T"#));
+        assert!(out.contains(r#"data-hearth-on:click="@0""#));
+        assert!(out.contains(r#"<!--::crate::expr::start("@1")-->T"#));
         assert_eq!(out.matches("@1").count(), 2);
     }
 
     #[test]
     fn leaves_nested_templates_alone() {
         let template = concat!(
-            r#"<template id="inner"><button data-topcoat-on:click="inner()">"#,
-            r#"<!--::topcoat::expr::start("inner.text")-->x<!--::topcoat::expr::end-->"#,
-            r#"<template id="deep"><i data-topcoat-bind:title="deep.title"></i></template>"#,
+            r#"<template id="inner"><button data-hearth-on:click="inner()">"#,
+            r#"<!--::crate::expr::start("inner.text")-->x<!--::crate::expr::end-->"#,
+            r#"<template id="deep"><i data-hearth-bind:title="deep.title"></i></template>"#,
             "</button></template>",
         );
         let row = format!(
-            r#"<li><!--::hearth::list::start({{}})--><!--::hearth::list::end-->{template}<b data-topcoat-on:click="outer()"></b></li>"#,
+            r#"<li><!--::hearth::list::start({{}})--><!--::hearth::list::end-->{template}<b data-hearth-on:click="outer()"></b></li>"#,
         );
         let mut d = Dedupe::default();
         let mut out = String::new();
         d.rewrite_into(&row, &mut out);
         assert!(out.contains(template));
         assert_eq!(d.table, vec!["outer()"]);
-        assert!(out.contains(r#"data-topcoat-on:click="@0""#));
+        assert!(out.contains(r#"data-hearth-on:click="@0""#));
     }
 
     #[test]
     fn leaves_nested_lists_alone() {
         let mut d = Dedupe::default();
-        let row = r#"<li>🎉<!--::topcoat::expr::start("outer")-->x<!--::topcoat::expr::end--><!--::hearth::list::start({})--><b data-topcoat-on:click="inner"></b><!--::hearth::list::start({})--><i data-topcoat-on:click="deep"></i><!--::hearth::list::end--><!--::hearth::list::end--><!--::topcoat::expr::start("outer2")-->y<!--::topcoat::expr::end--></li>"#;
+        let row = r#"<li>🎉<!--::crate::expr::start("outer")-->x<!--::crate::expr::end--><!--::hearth::list::start({})--><b data-hearth-on:click="inner"></b><!--::hearth::list::start({})--><i data-hearth-on:click="deep"></i><!--::hearth::list::end--><!--::hearth::list::end--><!--::crate::expr::start("outer2")-->y<!--::crate::expr::end--></li>"#;
         let mut out = String::new();
         d.rewrite_into(row, &mut out);
         assert_eq!(d.table, vec!["outer", "outer2"]);
-        assert!(out.contains(r#"data-topcoat-on:click="inner""#));
-        assert!(out.contains(r#"data-topcoat-on:click="deep""#));
+        assert!(out.contains(r#"data-hearth-on:click="inner""#));
+        assert!(out.contains(r#"data-hearth-on:click="deep""#));
     }
 }

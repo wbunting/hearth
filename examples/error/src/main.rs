@@ -3,7 +3,7 @@ mod posts;
 mod rewrite;
 mod rewritten;
 
-use topcoat::{
+use hearth::{
     Result,
     router::{
         Slot, StatusCode,
@@ -15,7 +15,7 @@ use topcoat::{
 
 #[tokio::main]
 async fn main() {
-    topcoat::start(module_router!().build()).await.unwrap();
+    hearth::start(module_router!().build()).await.unwrap();
 }
 
 #[page]

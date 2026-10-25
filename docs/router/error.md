@@ -10,7 +10,7 @@ A constructor returns a concrete error type that converts into the handler's err
 
 ```rust
 // src/app/posts/id.rs
-use topcoat::{Result, context::Cx, router::{module_param, error::not_found, page}, view::{View, view}};
+use hearth::{Result, context::Cx, router::{module_param, error::not_found, page}, view::{View, view}};
 # struct Post;
 # async fn find_post(_cx: &Cx) -> Option<Post> { None }
 module_param!(id);
@@ -33,7 +33,7 @@ Use [`RouterBuilder::error_handler`](crate::RouterBuilder::error_handler) to ren
 This example returns JSON under "/v1/" and leaves other URLs unchanged:
 
 ```rust
-use topcoat::{
+use hearth::{
     router::{Router, content::Json, request::uri, response::IntoResponse},
 };
 
@@ -66,7 +66,7 @@ If the callback returns an error, the router uses that error's default response 
 
 ```rust
 // src/app/dashboard.rs
-# use topcoat::{Result, context::Cx, router::{error::RouterErrorExt, page}, view::{View, view}};
+# use hearth::{Result, context::Cx, router::{error::RouterErrorExt, page}, view::{View, view}};
 # struct User;
 # async fn current_session(_cx: &Cx) -> Option<User> { None }
 #[page]
@@ -80,11 +80,11 @@ The methods mirror the constructors: [`ok_or_not_found`](RouterErrorExt::ok_or_n
 
 # Catching an error
 
-Wrap content in an [`error_boundary`](https://docs.rs/topcoat/latest/topcoat/view/struct.error_boundary.html) to render a fallback when it fails. The fallback receives the error and can inspect its type with `downcast_ref`. For example, a layout can catch a [`ForbiddenError`] from its page and render an access-denied view:
+Wrap content in an [`error_boundary`](https://docs.rs/hearth/latest/hearth/view/struct.error_boundary.html) to render a fallback when it fails. The fallback receives the error and can inspect its type with `downcast_ref`. For example, a layout can catch a [`ForbiddenError`] from its page and render an access-denied view:
 
 ```rust
 // src/app.rs
-use topcoat::{
+use hearth::{
     Result,
     router::{Slot, StatusCode, error::ForbiddenError, layout},
     view::{View, error_boundary, view},
@@ -124,7 +124,7 @@ You may also use [`live!`](../view/macro.live.html) regions to handle errors ins
 A [`NotFoundError`] returned by a handler is caught the same way. The 404 for a URL matching no route reaches only layers whose path is `None`, since they wrap every request; no other layer or layout runs for a request nothing was registered for. To render those URLs through the layouts with the same branded treatment, declare a catch-all page with [`not_found!`](../macro.not_found.html):
 
 ```rust
-# use topcoat::router::not_found;
+# use hearth::router::not_found;
 not_found!();
 ```
 
@@ -136,7 +136,7 @@ A rewrite handles the request again at another path. It runs the layers and hand
 
 ```rust
 // src/app/dashboard.rs
-use topcoat::{Result, context::Cx, router::{Body, error::rewrite, page}, view::{View, view}};
+use hearth::{Result, context::Cx, router::{Body, error::rewrite, page}, view::{View, view}};
 # async fn beta_tester(_cx: &Cx) -> bool { false }
 #[page]
 async fn dashboard(cx: &Cx) -> Result<impl View> {
@@ -151,10 +151,10 @@ The rewritten request keeps the method and headers, uses the supplied body, and 
 
 Use [`method`](RewriteError::method) to change the HTTP method and [`headers`](RewriteError::headers) to replace the request headers. To change only a few headers, clone the current [`headers`](crate::request::headers) and edit that copy. For example, a rewrite with an empty body can remove the headers that described the original body.
 
-Use [`with`](RewriteError::with) to carry a value into the next dispatch and every later dispatch in the chain. Read it through [`request_context`](topcoat_core::context::request_context). Calling `with` again with the same type replaces that value while keeping the other carried values. A form handler can use `method` and `with` to render its page as a `GET` with a value telling the page what happened:
+Use [`with`](RewriteError::with) to carry a value into the next dispatch and every later dispatch in the chain. Read it through [`request_context`](hearth_foundation::context::request_context). Calling `with` again with the same type replaces that value while keeping the other carried values. A form handler can use `method` and `with` to render its page as a `GET` with a value telling the page what happened:
 
 ```rust
-use topcoat::{Result, context::{Cx, try_request_context}, router::{Body, Method, error::rewrite, href, page, route}, view::{View, view}};
+use hearth::{Result, context::{Cx, try_request_context}, router::{Body, Method, error::rewrite, href, page, route}, view::{View, view}};
 
 struct Saved;
 

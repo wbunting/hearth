@@ -1,4 +1,4 @@
-Multipart form data for Topcoat routes.
+Multipart form data for Hearth routes.
 
 Enable the `multipart` feature to read `multipart/form-data`, the format used by browser forms that upload files. The [`Multipart`] extractor yields each form field as a [`Field`].
 
@@ -8,7 +8,7 @@ Accept a [`Multipart`] parameter and call [`next_field`](Multipart::next_field) 
 
 ```rust
 // src/app/api/upload.rs
-use topcoat::{
+use hearth::{
     Result,
     router::{content::multipart::Multipart, route},
 };

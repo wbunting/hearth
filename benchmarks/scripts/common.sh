@@ -9,7 +9,7 @@ BENCH="$ROOT/benchmarks"
 PORT="${PORT:-8090}"
 BASE="http://127.0.0.1:${PORT}"
 
-# When SINGLE_THREAD is set, the Rust servers (Topcoat, Leptos, Axum + Maud)
+# When SINGLE_THREAD is set, the Rust servers (Hearth, Leptos, Axum + Maud)
 # run with a single Tokio worker thread, so their request handling is
 # single-threaded like next start's one Node process. Next.js is already
 # single-process and is not affected. Empty otherwise, so the Rust servers use
@@ -73,13 +73,13 @@ kill_tree() {
     lsof -ti "tcp:${PORT}" 2>/dev/null | xargs kill -KILL 2>/dev/null || true
 }
 
-build_topcoat() {
-    (cd "$ROOT" && cargo build --release -p storefront-topcoat)
-    (cd "$ROOT" && cargo topcoat asset bundle --release --package storefront-topcoat)
+build_hearth() {
+    (cd "$ROOT" && cargo build --release -p storefront-hearth)
+    (cd "$ROOT" && cargo hearth asset bundle --release --package storefront-hearth)
 }
 
-start_topcoat() {
-    env $RUST_SERVER_ENV PORT="$PORT" "$ROOT/target/release/storefront-topcoat" >"$LOG_FILE" 2>&1 &
+start_hearth() {
+    env $RUST_SERVER_ENV PORT="$PORT" "$ROOT/target/release/storefront-hearth" >"$LOG_FILE" 2>&1 &
     SERVER_PID=$!
 }
 

@@ -1,7 +1,7 @@
 A shard is a component that re-renders on the server when its inputs change in the browser. Pass fixed values or runtime [expressions](macro.expr.html) as arguments. Changes to signals read by those expressions, or by the shard body, trigger a render. Each shard has an HTTP endpoint, so **validate its inputs and authorize access inside the shard**.
 
 ```rust
-use topcoat::{Result, context::Cx, runtime::shard, view::{View, view}};
+use hearth::{Result, context::Cx, runtime::shard, view::{View, view}};
 
 #[shard]
 async fn search_results(cx: &Cx, query: String) -> Result<impl View> {
@@ -20,7 +20,7 @@ async fn search_results(cx: &Cx, query: String) -> Result<impl View> {
 Inside a [`view!`] body, call a shard like a component. Each parameter accepts its declared type `T` or an `Expr<T>`, with conversion handled automatically:
 
 ```rust
-# use topcoat::{Result, context::Cx, view::*, runtime::{shard, signal, Event}};
+# use hearth::{Result, context::Cx, view::*, runtime::{shard, signal, Event}};
 # #[shard]
 # async fn search_results(query: String) -> Result<impl View> { Ok(view! { (query) }) }
 # #[component]
@@ -49,7 +49,7 @@ A shard supports the same content as a component. Signals created in its body ke
 Reading one of those signals on the server with `.get()` or `.read()` makes the shard depend on it, so a change in the browser re-renders only that shard, not the entire page:
 
 ```rust
-use topcoat::{Result, context::Cx, runtime::{shard, signal}, view::{View, view}};
+use hearth::{Result, context::Cx, runtime::{shard, signal}, view::{View, view}};
 
 #[shard]
 async fn paginated(cx: &Cx) -> Result<impl View> {
@@ -79,7 +79,7 @@ See [Reading signals on the server](../runtime/index.html#reading-signals-on-the
 A request to a shard's endpoint runs the shard without its page or layouts. Their guards do not protect it. Check authorization inside the shard, including whether the user may access the data selected by its arguments.
 
 ```rust
-use topcoat::{Result, context::Cx, runtime::shard, view::{View, view}};
+use hearth::{Result, context::Cx, runtime::shard, view::{View, view}};
 
 #[shard]
 async fn ledger_rows(cx: &Cx, account: String) -> Result<impl View> {
@@ -108,7 +108,7 @@ A parameter named `cx` of type `&Cx` receives the server request context. Caller
 A parameter typed [`Signal<T>`] accepts a signal handle. Passing the handle alone does not make the shard depend on its value. A tracked read in the shard body creates that dependency. Use an untracked read to use the value without triggering renders when it changes:
 
 ```rust
-# use topcoat::{Result, context::Cx, view::*, runtime::{shard, signal, Signal}};
+# use hearth::{Result, context::Cx, view::*, runtime::{shard, signal, Signal}};
 # async fn search_products(_cx: &Cx, _query: &str, _limit: usize) -> Result<Vec<String>> { Ok(vec![]) }
 #[shard]
 async fn search_results(cx: &Cx, query: String, limit: Signal<usize>) -> Result<impl View> {
@@ -137,8 +137,8 @@ search_results(query: $(query.get()), limit: limit)
 Register a shard on the [`Router`] so the browser can request new content. It implements [`Route`], so pass its name to `.route()`:
 
 ```rust,standalone_crate
-use topcoat::router::module_router;
-# use topcoat::{Result, router::Router, runtime::shard, view::{View, view}};
+use hearth::router::module_router;
+# use hearth::{Result, router::Router, runtime::shard, view::{View, view}};
 # #[shard]
 # async fn search_results(query: String) -> Result<impl View> { Ok(view! { (query) }) }
 let router = module_router!().route(search_results).build();
@@ -148,10 +148,10 @@ With the `discover` feature enabled, `.discover()` registers all shards linked i
 
 # Path
 
-Topcoat generates an internal path for each shard from its name and source location. This path changes when the shard is renamed or moved. To choose a stable endpoint, pass an absolute path to `#[shard]`:
+Hearth generates an internal path for each shard from its name and source location. This path changes when the shard is renamed or moved. To choose a stable endpoint, pass an absolute path to `#[shard]`:
 
 ```rust
-use topcoat::{Result, runtime::shard, view::{View, view}};
+use hearth::{Result, runtime::shard, view::{View, view}};
 
 #[shard("/search/results")]
 async fn search_results(query: String) -> Result<impl View> {

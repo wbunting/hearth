@@ -15,7 +15,7 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 use serde_json::{Value, json};
-use topcoat::{
+use hearth::{
     Result,
     context::{Cx, app_context},
     router::{error::RouterErrorExt, page, path_param, query_params},
@@ -193,7 +193,7 @@ async fn shell(cx: &Cx, open_issue: Option<String>) -> Result<impl View> {
                     <span id="timing" class="muted mono"></span>
                 </section>
                 // Owned by the client list renderer; no runtime expressions inside,
-                // so Topcoat reruns never morph it (issue #540).
+                // so Hearth reruns never morph it (issue #540).
                 <ul id="issues" class="issues">
                     for row in list_rows {
                         <li data-key=(&row.0)>

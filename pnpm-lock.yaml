@@ -39,7 +39,28 @@ importers:
         specifier: ^8.3.5
         version: 8.3.5(@types/node@26.6.5)(esbuild@0.27.7)
 
-  crates/topcoat-runtime/browser:
+  crates/hearth-cli/browser:
+    devDependencies:
+      '@biomejs/biome':
+        specifier: ^2.4.15
+        version: 2.6.2
+      happy-dom:
+        specifier: ^20.14.0
+        version: 20.14.6
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(postcss@8.5.31)(typescript@6.0.3)
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.1.5
+        version: 8.3.5(@types/node@26.6.5)(esbuild@0.27.7)
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.12(@types/node@26.6.5)(happy-dom@20.14.6)(vite@8.3.5(@types/node@26.6.5)(esbuild@0.27.7))
+
+  crates/hearth-runtime/browser:
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.4.15

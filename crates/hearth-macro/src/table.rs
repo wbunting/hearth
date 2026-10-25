@@ -16,11 +16,11 @@
 //! - `impl hearth::sql::SqlColumns` (typed IR → Toasty lowering per column)
 //! - `From<Model> for Row` is the app's job (it chooses computed fields)
 //!
-//! - `scope`: `async fn(&Cx) -> Result<Option<toasty::stmt::Expr<bool>>>`,
-//!   a filter applied to *every* read (load + SSR first view). Required.
-//! - `update`: `async fn(&Cx, key: String, patch: <Row>Patch) -> Result<Row>`;
-//!   the generated `<Row>Patch` has `Option<T>` for each `writable` field,
-//!   so the client can only send whitelisted fields.
+//! - `scope`: `async fn(&Cx) -> Result<Option<toasty::stmt::Expr<bool>>>`, a filter applied to
+//!   *every* read (load + SSR first view). Required.
+//! - `update`: `async fn(&Cx, key: String, patch: <Row>Patch) -> Result<Row>`; the generated
+//!   `<Row>Patch` has `Option<T>` for each `writable` field, so the client can only send
+//!   whitelisted fields.
 
 use proc_macro2::TokenStream as Ts;
 use quote::{format_ident, quote};
@@ -49,14 +49,29 @@ pub fn derive(input: DeriveInput) -> syn::Result<Ts> {
         let metas = attr.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?;
         for m in metas {
             match &m {
-                Meta::NameValue(nv) if nv.path.is_ident("name") => name = Some(syn::parse2(quote_expr(&nv.value))?),
-                Meta::NameValue(nv) if nv.path.is_ident("model") => model = Some(syn::parse2(quote_expr(&nv.value))?),
-                Meta::NameValue(nv) if nv.path.is_ident("scope") => scope = Some(syn::parse2(quote_expr(&nv.value))?),
-                Meta::NameValue(nv) if nv.path.is_ident("update") => update = Some(syn::parse2(quote_expr(&nv.value))?),
-                Meta::NameValue(nv) if nv.path.is_ident("insert") => insert = Some(syn::parse2(quote_expr(&nv.value))?),
-                Meta::NameValue(nv) if nv.path.is_ident("delete") => delete = Some(syn::parse2(quote_expr(&nv.value))?),
+                Meta::NameValue(nv) if nv.path.is_ident("name") => {
+                    name = Some(syn::parse2(quote_expr(&nv.value))?)
+                }
+                Meta::NameValue(nv) if nv.path.is_ident("model") => {
+                    model = Some(syn::parse2(quote_expr(&nv.value))?)
+                }
+                Meta::NameValue(nv) if nv.path.is_ident("scope") => {
+                    scope = Some(syn::parse2(quote_expr(&nv.value))?)
+                }
+                Meta::NameValue(nv) if nv.path.is_ident("update") => {
+                    update = Some(syn::parse2(quote_expr(&nv.value))?)
+                }
+                Meta::NameValue(nv) if nv.path.is_ident("insert") => {
+                    insert = Some(syn::parse2(quote_expr(&nv.value))?)
+                }
+                Meta::NameValue(nv) if nv.path.is_ident("delete") => {
+                    delete = Some(syn::parse2(quote_expr(&nv.value))?)
+                }
                 Meta::List(l) if l.path.is_ident("writable") => {
-                    writable = l.parse_args_with(Punctuated::<Ident, Token![,]>::parse_terminated)?.into_iter().collect();
+                    writable = l
+                        .parse_args_with(Punctuated::<Ident, Token![,]>::parse_terminated)?
+                        .into_iter()
+                        .collect();
                 }
                 other => return Err(syn::Error::new_spanned(other, "unknown #[table] option")),
             }
@@ -74,8 +89,12 @@ pub fn derive(input: DeriveInput) -> syn::Result<Ts> {
         writable,
     };
 
-    let Data::Struct(s) = &input.data else { return Err(syn::Error::new_spanned(row, "Table needs a struct")) };
-    let Fields::Named(fields) = &s.fields else { return Err(syn::Error::new_spanned(row, "Table needs named fields")) };
+    let Data::Struct(s) = &input.data else {
+        return Err(syn::Error::new_spanned(row, "Table needs a struct"));
+    };
+    let Fields::Named(fields) = &s.fields else {
+        return Err(syn::Error::new_spanned(row, "Table needs named fields"));
+    };
 
     let mut key = None;
     let mut columns = Vec::new();
@@ -153,14 +172,14 @@ pub fn derive(input: DeriveInput) -> syn::Result<Ts> {
 
     let update_impl = o.update.as_ref().map(|u| {
         quote! {
-            fn update<'a>(cx: &'a ::topcoat::context::Cx, key: ::std::string::String, changes: ::hearth::ir::JsonRow)
+            fn update<'a>(cx: &'a ::hearth::context::Cx, key: ::std::string::String, changes: ::hearth::ir::JsonRow)
                 -> ::hearth::table::BoxFut<'a, Self>
             {
                 ::std::boxed::Box::pin(async move {
                     // Only whitelisted (`writable(...)`) fields deserialize.
                     let patch: #patch = ::hearth::__private::serde_json::from_value(
                         ::hearth::__private::serde_json::Value::Object(changes),
-                    ).map_err(|e| ::topcoat::router::error::bad_request(e.to_string()))?;
+                    ).map_err(|e| ::hearth::router::error::bad_request(e.to_string()))?;
                     #u(cx, key, patch).await
                 })
             }
@@ -168,22 +187,22 @@ pub fn derive(input: DeriveInput) -> syn::Result<Ts> {
     });
     let insert_impl = o.insert.as_ref().map(|i| {
         quote! {
-            fn insert<'a>(cx: &'a ::topcoat::context::Cx, row: ::hearth::ir::JsonRow) -> ::hearth::table::BoxFut<'a, Self> {
+            fn insert<'a>(cx: &'a ::hearth::context::Cx, row: ::hearth::ir::JsonRow) -> ::hearth::table::BoxFut<'a, Self> {
                 ::std::boxed::Box::pin(async move {
                     // Missing fields take their defaults: server-owned fields
                     // (creator, timestamps, derived keys) are set by `insert`.
                     if row.keys().any(|k| !<Self as ::hearth::Table>::COLUMNS.iter().any(|(c, _)| *c == k)) {
-                        return ::core::result::Result::Err(::topcoat::router::error::bad_request("unknown insert column").into());
+                        return ::core::result::Result::Err(::hearth::router::error::bad_request("unknown insert column").into());
                     }
                     let defaults = <Self as ::core::default::Default>::default();
                     let mut full = ::hearth::__private::serde_json::to_value(&defaults)
-                        .map_err(|e| ::topcoat::router::error::internal_server_error(e))?;
+                        .map_err(|e| ::hearth::router::error::internal_server_error(e))?;
                     if let ::hearth::__private::serde_json::Value::Object(m) = &mut full {
                         for (k, v) in row { m.insert(k, v); }
                     }
                     #[allow(unused_mut)]
                     let mut row: Self = ::hearth::__private::serde_json::from_value(full)
-                        .map_err(|e| ::topcoat::router::error::bad_request(e.to_string()))?;
+                        .map_err(|e| ::hearth::router::error::bad_request(e.to_string()))?;
                     #(#insert_defaults)*
                     #i(cx, row).await
                 })
@@ -192,7 +211,7 @@ pub fn derive(input: DeriveInput) -> syn::Result<Ts> {
     });
     let delete_impl = o.delete.as_ref().map(|d| {
         quote! {
-            fn delete<'a>(cx: &'a ::topcoat::context::Cx, key: ::std::string::String) -> ::hearth::table::BoxFut<'a, ()> {
+            fn delete<'a>(cx: &'a ::hearth::context::Cx, key: ::std::string::String) -> ::hearth::table::BoxFut<'a, ()> {
                 ::std::boxed::Box::pin(async move { #d(cx, key).await })
             }
         }
@@ -225,14 +244,14 @@ pub fn derive(input: DeriveInput) -> syn::Result<Ts> {
             const WRITES: (bool, bool, bool) = (#can_update, #can_insert, #can_delete);
             fn indexes() -> ::std::vec::Vec<&'static str> { ::std::vec![#(#indexes),*] }
 
-            fn load(cx: &::topcoat::context::Cx) -> ::hearth::table::BoxFut<'_, ::std::vec::Vec<Self>> {
+            fn load(cx: &::hearth::context::Cx) -> ::hearth::table::BoxFut<'_, ::std::vec::Vec<Self>> {
                 ::std::boxed::Box::pin(async move {
                     let scope = #scope(cx).await?;
                     ::hearth::table::run_query::<Self>(cx, scope, ::core::option::Option::None, &[], ::core::option::Option::None).await
                 })
             }
 
-            fn load_first<'a>(cx: &'a ::topcoat::context::Cx, q: &'a ::hearth::ir::Query, params: &'a [::hearth::__private::serde_json::Value])
+            fn load_first<'a>(cx: &'a ::hearth::context::Cx, q: &'a ::hearth::ir::Query, params: &'a [::hearth::__private::serde_json::Value])
                 -> ::hearth::table::BoxFut<'a, ::std::vec::Vec<Self>>
             {
                 ::std::boxed::Box::pin(async move {
@@ -289,7 +308,8 @@ mod tests {
             let input = syn::parse2(quote! {
                 #[table(name = "rows", model = Model, scope = scope #options)]
                 struct Row { #[key] key: String, #field }
-            }).unwrap();
+            })
+            .unwrap();
             assert!(derive(input).is_err());
         }
     }

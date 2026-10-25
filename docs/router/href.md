@@ -1,13 +1,13 @@
-Builds a URL for a page or route. Use `href!(handler, ...)` for links, form actions, and redirects to Topcoat handlers so their URLs follow the registered paths.
+Builds a URL for a page or route. Use `href!(handler, ...)` for links, form actions, and redirects to Hearth handlers so their URLs follow the registered paths.
 
 Pass a handler as the first argument to use its registered path, including when linking to the handler from its own body. A [`Path`] expression or path string also works. A bare Rust path is interpreted as a handler name, so pass `Path` constants through the [`href`] function instead.
 
 # Links and form actions
 
-Import the macro from `topcoat::router`. Pass the returned [`Href`] directly to `href`, `action`, or another URL attribute:
+Import the macro from `hearth::router`. Pass the returned [`Href`] directly to `href`, `action`, or another URL attribute:
 
 ```rust
-use topcoat::{Result, router::{href, page}, view::{View, view}};
+use hearth::{Result, router::{href, page}, view::{View, view}};
 
 #[page]
 async fn home() -> Result<impl View> {
@@ -35,7 +35,7 @@ Use the returned [`Href`] to configure the query, fragment, or URL form. Render 
 
 ```rust
 use serde::Serialize;
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{
@@ -94,17 +94,17 @@ Use the [`href`] function to pass parameters as a tuple.
 
 # Active navigation
 
-Use [`Href::is_current`] to check whether a link targets the current path. Use [`class!`](https://docs.rs/topcoat/latest/topcoat/view/macro.class.html) to add its active class alongside its base class:
+Use [`Href::is_current`] to check whether a link targets the current path. Use [`class!`](https://docs.rs/hearth/latest/hearth/view/macro.class.html) to add its active class alongside its base class:
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::href,
     view::{View, class, component, view},
 };
-# #[topcoat::router::page("/posts")]
-# async fn posts() -> Result<impl View> { Ok(topcoat::view::view! { "Posts" }) }
+# #[hearth::router::page("/posts")]
+# async fn posts() -> Result<impl View> { Ok(hearth::view::view! { "Posts" }) }
 
 #[component]
 async fn posts_link(cx: &Cx) -> Result<impl View> {

@@ -380,7 +380,7 @@ export function mountApp(store: Store, boot: Boot) {
   }
 
   // ================= client routing =================
-  // Topcoat's navigation only intercepts `data-topcoat-link` anchors, so
+  // Hearth's navigation only intercepts `data-hearth-link` anchors, so
   // these plain anchors are ours. Server routes exist for every URL, so
   // reload/deep links render via SSR.
   type Route = { view: "list" } | { view: "detail"; shortId: number };

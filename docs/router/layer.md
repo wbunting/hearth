@@ -17,7 +17,7 @@ The function must be `async` and take [`cx: &Cx`](../context/struct.Cx.html), [`
 Module-derived path (in `src/app/api.rs` under `module_router!()`, this wraps every request under `/api`):
 
 ```rust
-# use topcoat::{Result, context::Cx, router::{Body, Next, layer, response::Response}};
+# use hearth::{Result, context::Cx, router::{Body, Next, layer, response::Response}};
 #[layer]
 async fn api_log(cx: &Cx, body: Body, next: Next<'_>) -> Result<Response> {
     let response = next.run(cx, body).await?;
@@ -29,7 +29,7 @@ async fn api_log(cx: &Cx, body: Body, next: Next<'_>) -> Result<Response> {
 Explicit path:
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{Body, Next, layer, response::Response},
@@ -47,7 +47,7 @@ async fn timing(cx: &Cx, body: Body, next: Next<'_>) -> Result<Response> {
 Path below the module (in `src/app/api.rs` under `module_router!()`, this wraps every request under `/api/v1`):
 
 ```rust
-# use topcoat::{Result, context::Cx, router::{Body, Next, layer, response::Response}};
+# use hearth::{Result, context::Cx, router::{Body, Next, layer, response::Response}};
 #[layer("./v1")]
 async fn v1_log(cx: &Cx, body: Body, next: Next<'_>) -> Result<Response> {
     let response = next.run(cx, body).await?;

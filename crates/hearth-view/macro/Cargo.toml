@@ -1,0 +1,34 @@
+[package]
+include = ["/src/**", "/docs/**", "/README.md", "/Cargo.toml", "/LICENSE", "/NOTICE", "/build.rs", "/browser/src/**", "/browser/dist/*.js", "/browser/package.json", "/browser/tsconfig.json", "/browser/tsup*.ts", "/components/**", "/styles/**", "/registry.toml", "/themes/**"]
+name = "hearth-view-macro"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+hearth-view-grammar.workspace = true
+
+quote.workspace = true
+syn = { workspace = true, features = ["full"] }
+
+[dev-dependencies]
+futures-core = { workspace = true }
+hearth = { path = "../../hearth", features = ["view"] }
+
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "sync", "time"] }
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

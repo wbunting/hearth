@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Verifies that every framework renders the same visible text. Builds and
 # starts each framework in turn, fetches a set of routes, reduces the HTML to
-# normalized text, and diffs everything against the Topcoat rendering. Usage:
+# normalized text, and diffs everything against the Hearth rendering. Usage:
 #
-#   verify_parity.sh [topcoat|nextjs|leptos|axum_maud ...]     (default: all four)
+#   verify_parity.sh [hearth|nextjs|leptos|axum_maud ...]     (default: all four)
 
 set -euo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
@@ -21,7 +21,7 @@ PARITY_PATHS=(
 
 FRAMEWORKS=("$@")
 if [ ${#FRAMEWORKS[@]} -eq 0 ]; then
-    FRAMEWORKS=(topcoat nextjs leptos axum_maud)
+    FRAMEWORKS=(hearth nextjs leptos axum_maud)
 fi
 
 require_cmd node "brew install node"
@@ -65,18 +65,18 @@ done
 
 status=0
 for framework in "${FRAMEWORKS[@]}"; do
-    [ "$framework" = "topcoat" ] && continue
+    [ "$framework" = "hearth" ] && continue
     for label in "${PARITY_LABELS[@]}"; do
-        reference="$PARITY_DIR/topcoat_${label}.txt"
+        reference="$PARITY_DIR/hearth_${label}.txt"
         candidate="$PARITY_DIR/${framework}_${label}.txt"
         if [ ! -f "$reference" ] || [ ! -f "$candidate" ]; then
-            echo "skip: $label (missing rendering for topcoat or $framework)"
+            echo "skip: $label (missing rendering for hearth or $framework)"
             continue
         fi
         if diff -q "$reference" "$candidate" >/dev/null; then
-            echo "ok:   $framework/$label matches topcoat"
+            echo "ok:   $framework/$label matches hearth"
         else
-            echo "FAIL: $framework/$label differs from topcoat:"
+            echo "FAIL: $framework/$label differs from hearth:"
             diff "$reference" "$candidate" | head -10 || true
             status=1
         fi

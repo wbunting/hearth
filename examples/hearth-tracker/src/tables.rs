@@ -3,14 +3,13 @@
 //! writes are allowed (`writable(...)` + `update`/`insert`/`delete`).
 //! Everything else (collections, indexes, endpoints, SQL for SSR) is derived.
 
-use hearth::Table;
-use serde::{Deserialize, Serialize};
-use toasty::stmt::{Expr, List, Query};
-use topcoat::{
-    Result,
+use hearth::{
+    Result, Table,
     context::Cx,
     router::error::{bad_request, forbidden},
 };
+use serde::{Deserialize, Serialize};
+use toasty::stmt::{Expr, List, Query};
 
 use crate::{
     auth::viewer,
@@ -121,7 +120,11 @@ pub struct UserRow {
 
 impl From<User> for UserRow {
     fn from(u: User) -> Self {
-        Self { id: u.id, login: u.login, name: u.name }
+        Self {
+            id: u.id,
+            login: u.login,
+            name: u.name,
+        }
     }
 }
 
@@ -136,7 +139,10 @@ pub struct LabelRow {
 
 impl From<Label> for LabelRow {
     fn from(l: Label) -> Self {
-        Self { id: l.id, name: l.name }
+        Self {
+            id: l.id,
+            name: l.name,
+        }
     }
 }
 
@@ -163,7 +169,11 @@ pub struct IssueLabelRow {
 
 impl From<IssueLabel> for IssueLabelRow {
     fn from(il: IssueLabel) -> Self {
-        Self { id: format!("{}:{}", il.label_id, il.issue_id), label_id: il.label_id, issue_id: il.issue_id }
+        Self {
+            id: format!("{}:{}", il.label_id, il.issue_id),
+            label_id: il.label_id,
+            issue_id: il.issue_id,
+        }
     }
 }
 
@@ -179,12 +189,28 @@ async fn add_label(cx: &Cx, row: IssueLabelRow) -> Result<IssueLabelRow> {
         return Err(forbidden().into());
     }
     let mut db = hearth::db(cx);
-    Label::filter_by_id(row.label_id.clone()).first().exec(&mut db).await?.ok_or_else(|| bad_request("no such label"))?;
-    let exists = IssueLabel::filter_by_label_id_and_issue_id(row.label_id.clone(), row.issue_id.clone()).first().exec(&mut db).await?;
+    Label::filter_by_id(row.label_id.clone())
+        .first()
+        .exec(&mut db)
+        .await?
+        .ok_or_else(|| bad_request("no such label"))?;
+    let exists =
+        IssueLabel::filter_by_label_id_and_issue_id(row.label_id.clone(), row.issue_id.clone())
+            .first()
+            .exec(&mut db)
+            .await?;
     if exists.is_none() {
-        toasty::create!(IssueLabel { label_id: row.label_id.clone(), issue_id: row.issue_id.clone() }).exec(&mut db).await?;
+        toasty::create!(IssueLabel {
+            label_id: row.label_id.clone(),
+            issue_id: row.issue_id.clone()
+        })
+        .exec(&mut db)
+        .await?;
     }
-    Ok(IssueLabelRow { id: format!("{}:{}", row.label_id, row.issue_id), ..row })
+    Ok(IssueLabelRow {
+        id: format!("{}:{}", row.label_id, row.issue_id),
+        ..row
+    })
 }
 
 async fn remove_label(cx: &Cx, key: String) -> Result<()> {
@@ -194,7 +220,10 @@ async fn remove_label(cx: &Cx, key: String) -> Result<()> {
     if !v.can_edit(&issue.creator_id) {
         return Err(forbidden().into());
     }
-    IssueLabel::filter_by_label_id_and_issue_id(label_id.to_owned(), issue_id.to_owned()).delete().exec(&mut hearth::db(cx)).await?;
+    IssueLabel::filter_by_label_id_and_issue_id(label_id.to_owned(), issue_id.to_owned())
+        .delete()
+        .exec(&mut hearth::db(cx))
+        .await?;
     Ok(())
 }
 
@@ -216,7 +245,13 @@ pub struct CommentRow {
 
 impl From<Comment> for CommentRow {
     fn from(c: Comment) -> Self {
-        Self { id: c.id, issue_id: c.issue_id, created: c.created, body: c.body, creator_id: c.creator_id }
+        Self {
+            id: c.id,
+            issue_id: c.issue_id,
+            created: c.created,
+            body: c.body,
+            creator_id: c.creator_id,
+        }
     }
 }
 
@@ -235,10 +270,21 @@ async fn add_comment(cx: &Cx, row: CommentRow) -> Result<CommentRow> {
     }
     // Server-owned fields: creator and time come from the session/clock.
     let created = now_ms();
-    toasty::create!(Comment { id: row.id.clone(), issue_id: row.issue_id.clone(), created, body: body.to_owned(), creator_id: v.id.clone() })
-        .exec(&mut hearth::db(cx))
-        .await?;
-    Ok(CommentRow { created, body: body.to_owned(), creator_id: v.id, ..row })
+    toasty::create!(Comment {
+        id: row.id.clone(),
+        issue_id: row.issue_id.clone(),
+        created,
+        body: body.to_owned(),
+        creator_id: v.id.clone()
+    })
+    .exec(&mut hearth::db(cx))
+    .await?;
+    Ok(CommentRow {
+        created,
+        body: body.to_owned(),
+        creator_id: v.id,
+        ..row
+    })
 }
 
 // ---------------------------------------------------------------- reactions
@@ -259,13 +305,23 @@ pub struct EmojiRow {
 
 impl From<Emoji> for EmojiRow {
     fn from(e: Emoji) -> Self {
-        Self { id: e.id, value: e.value, subject_id: e.subject_id, creator_id: e.creator_id, created: e.created }
+        Self {
+            id: e.id,
+            value: e.value,
+            subject_id: e.subject_id,
+            creator_id: e.creator_id,
+            created: e.created,
+        }
     }
 }
 
 /// A reaction's subject is an issue or a comment; authorize via the issue.
 async fn subject_issue(cx: &Cx, subject_id: &str) -> Result<Issue> {
-    let issue_id = match Comment::filter_by_id(subject_id.to_owned()).first().exec(&mut hearth::db(cx)).await? {
+    let issue_id = match Comment::filter_by_id(subject_id.to_owned())
+        .first()
+        .exec(&mut hearth::db(cx))
+        .await?
+    {
         Some(c) => c.issue_id,
         None => subject_id.to_owned(),
     };
@@ -284,18 +340,38 @@ async fn add_reaction(cx: &Cx, row: EmojiRow) -> Result<EmojiRow> {
     let id = format!("{}:{}:{}", row.subject_id, v.id, row.value);
     let created = now_ms();
     let mut db = hearth::db(cx);
-    if Emoji::filter_by_id(id.clone()).first().exec(&mut db).await?.is_none() {
-        toasty::create!(Emoji { id: id.clone(), value: row.value.clone(), subject_id: row.subject_id.clone(), creator_id: v.id.clone(), created })
-            .exec(&mut db)
-            .await?;
+    if Emoji::filter_by_id(id.clone())
+        .first()
+        .exec(&mut db)
+        .await?
+        .is_none()
+    {
+        toasty::create!(Emoji {
+            id: id.clone(),
+            value: row.value.clone(),
+            subject_id: row.subject_id.clone(),
+            creator_id: v.id.clone(),
+            created
+        })
+        .exec(&mut db)
+        .await?;
     }
-    Ok(EmojiRow { id, creator_id: v.id, created, ..row })
+    Ok(EmojiRow {
+        id,
+        creator_id: v.id,
+        created,
+        ..row
+    })
 }
 
 async fn remove_reaction(cx: &Cx, id: String) -> Result<()> {
     let v = viewer(cx).await?;
     let mut db = hearth::db(cx);
-    let e = Emoji::filter_by_id(id.clone()).first().exec(&mut db).await?.ok_or_else(forbidden)?;
+    let e = Emoji::filter_by_id(id.clone())
+        .first()
+        .exec(&mut db)
+        .await?
+        .ok_or_else(forbidden)?;
     if e.creator_id != v.id {
         return Err(forbidden().into());
     }
@@ -304,7 +380,12 @@ async fn remove_reaction(cx: &Cx, id: String) -> Result<()> {
 }
 
 fn valid_id(id: &str) -> Result<()> {
-    if id.is_empty() || id.len() > 64 || !id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_') {
+    if id.is_empty()
+        || id.len() > 64
+        || !id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    {
         return Err(bad_request("invalid id").into());
     }
     Ok(())
@@ -319,18 +400,42 @@ hearth::routes!(
     emojis: EmojiRow,
 );
 
-// ---------------------------------------------------------------- plain-topcoat baseline
-// The `/bench/topcoat` procedures write through the same authorization as
+// ---------------------------------------------------------------- plain-hearth baseline
+// The `/bench/hearth` procedures write through the same authorization as
 // the synced tables above.
 
-pub async fn write_issue(cx: &Cx, id: String, open: Option<bool>, assignee: Option<String>) -> Result<()> {
+pub async fn write_issue(
+    cx: &Cx,
+    id: String,
+    open: Option<bool>,
+    assignee: Option<String>,
+) -> Result<()> {
     let assignee_id = assignee.map(|a| if a.is_empty() { None } else { Some(a) });
-    update_issue(cx, id, IssueRowPatch { open, title: None, assignee_id }).await.map(|_| ())
+    update_issue(
+        cx,
+        id,
+        IssueRowPatch {
+            open,
+            title: None,
+            assignee_id,
+        },
+    )
+    .await
+    .map(|_| ())
 }
 
 pub async fn write_label(cx: &Cx, issue_id: String, label_id: String, on: bool) -> Result<()> {
     if on {
-        add_label(cx, IssueLabelRow { id: String::new(), label_id, issue_id }).await.map(|_| ())
+        add_label(
+            cx,
+            IssueLabelRow {
+                id: String::new(),
+                label_id,
+                issue_id,
+            },
+        )
+        .await
+        .map(|_| ())
     } else {
         remove_label(cx, format!("{label_id}:{issue_id}")).await
     }
@@ -339,22 +444,52 @@ pub async fn write_label(cx: &Cx, issue_id: String, label_id: String, on: bool) 
 pub async fn toggle_reaction(cx: &Cx, subject: String, value: String) -> Result<()> {
     let v = viewer(cx).await?;
     let id = format!("{subject}:{}:{value}", v.id);
-    if Emoji::filter_by_id(id.clone()).first().exec(&mut hearth::db(cx)).await?.is_some() {
+    if Emoji::filter_by_id(id.clone())
+        .first()
+        .exec(&mut hearth::db(cx))
+        .await?
+        .is_some()
+    {
         remove_reaction(cx, id).await
     } else {
-        add_reaction(cx, EmojiRow { id, value, subject_id: subject, creator_id: v.id, created: 0 }).await.map(|_| ())
+        add_reaction(
+            cx,
+            EmojiRow {
+                id,
+                value,
+                subject_id: subject,
+                creator_id: v.id,
+                created: 0,
+            },
+        )
+        .await
+        .map(|_| ())
     }
 }
 
 pub async fn write_comment(cx: &Cx, issue_id: String, body: String) -> Result<()> {
     let id = nanoid_like();
-    add_comment(cx, CommentRow { id, issue_id, created: 0, body, creator_id: String::new() }).await.map(|_| ())
+    add_comment(
+        cx,
+        CommentRow {
+            id,
+            issue_id,
+            created: 0,
+            body,
+            creator_id: String::new(),
+        },
+    )
+    .await
+    .map(|_| ())
 }
 
 fn nanoid_like() -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
     static N: AtomicU64 = AtomicU64::new(0);
-    let t = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+    let t = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
     format!("tc-{t:x}-{}", N.fetch_add(1, Ordering::Relaxed))
 }
 

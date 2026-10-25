@@ -2,7 +2,7 @@
 
 ## The conflict, concretely
 
-Topcoat today:
+Hearth today:
 ```rust
 let open = signal(cx, || true);
 let issues = Issue::list(cx).await?;                  // server
@@ -23,18 +23,18 @@ routing.
 Local-first needs the reverse: lists, filters, routing and writes run against
 a local DB in the browser; the server is a sync peer and the SSR source.
 
-## Design: keep Topcoat's mechanism, widen what it can express
+## Design: keep Hearth's mechanism, widen what it can express
 
-Topcoat already compiles `$()` to JS in the proc macro: the Rust side typechecks
+Hearth already compiles `$()` to JS in the proc macro: the Rust side typechecks
 against surrogate types, and the JS side calls their TS twins. The HTML carries
-markers (`<!-- ::topcoat::expr::start("<js>") -->`) that the browser runtime
+markers (`<!-- ::hearth::expr::start("<js>") -->`) that the browser runtime
 hydrates into effects. The fork reuses all of that and adds:
 
 | Rust (app author writes) | Lowers to | Fork surface |
 |---|---|---|
 | `#[derive(toasty::Model)] #[client_table(scope = ..)]` | collection descriptor + indexes + endpoints | new crate (`hearth`) |
 | `live_query!(Issue where open == $(open) order_by modified desc limit 200)` | query **IR** → SSR via Toasty, JS via TanStack DB builder | new crate |
-| `for row in $(query) { <li>$(row.title)</li> }` | `::topcoat::list::start(<query js>, <template id>)` + `<template>` with row-scoped `$()` | **view grammar + runtime** |
+| `for row in $(query) { <li>$(row.title)</li> }` | `::hearth::list::start(<query js>, <template id>)` + `<template>` with row-scoped `$()` | **view grammar + runtime** |
 | `$(row.title)` inside a client loop | `row` resolves to a **per-row signal** (`cx.row(n)`), not a frozen capture | **runtime grammar** |
 | `$(|_| ISSUES.update(row.id, |i| i.open = !i.open))` | TanStack optimistic `collection.update` with a draft | runtime grammar (assignment) + surrogate |
 | `route` / `$match route.get() { … }` | client `match` region: one template per arm, swapped on change | view grammar + runtime |

@@ -1,8 +1,8 @@
 Creates a [`Font`] from the [Fontsource] catalog. The font contains a face for each requested combination of weight, style, and character subset.
 
 ```rust
-# use topcoat::font::*;
-# use topcoat::font::fontsource::*;
+# use hearth::font::*;
+# use hearth::font::fontsource::*;
 # fn example() -> Font {
 fontsource_font!(ROBOTO)
 # }
@@ -11,8 +11,8 @@ fontsource_font!(ROBOTO)
 With only a family name, the font includes every available weight and style in the default subset. Use named arguments to select the combinations you need:
 
 ```rust
-# use topcoat::font::*;
-# use topcoat::font::fontsource::*;
+# use hearth::font::*;
+# use hearth::font::fontsource::*;
 # fn example() -> Font {
 fontsource_font!(
     ROBOTO,
@@ -37,21 +37,21 @@ The `weight`, `style`, and `subset` arguments accept one value or a bracketed li
 
 **`subset`** selects characters such as [`Latin`] or [`Cyrillic`] and sets each face's `unicode-range`. Omitting it includes only the family's default subset.
 
-**`host`** selects where font files are loaded from. It takes one value and defaults to [`JsDelivr`]. Use [`Asset`] to bundle the files as Topcoat [assets][asset-type] and serve them yourself. This requires the `asset` feature.
+**`host`** selects where font files are loaded from. It takes one value and defaults to [`JsDelivr`]. Use [`Asset`] to bundle the files as Hearth [assets][asset-type] and serve them yourself. This requires the `asset` feature.
 
 **`display`** sets how text appears while the font loads. It takes one [`FontDisplay`] value, applies to every face, and defaults to `Swap`.
 
 ```rust
-# use topcoat::font::*;
-# use topcoat::font::fontsource::*;
+# use hearth::font::*;
+# use hearth::font::fontsource::*;
 # fn example() -> Font {
 fontsource_font!(ROBOTO, display: Optional)
 # }
 ```
 
 ```rust
-# use topcoat::font::*;
-# use topcoat::font::fontsource::*;
+# use hearth::font::*;
+# use hearth::font::fontsource::*;
 # fn example() -> Font {
 fontsource_font!(ROBOTO, host: Asset)
 # }

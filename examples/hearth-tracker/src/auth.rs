@@ -2,7 +2,7 @@
 
 use std::time::UNIX_EPOCH;
 
-use topcoat::{
+use hearth::{
     Result,
     context::{Cx, memoize},
     router::error::{RouterErrorExt, forbidden, internal_server_error},
@@ -16,27 +16,48 @@ use crate::{
 
 pub async fn sign_in(cx: &Cx, user_id: &str) -> Result<()> {
     let mut db = hearth::db(cx);
-    User::get_by_id(&mut db, user_id).await.map_err(|_| forbidden())?;
+    User::get_by_id(&mut db, user_id)
+        .await
+        .map_err(|_| forbidden())?;
     let session = session::start(cx).await?;
-    let expires_at = session.expires_at.duration_since(UNIX_EPOCH).map_err(internal_server_error)?.as_millis() as i64;
-    toasty::create!(Session { token_hash: session.token_hash.to_vec(), user_id: user_id.to_owned(), expires_at })
-        .exec(&mut db)
-        .await?;
+    let expires_at = session
+        .expires_at
+        .duration_since(UNIX_EPOCH)
+        .map_err(internal_server_error)?
+        .as_millis() as i64;
+    toasty::create!(Session {
+        token_hash: session.token_hash.to_vec(),
+        user_id: user_id.to_owned(),
+        expires_at
+    })
+    .exec(&mut db)
+    .await?;
     Ok(())
 }
 
 pub async fn sign_out(cx: &Cx) -> Result<()> {
     if let Some(hash) = session::stop(cx).await? {
-        Session::filter_by_token_hash(hash.to_vec()).delete().exec(&mut hearth::db(cx)).await?;
+        Session::filter_by_token_hash(hash.to_vec())
+            .delete()
+            .exec(&mut hearth::db(cx))
+            .await?;
     }
     Ok(())
 }
 
 #[memoize(as_ref)]
 pub async fn current_user(cx: &Cx) -> Result<Option<User>> {
-    let Some(hash) = session::token_hash(cx).await? else { return Ok(None) };
+    let Some(hash) = session::token_hash(cx).await? else {
+        return Ok(None);
+    };
     let mut db = hearth::db(cx);
-    let Some(s) = Session::filter_by_token_hash(hash.to_vec()).first().exec(&mut db).await? else { return Ok(None) };
+    let Some(s) = Session::filter_by_token_hash(hash.to_vec())
+        .first()
+        .exec(&mut db)
+        .await?
+    else {
+        return Ok(None);
+    };
     if s.expires_at < now_ms() {
         return Ok(None);
     }
@@ -68,6 +89,14 @@ impl Viewer {
 pub async fn viewer(cx: &Cx) -> Result<Viewer> {
     // `current_user` is memoized per request, so every table scope and list
     // region shares one session lookup.
-    let user = current_user(cx).await.map_err(Clone::clone)?.as_ref().ok_or_redirect("/login")?;
-    Ok(Viewer { id: user.id.clone(), login: user.login.clone(), crew: user.role == "crew" })
+    let user = current_user(cx)
+        .await
+        .map_err(Clone::clone)?
+        .as_ref()
+        .ok_or_redirect("/login")?;
+    Ok(Viewer {
+        id: user.id.clone(),
+        login: user.login.clone(),
+        crew: user.role == "crew",
+    })
 }

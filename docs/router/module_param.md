@@ -6,7 +6,7 @@ For example, `module_param!(post_id: u64)` gives the module a `{post_id}` segmen
 
 ```rust
 // src/app/posts/post_id.rs serves /posts/{post_id}.
-# use topcoat::{context::Cx, Result, router::{module_param, page, path_param}, view::{View, view}};
+# use hearth::{context::Cx, Result, router::{module_param, page, path_param}, view::{View, view}};
 module_param!(post_id: u64, error = bad_request);
 
 #[page]
@@ -26,7 +26,7 @@ Put `*` before the name to match the rest of the URL path. This catch-all must c
 
 ```rust
 // src/app/docs/doc_path.rs serves /docs/{*doc_path}.
-# use topcoat::router::module_param;
+# use hearth::router::module_param;
 module_param!(*doc_path);
 ```
 

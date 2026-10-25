@@ -1,9 +1,9 @@
 # Why hearth lost some benchmarks (and the fixes)
 
-Measured 2026-10-24 on `/issues` (hearth) vs `/bench/topcoat` and `/bench/react`.
+Measured 2026-10-24 on `/issues` (hearth) vs `/bench/hearth` and `/bench/react`.
 
-## 1. First rows: 82–139ms vs plain Topcoat 15–69ms
-| | hearth | plain Topcoat |
+## 1. First rows: 82–139ms vs plain Hearth 15–69ms
+| | hearth | plain Hearth |
 |---|---|---|
 | HTML bytes (raw) | **1,435 KB** | 67 KB |
 | TTFB (server) | 10–12ms | 2–3ms |

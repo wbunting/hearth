@@ -3,7 +3,7 @@ The [`expr!`] macro defines an expression that can run on the server and in the 
 Expressions support a subset of Rust with matching behavior in both languages. The supported types, operations, and syntax are described below.
 
 ```rust
-# use topcoat::{Result, context::Cx, runtime::signal, view::*};
+# use hearth::{Result, context::Cx, runtime::signal, view::*};
 # #[component]
 # async fn example(cx: &Cx) -> Result<impl View> {
 let show = signal(cx, || false);
@@ -25,7 +25,7 @@ Server evaluation is synchronous. An expression that reads no signals renders as
 An identifier that is not defined inside the expression is captured from the surrounding Rust scope:
 
 ```rust
-# use topcoat::{Result, context::Cx, runtime::signal, view::*};
+# use hearth::{Result, context::Cx, runtime::signal, view::*};
 # #[component]
 # async fn example(cx: &Cx, step: usize) -> Result<impl View> {
 let count = signal(cx, || 0usize);
@@ -41,7 +41,7 @@ Capturing clones the value, so surrounding code can still use it. The browser re
 A captured `Expr<T>` behaves as `T` inside another expression. The server reuses its evaluated value. The browser evaluates its expression at each use, so signal reads remain reactive, including inside event handlers.
 
 ```rust
-# use topcoat::{Result, context::Cx, runtime::{expr, signal}, view::*};
+# use hearth::{Result, context::Cx, runtime::{expr, signal}, view::*};
 # #[component]
 # async fn example(cx: &Cx) -> Result<impl View> {
 let selected = signal(cx, || "overview".to_owned());
@@ -88,7 +88,7 @@ Unsupported syntax produces a compile error at the expression.
 Use `raw!` for JavaScript operations outside the supported vocabulary. Its first argument is JavaScript source. The optional second argument is equivalent Rust for server evaluation:
 
 ```rust
-# use topcoat::{Result, context::Cx, runtime::signal, view::*};
+# use hearth::{Result, context::Cx, runtime::signal, view::*};
 # #[component]
 # async fn example(cx: &Cx) -> Result<impl View> {
 let name = signal(cx, String::new);

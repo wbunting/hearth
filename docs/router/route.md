@@ -23,7 +23,7 @@ The macro converts the success value into a response. See [`IntoResponse`](respo
 Module-derived path (in `src/app/api/health.rs` under `module_router!()`, this serves `GET /api/health`):
 
 ```rust
-# use topcoat::{Result, router::route};
+# use hearth::{Result, router::route};
 #[route(GET)]
 async fn health() -> Result<&'static str> {
     Ok("ok")
@@ -34,7 +34,7 @@ Explicit method and path, reading a JSON body and answering with one:
 
 ```rust
 use serde::{Deserialize, Serialize};
-use topcoat::{
+use hearth::{
     Result,
     router::{content::Json, route},
 };
@@ -53,7 +53,7 @@ async fn create_user(Json(input): Json<CreateUser>) -> Result<Json<CreateUser>> 
 Path below the module (in `src/app/api.rs` under `module_router!()`, this serves `GET /api/health` without a module for it):
 
 ```rust
-# use topcoat::{Result, router::route};
+# use hearth::{Result, router::route};
 #[route(GET "./health")]
 async fn health() -> Result<&'static str> {
     Ok("ok")
@@ -63,7 +63,7 @@ async fn health() -> Result<&'static str> {
 A method list, and a `*` route answering every method (say, a webhook endpoint probed with both `GET` and `POST`):
 
 ```rust
-# use topcoat::{Result, router::route};
+# use hearth::{Result, router::route};
 mod form {
     use super::*;
 

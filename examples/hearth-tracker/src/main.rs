@@ -2,7 +2,7 @@
 //! in Rust only on hearth. No app JavaScript or TypeScript.
 //!
 //! cargo run -p hearth-tracker -- seed [--synthetic 50000]
-//! PORT=3100 topcoat dev -p hearth-tracker
+//! PORT=3100 hearth dev -p hearth-tracker
 
 mod app;
 mod auth;
@@ -28,7 +28,7 @@ async fn main() {
         return;
     }
     let db = db::connect().await.unwrap();
-    topcoat::start(app::router().app_context(db).build())
+    hearth::start(app::router().app_context(db).build())
         .await
         .unwrap();
 }

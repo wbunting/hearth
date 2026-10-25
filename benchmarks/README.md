@@ -1,6 +1,6 @@
 # Benchmarks
 
-Compare server rendering with equivalent storefront apps in Topcoat, Next.js, Leptos, and Axum + Maud.
+Compare server rendering with equivalent storefront apps in Hearth, Next.js, Leptos, and Axum + Maud.
 
 ## What is measured
 
@@ -16,7 +16,7 @@ The apps use the same checked-in product data, page content, query behavior, and
 
 ## Prerequisites
 
-- The repository's Rust toolchain and the Topcoat CLI, installed with `cargo install --path crates/topcoat-cli`.
+- The repository's Rust toolchain and the Hearth CLI, installed with `cargo install --path crates/hearth-cli`.
 - [oha](https://github.com/hatoo/oha) for load generation.
 - Node.js and pnpm for the Next.js app.
 - [cargo-leptos](https://github.com/leptos-rs/cargo-leptos) and the `wasm32-unknown-unknown` Rust target for Leptos.
@@ -33,7 +33,7 @@ Run commands from the repository root:
 benchmarks/scripts/bench.sh
 
 # Measure selected apps.
-benchmarks/scripts/bench.sh topcoat leptos
+benchmarks/scripts/bench.sh hearth leptos
 
 # Use shorter runs during development.
 DURATION=5s WARMUP=2s RUNS=1 benchmarks/scripts/bench.sh
@@ -56,12 +56,12 @@ The summary takes the median of repeated runs for each route, then averages acro
 
 ### Running an app manually
 
-For Topcoat, build the release binary and bundle its assets:
+For Hearth, build the release binary and bundle its assets:
 
 ```sh
-cargo build --release -p storefront-topcoat
-topcoat asset bundle --release --package storefront-topcoat
-PORT=8090 ./target/release/storefront-topcoat
+cargo build --release -p storefront-hearth
+hearth asset bundle --release --package storefront-hearth
+PORT=8090 ./target/release/storefront-hearth
 ```
 
 For Next.js, run these commands in `benchmarks/nextjs`:

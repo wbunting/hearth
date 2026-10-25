@@ -5,5 +5,5 @@ A counter that updates in place with Alpine AJAX. The server returns the request
 Run it with:
 
 ```sh
-cargo topcoat dev -p alpine-ajax
+cargo hearth dev -p alpine-ajax
 ```

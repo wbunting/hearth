@@ -3,7 +3,7 @@ mod rs;
 mod issues;
 mod login;
 
-use topcoat::{
+use hearth::{
     Result,
     asset::{Asset, AssetBundle, RouterBuilderAssetExt, asset},
     context::Cx,
@@ -38,8 +38,8 @@ async fn root(slot: Slot<'_>) -> Result<impl View> {
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>"zbugs · hearth"</title>
                 <link rel="stylesheet" href=(asset!("./styles.css"))>
-                topcoat::runtime::script()
-                topcoat::dev::script()
+                hearth::runtime::script()
+                hearth::dev::script()
             </head>
             <body>(slot)</body>
         </html>
@@ -49,5 +49,5 @@ async fn root(slot: Slot<'_>) -> Result<impl View> {
 #[page]
 async fn home(cx: &Cx) -> Result<impl View> {
     let to = if current_user(cx).await.map_err(Clone::clone)?.is_some() { "/issues" } else { "/login" };
-    Err::<topcoat::view::BoxView<'static>, _>(redirect(to).into())
+    Err::<hearth::view::BoxView<'static>, _>(redirect(to).into())
 }

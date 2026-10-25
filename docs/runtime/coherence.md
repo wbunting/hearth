@@ -5,10 +5,10 @@ This crate checks that runtime expressions produce the same outcomes in Rust and
 From the workspace root:
 
 ```sh
-cargo test -p topcoat-runtime-coherence
+cargo test -p hearth-runtime-coherence
 ```
 
-The first build downloads V8. The JavaScript bundle is checked in, so Rust tests do not require Node or Yarn. After editing the browser runtime or its test adapter, rebuild the bundle from `crates/topcoat-runtime/browser`:
+The first build downloads V8. The JavaScript bundle is checked in, so Rust tests do not require Node or Yarn. After editing the browser runtime or its test adapter, rebuild the bundle from `crates/hearth-runtime/browser`:
 
 ```sh
 yarn install --frozen-lockfile
@@ -23,7 +23,7 @@ Commit changes to `dist/coherence.js` with the source changes. CI rebuilds both 
 Add a test in `tests/` and use [`coherent!`]:
 
 ```rust
-use topcoat_runtime_coherence::coherent;
+use hearth_runtime_coherence::coherent;
 
 coherent!(1.0 + 2.0 * 3.0);
 
@@ -38,7 +38,7 @@ Captured values use the same serialization and hydration as application expressi
 The default form compiles a closure and calls it in each language. This captures the generated JavaScript before Rust evaluation can panic. To test an expression without a closure, use:
 
 ```rust
-use topcoat_runtime_coherence::coherent;
+use hearth_runtime_coherence::coherent;
 
 coherent!(direct => 1.0 + 2.0);
 ```
@@ -50,7 +50,7 @@ Direct cases must return normally on the Rust side. A panic during capture seria
 Use `async =>` in a synchronous test. The harness runs an async closure with Tokio and its JavaScript equivalent in V8, then compares their completed values.
 
 ```rust
-use topcoat_runtime_coherence::{Awaitable, coherent};
+use hearth_runtime_coherence::{Awaitable, coherent};
 
 let value = Awaitable::ready(3.0).after_yield();
 coherent!(async => {
@@ -74,7 +74,7 @@ A Rust panic agrees with a JavaScript runtime `Panic`, regardless of message wor
 A known discrepancy has a named case and exact Rust and JavaScript outcomes in `known-mismatches.toml`:
 
 ```rust
-use topcoat_runtime_coherence::coherent;
+use hearth_runtime_coherence::coherent;
 
 let value = f64::NAN;
 coherent!(known "captured_nan" => value);

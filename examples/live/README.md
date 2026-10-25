@@ -5,5 +5,5 @@ Pages that stream content with `live!` and `emit!`. The initial page appears whi
 Run it with:
 
 ```sh
-cargo topcoat dev -p live
+cargo hearth dev -p live
 ```

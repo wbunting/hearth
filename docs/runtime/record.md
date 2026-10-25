@@ -1,7 +1,7 @@
 Use `#[record]` to work with your own structs in runtime [expressions](macro.expr.html). An expression can create a record, access its fields by name, store it in a signal, or pass it to a procedure.
 
 ```rust
-use topcoat::runtime::record;
+use hearth::runtime::record;
 
 #[record]
 #[derive(Clone)]
@@ -18,7 +18,7 @@ Declare a struct with named fields and add the attribute above it. Each field mu
 Use a struct literal to create a record and dot syntax to access a field. This example stores a todo in a signal, displays its title, and replaces it with a completed todo when the button is clicked:
 
 ```rust
-# use topcoat::{Result, context::Cx, runtime::{record, signal}, view::*};
+# use hearth::{Result, context::Cx, runtime::{record, signal}, view::*};
 # #[record]
 # #[derive(Clone)]
 # struct Todo { title: String, done: bool }

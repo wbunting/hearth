@@ -1,21 +1,21 @@
 [htmx](https://htmx.org) updates parts of a page with HTML from the server. Attributes such as `hx-get` send requests and select where the response appears.
 
-Topcoat reads htmx request headers and sets response headers that control how the browser applies an update.
+Hearth reads htmx request headers and sets response headers that control how the browser applies an update.
 
-Everything below is re-exported from `topcoat::htmx` and gated behind the `htmx` feature.
+Everything below is re-exported from `hearth::htmx` and gated behind the `htmx` feature.
 
 ```toml
 # Cargo.toml
 [dependencies]
-topcoat = { version = "0.10.0", features = ["htmx"] }
+hearth = { version = "0.1.0", features = ["htmx"] }
 ```
 
 # Loading the htmx script
 
-Load the htmx script before using `hx-*` attributes. This example bundles the script as a Topcoat asset:
+Load the htmx script before using `hx-*` attributes. This example bundles the script as a Hearth asset:
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     asset::asset,
     router::{Slot, layout},
@@ -43,7 +43,7 @@ See the [assets guide](crate::asset) for loading the asset bundle on your router
 Use [`hx_request`] to distinguish htmx requests from full-page requests:
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     htmx::hx_request,
@@ -78,7 +78,7 @@ Use response types to set htmx [response headers](https://htmx.org/reference/#re
 
 ```rust
 // src/app/save.rs
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     htmx::{HxRetarget, HxReswap, SwapOption},
@@ -102,9 +102,9 @@ async fn save(cx: &Cx) -> Result<(HxRetarget, HxReswap, ViewHandle)> {
 [`HxResponseTrigger`] fires named events in the browser. Events can include data and run at different stages of the update:
 
 ```rust
-use topcoat::htmx::{HxEvent, HxResponseTrigger};
+use hearth::htmx::{HxEvent, HxResponseTrigger};
 
-# fn example() -> topcoat::Result<HxResponseTrigger> {
+# fn example() -> hearth::Result<HxResponseTrigger> {
 // `HX-Trigger: item-saved`
 let _ = HxResponseTrigger::receive(["item-saved"]);
 
@@ -118,6 +118,6 @@ let trigger = HxResponseTrigger::after_swap([
 
 # Header constants
 
-The raw `HX-*` header names are available as `HeaderName` constants in [`topcoat::htmx::header`](crate::htmx::header), for when you want to read or write a header directly.
+The raw `HX-*` header names are available as `HeaderName` constants in [`hearth::htmx::header`](crate::htmx::header), for when you want to read or write a header directly.
 
 [`IntoResponseParts`]: crate::router::response::IntoResponseParts

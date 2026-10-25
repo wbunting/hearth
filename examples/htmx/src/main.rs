@@ -2,7 +2,7 @@ mod increment;
 
 use std::sync::atomic::AtomicU64;
 
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     htmx::hx_request,
@@ -12,7 +12,7 @@ use topcoat::{
 
 #[tokio::main]
 async fn main() {
-    topcoat::start(
+    hearth::start(
         module_router!()
             .app_context(Counter(AtomicU64::new(0)))
             .build(),
@@ -35,7 +35,7 @@ async fn root(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
                         src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"
                     ></script>
 
-                    topcoat::dev::script()
+                    hearth::dev::script()
                 </head>
 
                 // Boost links and forms so htmx can handle navigation.

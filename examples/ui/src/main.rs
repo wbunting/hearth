@@ -56,7 +56,7 @@ use components::{
     toggle::{ToggleKind, ToggleSize, toggle, toggle_group},
     tooltip::{tooltip, tooltip_content},
 };
-use topcoat::{
+use hearth::{
     Result,
     asset::{Asset, AssetBundle, RouterBuilderAssetExt, asset},
     context::Cx,
@@ -73,9 +73,9 @@ use topcoat::{
 const PORTRAIT: Asset = asset!("./portrait.svg");
 
 /// External destinations linked from the showcase.
-const DOCS: &str = "https://docs.rs/topcoat";
-const REPOSITORY: &str = "https://github.com/tokio-rs/topcoat";
-const REGISTRY: &str = "https://github.com/tokio-rs/topcoat/tree/main/crates/topcoat-ui/registry";
+const DOCS: &str = "https://docs.rs/hearth";
+const REPOSITORY: &str = "https://github.com/wbunting/hearth";
+const REGISTRY: &str = "https://github.com/wbunting/hearth/tree/main/crates/hearth-ui/registry";
 
 #[tokio::main]
 async fn main() {
@@ -85,7 +85,7 @@ async fn main() {
         .runtime()
         .build();
 
-    topcoat::start(router).await.unwrap();
+    hearth::start(router).await.unwrap();
 }
 
 /// Deployment statuses and their badge styles.
@@ -121,11 +121,11 @@ async fn home(cx: &Cx) -> Result<impl View> {
             })
         >
             <head>
-                <title>"Topcoat UI"</title>
+                <title>"Hearth UI"</title>
                 <meta name="viewport" content="width=device-width, initial-scale=1">
-                topcoat::dev::script()
-                topcoat::runtime::script()
-                topcoat::font::link(font: fontsource_font!(GEIST, host: Asset))
+                hearth::dev::script()
+                hearth::runtime::script()
+                hearth::font::link(font: fontsource_font!(GEIST, host: Asset))
                 <link rel="stylesheet" href=(tailwind::stylesheet!())>
             </head>
             // The body's background, text color, and font come from the
@@ -198,7 +198,7 @@ async fn home(cx: &Cx) -> Result<impl View> {
                                     <p class="mt-3 text-muted-foreground">
                                         "Accessible, themeable components vendored into your \
                                  project with "
-                                        <code class="text-foreground">"topcoat ui add"</code>
+                                        <code class="text-foreground">"hearth ui add"</code>
                                         ". Yours to restyle, rewrite, and ship."
                                     </p>
                                     // Anything can borrow a button's looks:
@@ -418,7 +418,7 @@ async fn team_card() -> Result<impl View> {
 /// The badge variants with example deployment counts.
 #[component]
 async fn status_card() -> Result<impl View> {
-    const CRATE: &str = "https://crates.io/crates/topcoat";
+    const CRATE: &str = "https://crates.io/crates/hearth";
 
     Ok(view! {
         card(
@@ -444,7 +444,7 @@ async fn status_card() -> Result<impl View> {
                 </div>
             )
             card_footer(
-                <p class="text-sm text-muted-foreground">"Built with Topcoat"</p>
+                <p class="text-sm text-muted-foreground">"Built with Hearth"</p>
                 // Anything can borrow a badge's looks: `badge_variants`
                 // returns the class string for a variant.
                 <a href=(CRATE) class=(badge_variants(BadgeVariant::Outline))>
@@ -879,7 +879,7 @@ async fn faq_card() -> Result<impl View> {
                         ),
                         (
                             "How do updates work?",
-                            "`topcoat ui list` marks what the registry has \
+                            "`hearth ui list` marks what the registry has \
                              changed since you added it.",
                             false,
                         ),
@@ -1602,7 +1602,7 @@ async fn app_sidebar(cx: &Cx, open: Signal<bool>, mobile_open: Signal<bool>) -> 
                             sidebar_menu_button(
                                 size: SidebarMenuButtonSize::Lg,
                                 href: Some("#overview"),
-                                tooltip: Some("Topcoat UI"),
+                                tooltip: Some("Hearth UI"),
                                 attrs: attributes! {
                                     @click=$(|_e: Event| {
                                         selected.set("#overview".to_owned());
@@ -1611,7 +1611,7 @@ async fn app_sidebar(cx: &Cx, open: Signal<bool>, mobile_open: Signal<bool>) -> 
                                 },
                                 icon(data: iconify_icon!("lucide:layers"))
                                 <span class="flex min-w-0 flex-col text-left">
-                                    <span class="font-semibold">"Topcoat UI"</span>
+                                    <span class="font-semibold">"Hearth UI"</span>
                                     <span class="text-xs text-muted-foreground">
                                         "Your component library"
                                     </span>
@@ -1757,7 +1757,7 @@ async fn app_sidebar(cx: &Cx, open: Signal<bool>, mobile_open: Signal<bool>) -> 
                 <p
                     class="px-2 py-1 text-xs text-muted-foreground md:group-data-[collapsible=icon]/sidebar:hidden"
                 >
-                    "Built with Topcoat. Yours to make your own."
+                    "Built with Hearth. Yours to make your own."
                 </p>
             )
         )

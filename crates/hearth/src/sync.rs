@@ -36,9 +36,8 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use topcoat::{Result, context::Cx, router::error::internal_server_error};
 
-use crate::Table;
+use crate::{Result, Table, context::Cx, router::error::internal_server_error};
 
 /// Default total size of all stored snapshots.
 pub const DEFAULT_BUDGET: usize = 64 << 20;
@@ -59,8 +58,13 @@ pub struct LoadParams {
 
 impl LoadParams {
     /// Reads the parameters from the request URI.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when query parameters are malformed.
     pub fn from_request(cx: &Cx) -> Result<Self> {
-        topcoat::router::parse_query_params(cx).map_err(|e| topcoat::router::error::bad_request(e.to_string()).into())
+        crate::router::parse_query_params(cx)
+            .map_err(|e| crate::router::error::bad_request(e.to_string()).into())
     }
 
     /// Whether the response uses the delta envelope.
@@ -95,18 +99,32 @@ impl Principal {
     /// Requests without a session.
     pub const ANONYMOUS: Self = Self([0; 32]);
 
-    /// The current session's token hash, or [`Principal::ANONYMOUS`].
+    /// A trusted request-scoped identity, the session token hash, or [`Principal::ANONYMOUS`].
+    ///
+    /// Applications with custom authentication can install a `Principal` using `Cx::with`
+    /// in a layer. Never accept this value directly from unverified client input.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the session token cannot be read.
     pub async fn current(cx: &Cx) -> Result<Self> {
-        if topcoat::context::try_request_context::<topcoat::session::SessionState>(cx).is_none() {
+        if let Some(principal) = crate::context::try_request_context::<Self>(cx) {
+            return Ok(*principal);
+        }
+        if crate::context::try_request_context::<crate::session::SessionState>(cx).is_none() {
             return Ok(Self::ANONYMOUS);
         }
-        Ok(topcoat::session::token_hash(cx)
+        Ok(crate::session::token_hash(cx)
             .await?
             .map_or(Self::ANONYMOUS, |hash| Self(*hash)))
     }
 }
 
 /// Handles `GET /_hearth/<table>/load` for `T`.
+///
+/// # Errors
+///
+/// Returns an error when authorization, querying or serialization fails.
 pub async fn load_route<T: Table>(cx: &Cx) -> Result<LoadBody<Value>> {
     let params = LoadParams::from_request(cx)?;
     let rows = T::load(cx).await?;
@@ -216,7 +234,12 @@ impl Snapshots {
                 let _ = serde_json::to_writer(&mut buf, row);
                 let h = (u128::from(self.hash.0.hash_one(buf.as_slice())) << 64)
                     | u128::from(self.hash.1.hash_one(buf.as_slice()));
-                (crate::table::key_string(row.get(key).cloned().unwrap_or(Value::Null)).into_boxed_str(), h, i)
+                (
+                    crate::table::key_string(row.get(key).cloned().unwrap_or(Value::Null))
+                        .into_boxed_str(),
+                    h,
+                    i,
+                )
             })
             .collect();
         current.sort_by(|a, b| a.0.cmp(&b.0));

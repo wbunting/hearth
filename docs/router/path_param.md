@@ -3,7 +3,7 @@ Declares a typed path parameter.
 Name the parameter as it appears in the URL. The macro converts that name to Pascal case for the generated type.
 
 ```rust
-# use topcoat::router::path_param;
+# use hearth::router::path_param;
 path_param!(post_id: u64);
 // Generates `struct PostId(u64)`.
 ```
@@ -16,7 +16,7 @@ Add the parameter name in braces to the route path, such as `{post_id}`. With [m
 
 ```rust
 // src/app/posts.rs serves /posts/{post_id}.
-# use topcoat::{Result, router::{page, path_param}, view::{View, view}};
+# use hearth::{Result, router::{page, path_param}, view::{View, view}};
 path_param!(post_id: u64);
 
 #[page("./{post_id}")]
@@ -35,7 +35,7 @@ Reading a parameter that the matched route did not capture panics.
 
 ```rust
 // src/app/posts.rs
-# use topcoat::{context::Cx, Result, router::{error::RouterErrorExt, page, path_param}, view::{View, view}};
+# use hearth::{context::Cx, Result, router::{error::RouterErrorExt, page, path_param}, view::{View, view}};
 path_param!(post_id: u64);
 
 #[page("./{post_id}")]
@@ -49,7 +49,7 @@ Without a type, `path_param::<Slug>(cx)` returns the percent-decoded segment as 
 
 ```rust
 // src/app/posts.rs
-# use topcoat::{context::Cx, Result, router::{page, path_param}, view::{View, view}};
+# use hearth::{context::Cx, Result, router::{page, path_param}, view::{View, view}};
 path_param!(slug);
 
 #[page("./{slug}")]
@@ -67,7 +67,7 @@ The unparsed declaration generates `struct Slug<T: AsRef<str> = String>(T)`. `St
 
 ```rust
 // src/app/posts.rs
-# use topcoat::{context::Cx, Result, router::{page, path_param}, view::{View, view}};
+# use hearth::{context::Cx, Result, router::{page, path_param}, view::{View, view}};
 path_param!(post_id: u64, error = not_found);
 
 #[page("./{post_id}")]
@@ -97,7 +97,7 @@ An unparsed parameter cannot use `error` because it cannot fail.
 The declared visibility applies to the generated type and its field.
 
 ```rust
-# use topcoat::router::path_param;
+# use hearth::router::path_param;
 path_param!(pub post_id: u64);
 path_param!(pub slug);
 path_param!(pub *ids: u32);
@@ -117,7 +117,7 @@ Prefix the name with `*` to capture the remaining path as separate decoded segme
 
 ```rust
 // src/app/docs.rs
-# use topcoat::{context::Cx, Result, router::{CatchAllSegments, page, path_param}, view::{View, view}};
+# use hearth::{context::Cx, Result, router::{CatchAllSegments, page, path_param}, view::{View, view}};
 path_param!(*doc_path);
 
 #[page("./{*doc_path}")]
@@ -134,7 +134,7 @@ A typed catch-all parses each segment and returns a memoized slice.
 
 ```rust
 // src/app/archive.rs
-# use topcoat::{context::Cx, Result, router::{page, path_param}, view::{View, view}};
+# use hearth::{context::Cx, Result, router::{page, path_param}, view::{View, view}};
 path_param!(*ids: u32, error = bad_request);
 
 #[page("./{*ids}")]
@@ -155,7 +155,7 @@ An unparsed catch-all accepts any `IntoIterator` whose items implement `AsRef<st
 Pass the generated type to [`href!`](macro.href.html) to fill the matching parameter in a handler's URL:
 
 ```rust
-# use topcoat::{Result, router::{href, page, path_param}, view::{View, view}};
+# use hearth::{Result, router::{href, page, path_param}, view::{View, view}};
 // src/app.rs
 mod posts {
     use super::*;

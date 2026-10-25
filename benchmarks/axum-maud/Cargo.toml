@@ -16,12 +16,12 @@ tikv-jemallocator = "0.7"
 
 [build-dependencies]
 # Build-time tooling only: runs the same pinned standalone Tailwind CLI as the
-# Topcoat app. Nothing from Topcoat is linked into the server binary.
-topcoat-tailwind = { path = "../../crates/topcoat-tailwind" }
+# Hearth app. Nothing from Hearth is linked into the server binary.
+hearth-tailwind = { path = "../../crates/hearth-tailwind" }
 
 [lints.rust]
 unsafe_code = "deny"
 
-# Detached from the Topcoat workspace on purpose: this app is a standalone
+# Detached from the Hearth workspace on purpose: this app is a standalone
 # Axum + Maud project with its own dependency tree.
 [workspace]

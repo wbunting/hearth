@@ -12,8 +12,8 @@
 //! ```
 //! - `IssueRow`: the `#[record]` row type the loop body sees.
 //! - `Issues`, `Users`: types implementing `hearth::Table`.
-//! - `$(...)`: a Topcoat runtime expression (server value + JS); re-runs the
-//!   query in the browser when the signals it reads change.
+//! - `$(...)`: a Hearth runtime expression (server value + JS); re-runs the query in the browser
+//!   when the signals it reads change.
 //! - Columns are written in snake_case and map to camelCase wire fields.
 
 use proc_macro::TokenStream;
@@ -32,7 +32,9 @@ mod table;
 #[proc_macro_derive(Table, attributes(table, key, index, computed, skip))]
 pub fn derive_table(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::DeriveInput);
-    table::derive(input).unwrap_or_else(syn::Error::into_compile_error).into()
+    table::derive(input)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
 }
 
 /// `hearth::routes!(issues: IssueRow, users: UserRow, ...)`: load + mutate
@@ -50,7 +52,10 @@ pub fn routes(input: TokenStream) -> TokenStream {
         fn parse(input: ParseStream) -> syn::Result<Self> {
             let name = input.parse()?;
             input.parse::<Token![:]>()?;
-            Ok(Entry { name, ty: input.parse()? })
+            Ok(Entry {
+                name,
+                ty: input.parse()?,
+            })
         }
     }
     let entries = parse_macro_input!(input with Punctuated::<Entry, Token![,]>::parse_terminated);
@@ -63,17 +68,17 @@ pub fn routes(input: TokenStream) -> TokenStream {
         let load = quote::format_ident!("__hearth_load_{}", snake);
         let mutate = quote::format_ident!("__hearth_mutate_{}", snake);
         items.push(quote! {
-            #[::topcoat::router::route(GET #load_path)]
-            async fn #load(cx: &::topcoat::context::Cx) -> ::topcoat::Result<::topcoat::router::content::Json<::hearth::sync::LoadBody<::hearth::__private::serde_json::Value>>> {
+            #[::hearth::router::route(GET #load_path)]
+            async fn #load(cx: &::hearth::context::Cx) -> ::hearth::Result<::hearth::router::content::Json<::hearth::sync::LoadBody<::hearth::__private::serde_json::Value>>> {
                 ::hearth::table::check_table::<#t>(#snake)?;
-                ::core::result::Result::Ok(::topcoat::router::content::Json(::hearth::sync::load_route::<#t>(cx).await?))
+                ::core::result::Result::Ok(::hearth::router::content::Json(::hearth::sync::load_route::<#t>(cx).await?))
             }
-            #[::topcoat::router::route(POST #mutate_path)]
-            async fn #mutate(cx: &::topcoat::context::Cx, ::topcoat::router::content::Json(m): ::topcoat::router::content::Json<::hearth::table::Mutation>)
-                -> ::topcoat::Result<::topcoat::router::content::Json<::hearth::__private::serde_json::Value>>
+            #[::hearth::router::route(POST #mutate_path)]
+            async fn #mutate(cx: &::hearth::context::Cx, ::hearth::router::content::Json(m): ::hearth::router::content::Json<::hearth::table::Mutation>)
+                -> ::hearth::Result<::hearth::router::content::Json<::hearth::__private::serde_json::Value>>
             {
                 ::hearth::table::check_table::<#t>(#snake)?;
-                ::core::result::Result::Ok(::topcoat::router::content::Json(::hearth::table::mutation_route::<#t>(cx, m).await?))
+                ::core::result::Result::Ok(::hearth::router::content::Json(::hearth::table::mutation_route::<#t>(cx, m).await?))
             }
         });
         describes.push(quote!(::hearth::table::describe::<#t>()));
@@ -87,7 +92,6 @@ pub fn routes(input: TokenStream) -> TokenStream {
     }
     .into()
 }
-
 
 #[proc_macro]
 pub fn live_query(input: TokenStream) -> TokenStream {
@@ -222,7 +226,15 @@ impl Parse for Q {
                 content.parse::<Token![,]>()?;
             }
         }
-        Ok(Q { row, from, joins, where_, order, limit, select })
+        Ok(Q {
+            row,
+            from,
+            joins,
+            where_,
+            order,
+            limit,
+            select,
+        })
     }
 }
 
@@ -239,7 +251,11 @@ fn or_expr(input: ParseStream) -> syn::Result<E> {
         input.parse::<Token![||]>()?;
         args.push(and_expr(input)?);
     }
-    Ok(if args.len() == 1 { args.pop().unwrap() } else { E::Or(args) })
+    Ok(if args.len() == 1 {
+        args.pop().unwrap()
+    } else {
+        E::Or(args)
+    })
 }
 
 fn and_expr(input: ParseStream) -> syn::Result<E> {
@@ -248,7 +264,11 @@ fn and_expr(input: ParseStream) -> syn::Result<E> {
         input.parse::<Token![&&]>()?;
         args.push(cmp_expr(input)?);
     }
-    Ok(if args.len() == 1 { args.pop().unwrap() } else { E::And(args) })
+    Ok(if args.len() == 1 {
+        args.pop().unwrap()
+    } else {
+        E::And(args)
+    })
 }
 
 fn cmp_expr(input: ParseStream) -> syn::Result<E> {
@@ -350,7 +370,8 @@ impl E {
                 let a = a.to_string();
                 let c = camel(&c.to_string());
                 let Some((_, table)) = cx.sources.iter().find(|(alias, _)| *alias == a) else {
-                    return syn::Error::new_spanned(alias, "unknown query alias").to_compile_error();
+                    return syn::Error::new_spanned(alias, "unknown query alias")
+                        .to_compile_error();
                 };
                 let message = format!("column {a}.{c} is not synced (unknown or #[skip])");
                 quote!({
@@ -369,7 +390,11 @@ impl E {
                 quote!(#ir::Expr::Bin { op: #op, l: Box::new(#l), r: Box::new(#r) })
             }
             E::And(args) | E::Or(args) => {
-                let op = if matches!(self, E::And(_)) { "and" } else { "or" };
+                let op = if matches!(self, E::And(_)) {
+                    "and"
+                } else {
+                    "or"
+                };
                 let args: Vec<_> = args.iter().map(|a| a.lower(cx)).collect();
                 quote!(#ir::Expr::Many { op: #op, args: vec![#(#args),*] })
             }
@@ -442,7 +467,13 @@ impl Q {
             .collect();
         // Row field types for client surrogates come from `#[hearth::row]`.
         let types = quote!(<#row as ::hearth::RowTypes>::TYPES.to_vec());
-        let key = camel(&self.select.first().map(|(n, _)| n.to_string()).unwrap_or_else(|| "id".into()));
+        let key = camel(
+            &self
+                .select
+                .first()
+                .map(|(n, _)| n.to_string())
+                .unwrap_or_else(|| "id".into()),
+        );
 
         let loaders = std::iter::once((&self.from.alias, &self.from.table))
             .chain(self.joins.iter().map(|j| (&j.src.alias, &j.src.table)))
@@ -451,11 +482,12 @@ impl Q {
                 quote!((#a, ::hearth::__loader::<#t> as ::hearth::__LoaderFn))
             });
 
-        // Each `$(...)` becomes a Topcoat runtime expression: Rust value for SSR,
+        // Each `$(...)` becomes a Hearth runtime expression: Rust value for SSR,
         // JS for the browser (re-evaluated reactively by the list region).
-        let params = cx.params.iter().map(|p| {
-            quote!(::hearth::LiveQuery::<#row>::param(::topcoat::runtime::expr!(#p)))
-        });
+        let params = cx
+            .params
+            .iter()
+            .map(|p| quote!(::hearth::LiveQuery::<#row>::param(::hearth::runtime::expr!(#p))));
 
         let _ = Span::call_site();
         let _ = Brace::default;
@@ -479,14 +511,16 @@ impl Q {
     }
 }
 
-/// `#[hearth::row]` on a struct: a query row. Adds Topcoat's `#[record]`,
+/// `#[hearth::row]` on a struct: a query row. Adds Hearth's `#[record]`,
 /// serde (camelCase wire names), `Default`, and the client column types.
 #[proc_macro_attribute]
 pub fn row(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let item = parse_macro_input!(item as syn::ItemStruct);
     let name = &item.ident;
     let syn::Fields::Named(fields) = &item.fields else {
-        return syn::Error::new_spanned(&item, "rows need named fields").to_compile_error().into();
+        return syn::Error::new_spanned(&item, "rows need named fields")
+            .to_compile_error()
+            .into();
     };
     let types = fields.named.iter().map(|f| {
         let n = camel(&f.ident.as_ref().unwrap().to_string());
@@ -494,7 +528,7 @@ pub fn row(_attr: TokenStream, item: TokenStream) -> TokenStream {
         quote!((#n, <#ty as ::hearth::RowField>::TYPE))
     });
     quote! {
-        #[::topcoat::runtime::record]
+        #[::hearth::runtime::record]
         #[derive(Clone, Debug, Default, ::serde::Serialize, ::serde::Deserialize)]
         #[serde(rename_all = "camelCase")]
         #item

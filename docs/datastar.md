@@ -1,21 +1,21 @@
 [Datastar](https://data-star.dev) updates HTML and reactive signals from server responses. Use `data-*` attributes to bind signals to elements and actions such as `@get` to send requests.
 
-Topcoat extracts signals from requests and creates Datastar responses. Return one update from a handler or send several over a [server-sent event stream](crate::router::content::sse).
+Hearth extracts signals from requests and creates Datastar responses. Return one update from a handler or send several over a [server-sent event stream](crate::router::content::sse).
 
-Everything below is re-exported from `topcoat::datastar` and gated behind the `datastar` feature, which also enables the router's `sse` feature.
+Everything below is re-exported from `hearth::datastar` and gated behind the `datastar` feature, which also enables the router's `sse` feature.
 
 ```toml
 # Cargo.toml
 [dependencies]
-topcoat = { version = "0.10.0", features = ["datastar"] }
+hearth = { version = "0.1.0", features = ["datastar"] }
 ```
 
 # Loading the Datastar script
 
-Load the Datastar script before using its attributes. This example bundles the script as a Topcoat asset:
+Load the Datastar script before using its attributes. This example bundles the script as a Hearth asset:
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     asset::asset,
     router::{Slot, layout},
@@ -48,7 +48,7 @@ The [`Signals`] extractor deserializes request signals into your type. It reads 
 ```rust
 // src/app/increment.rs
 use serde::{Deserialize, Serialize};
-use topcoat::{
+use hearth::{
     Result,
     datastar::{PatchSignals, Signals},
     router::route,
@@ -75,7 +75,7 @@ Use `Option<Signals<T>>` to also accept requests without Datastar. It returns `N
 
 ```rust
 // src/app/entries.rs
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     datastar::{ElementPatchMode, PatchElements},
@@ -107,7 +107,7 @@ For live updates, return an [`Sse`] stream and convert each patch into an [`Even
 use futures_core::Stream;
 use futures_util::stream;
 use serde::Serialize;
-use topcoat::{
+use hearth::{
     Result,
     datastar::PatchSignals,
     router::{
@@ -138,7 +138,7 @@ On the page, `data-on:load="@get('/progress')"` subscribes to the stream and app
 [`ExecuteScript`] appends a `<script>` element to the page. By default, the element removes itself after running.
 
 ```rust
-use topcoat::datastar::ExecuteScript;
+use hearth::datastar::ExecuteScript;
 
 let script = ExecuteScript::new("console.log('saved')");
 ```
@@ -149,7 +149,7 @@ Datastar also accepts ordinary responses. It patches `text/html` into the page a
 
 ```rust
 // src/app/save.rs
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     datastar::{DatastarMode, DatastarSelector, ElementPatchMode},
@@ -170,7 +170,7 @@ async fn save(cx: &Cx) -> Result<(DatastarSelector, DatastarMode, ViewHandle)> {
 
 # Header constants
 
-The raw `datastar-*` header names are available as `HeaderName` constants in [`topcoat::datastar::header`](crate::datastar::header), for when you want to read or write a header directly.
+The raw `datastar-*` header names are available as `HeaderName` constants in [`hearth::datastar::header`](crate::datastar::header), for when you want to read or write a header directly.
 
 [`Sse`]: crate::router::content::sse::Sse
 [`Event`]: crate::router::content::sse::Event

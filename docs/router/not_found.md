@@ -13,14 +13,14 @@ More specific routes win over the catch-all, which only serves URLs nothing else
 Module-derived path (in `src/app/admin.rs` under [`module_router!`](macro.module_router.html), this covers `/admin/{*rest}`):
 
 ```rust
-use topcoat::router::not_found;
+use hearth::router::not_found;
 not_found!();
 ```
 
 A site-wide fallback with an explicit path, covering every URL no other route serves:
 
 ```rust
-use topcoat::router::{Router, not_found};
+use hearth::router::{Router, not_found};
 
 not_found!("/");
 
@@ -30,7 +30,7 @@ let router = Router::builder().page(not_found).build();
 An explicit-path fallback for one subtree only, here `/admin/{*rest}`:
 
 ```rust
-# use topcoat::router::{Router, not_found};
+# use hearth::router::{Router, not_found};
 not_found!("/admin");
 # let router = Router::builder().page(not_found).build();
 ```

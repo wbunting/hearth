@@ -1,6 +1,6 @@
 ---
 name: macro
-description: Always use this skill before writing procedural macros for Topcoat
+description: Always use this skill before writing procedural macros for Hearth
 ---
 
 ## AST nodes
@@ -49,7 +49,7 @@ impl ToTokens for Procedure { ... }
 #[doc = include_str!("../docs/procedure.md")]
 #[proc_macro_attribute]
 pub fn procedure(attr: TokenStream, item: TokenStream) -> TokenStream {
-    match topcoat_runtime_grammar::procedure::Procedure::parse(attr.into(), item.into()) {
+    match hearth_runtime_grammar::procedure::Procedure::parse(attr.into(), item.into()) {
         Ok(value) => quote! { #value }.into(),
         Err(error) => error.to_compile_error().into(),
     }

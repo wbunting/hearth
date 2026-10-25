@@ -5,5 +5,5 @@ A page view counter shared across requests through app context.
 Run it with:
 
 ```sh
-cargo topcoat dev -p app-context
+cargo hearth dev -p app-context
 ```

@@ -5,15 +5,14 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-use hearth::Table;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use toasty::Db;
-use topcoat::{
-    Result,
+use hearth::{
+    Result, Table,
     context::{Cx, app_context},
     router::{Body, Router, to_bytes},
 };
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use toasty::Db;
 
 #[derive(Debug, Clone, toasty::Model)]
 struct Note {

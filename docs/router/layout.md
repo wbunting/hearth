@@ -15,7 +15,7 @@ Render `slot` where the inner content should appear. Wrap it in an [`error_bound
 Module-derived path (in `src/app/settings.rs` under `module_router!()`, this wraps every page under `/settings`):
 
 ```rust
-# use topcoat::{Result, router::{Slot, layout}, view::{View, view}};
+# use hearth::{Result, router::{Slot, layout}, view::{View, view}};
 #[layout]
 async fn settings_layout(slot: Slot<'_>) -> Result<impl View> {
     Ok(view! {
@@ -30,9 +30,9 @@ async fn settings_layout(slot: Slot<'_>) -> Result<impl View> {
 Explicit path:
 
 ```rust
-use topcoat::{Result, router::{Slot, href, layout}, view::{View, view}};
-# #[topcoat::router::page("/")]
-# async fn home() -> Result<impl View> { Ok(topcoat::view::view! { "Home" }) }
+use hearth::{Result, router::{Slot, href, layout}, view::{View, view}};
+# #[hearth::router::page("/")]
+# async fn home() -> Result<impl View> { Ok(hearth::view::view! { "Home" }) }
 
 #[layout("/")]
 async fn root_layout(slot: Slot<'_>) -> Result<impl View> {
@@ -51,7 +51,7 @@ async fn root_layout(slot: Slot<'_>) -> Result<impl View> {
 Path below the module (in `src/app/settings.rs` under `module_router!()`, this wraps every page under `/settings/admin`):
 
 ```rust
-# use topcoat::{Result, router::{Slot, layout}, view::{View, view}};
+# use hearth::{Result, router::{Slot, layout}, view::{View, view}};
 #[layout("./admin")]
 async fn admin_layout(slot: Slot<'_>) -> Result<impl View> {
     Ok(view! {
@@ -68,7 +68,7 @@ async fn admin_layout(slot: Slot<'_>) -> Result<impl View> {
 When several layouts match a page, they nest from least specific (outermost) to most specific (innermost):
 
 ```rust
-# use topcoat::{Result, router::{Slot, layout, page}, view::{View, view}};
+# use hearth::{Result, router::{Slot, layout, page}, view::{View, view}};
 #[layout]
 async fn root_layout(slot: Slot<'_>) -> Result<impl View> {
     Ok(view! { <html><body>(slot)</body></html> })
@@ -106,7 +106,7 @@ A request to `/settings/profile` renders `root_layout` > `settings_layout` > `pr
 A layout doubles as a [component](../view/attr.component.html), taking a [`Slot`](type.Slot.html) as its `slot` property:
 
 ```rust
-# use topcoat::{Result, router::{Slot, layout, page}, view::{View, view}};
+# use hearth::{Result, router::{Slot, layout, page}, view::{View, view}};
 # #[layout]
 # async fn root_layout(slot: Slot<'_>) -> Result<impl View> {
 #     Ok(view! { <body>(slot)</body> })

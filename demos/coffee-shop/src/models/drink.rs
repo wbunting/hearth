@@ -1,4 +1,4 @@
-use topcoat::context::{Cx, memoize};
+use hearth::context::{Cx, memoize};
 
 use super::db;
 
@@ -28,7 +28,7 @@ pub enum Roast {
 /// `#[memoize]` caches the result for the duration of a request, so views can
 /// share the ordered menu without issuing duplicate Toasty queries.
 #[memoize(as_ref)]
-async fn query_drinks(cx: &Cx) -> topcoat::Result<Vec<Drink>> {
+async fn query_drinks(cx: &Cx) -> hearth::Result<Vec<Drink>> {
     let result = Drink::all()
         .order_by(Drink::fields().menu_order().asc())
         .exec(&mut db(cx))
@@ -36,7 +36,7 @@ async fn query_drinks(cx: &Cx) -> topcoat::Result<Vec<Drink>> {
     Ok(result)
 }
 
-pub async fn drinks(cx: &Cx) -> topcoat::Result<&Vec<Drink>> {
+pub async fn drinks(cx: &Cx) -> hearth::Result<&Vec<Drink>> {
     query_drinks(cx)
         .await
         .map_err(|error| std::io::Error::other(error.to_string()).into())

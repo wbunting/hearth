@@ -1,8 +1,8 @@
 //! Demo login: pick a seeded user. Real auth (OAuth) is out of scope; the
-//! point is that a real Topcoat session gates every data endpoint.
+//! point is that a real Hearth session gates every data endpoint.
 
 use serde::Deserialize;
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{

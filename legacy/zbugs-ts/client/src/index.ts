@@ -1,4 +1,4 @@
-// hearth browser entry. Loaded as a module after Topcoat's runtime.
+// hearth browser entry. Loaded as a module after Hearth's runtime.
 import { mountApp } from "./apps/issues";
 import { AuthError, createStore } from "./runtime";
 import type { Boot } from "./schema";

@@ -3,11 +3,11 @@ Declares a [`Mail`] as a list of `name: value` fields.
 Fields correspond to [`MailBuilder`] methods. The macro also accepts convenient forms such as address strings and inline [`view!`] markup. It returns `Result<Mail>`, so invalid field values return an error:
 
 ```rust
-# use topcoat::{Result, context::Cx};
-# use topcoat::mail::mail;
+# use hearth::{Result, context::Cx};
+# use hearth::mail::mail;
 # async fn example(cx: &Cx) -> Result<()> {
 let mail = mail! {
-    from: ("Topcoat", "welcome@example.com"),
+    from: ("Hearth", "welcome@example.com"),
     to: "ada@example.com",
     subject: "Welcome, Ada!",
     html: {
@@ -41,8 +41,8 @@ Fields may appear in any order. Repeating a field is a compile error.
 `from` takes one address. Recipient fields take one address or a collection. Use a [`Mailbox`], a string such as `ada@example.com` or `Ada Lovelace <ada@example.com>`, or a `(name, address)` pair. See [`TryIntoMailboxes`] for supported collections.
 
 ```rust
-# use topcoat::Result;
-# use topcoat::mail::{Mailbox, mail};
+# use hearth::Result;
+# use hearth::mail::{Mailbox, mail};
 # async fn example() -> Result<()> {
 let mail = mail! {
     from: "Grace Hopper <grace@example.com>",
@@ -59,8 +59,8 @@ let mail = mail! {
 A braced `html` value uses [`view!`] syntax. Add a leading `cx =>` when the view needs the request context:
 
 ```rust
-# use topcoat::{Result, context::Cx};
-# use topcoat::mail::{Mail, mail};
+# use hearth::{Result, context::Cx};
+# use hearth::mail::{Mail, mail};
 async fn welcome(cx: &Cx, name: &str) -> Result<Mail> {
     mail! {
         to: "ada@example.com",
@@ -81,11 +81,11 @@ Pass an unbraced [`View`] expression to use an existing view.
 
 # The Plain-Text Body
 
-By default, Topcoat derives plain text from the HTML body. Set `text` to supply your own wording, or use [`TextBody::None`] to send only HTML:
+By default, Hearth derives plain text from the HTML body. Set `text` to supply your own wording, or use [`TextBody::None`] to send only HTML:
 
 ```rust
-# use topcoat::{Result, context::Cx};
-# use topcoat::mail::{TextBody, mail};
+# use hearth::{Result, context::Cx};
+# use hearth::mail::{TextBody, mail};
 # async fn example(cx: &Cx) -> Result<()> {
 let derived = mail! { html: { cx => <p>"Hi"</p> } }?;
 let declared = mail! { text: "Hi there" }?;
@@ -103,8 +103,8 @@ assert_eq!(html_alone.text(), &TextBody::None);
 `attachments` accepts one [`Attachment`] or a collection. Use an [inline attachment](struct.Attachment.html#method.inline) for content referenced by a `cid:` URL in the HTML. The `headers` field accepts custom `(name, value)` pairs:
 
 ```rust
-# use topcoat::{Result, context::Cx};
-# use topcoat::mail::{Attachment, mail};
+# use hearth::{Result, context::Cx};
+# use hearth::mail::{Attachment, mail};
 # async fn example(cx: &Cx) -> Result<()> {
 let mail = mail! {
     subject: "Your invoice",
@@ -128,8 +128,8 @@ let mail = mail! {
 Use the macro in an async context. Field expressions can use `.await` and `?`, and their errors become the macro's result:
 
 ```rust
-# use topcoat::Result;
-# use topcoat::mail::{Mail, Mailbox, mail};
+# use hearth::Result;
+# use hearth::mail::{Mail, Mailbox, mail};
 # async fn subscribers() -> Result<Vec<Mailbox>> { Ok(Vec::new()) }
 # async fn example() -> Result<Mail> {
 mail! {

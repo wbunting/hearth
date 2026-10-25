@@ -1,4 +1,4 @@
-use topcoat::{
+use hearth::{
     Result,
     router::{Router, Slot, href, layout, page, route},
     view::{View, view},
@@ -8,7 +8,7 @@ use topcoat::{
 
 #[tokio::main]
 async fn main() {
-    topcoat::start(router()).await.unwrap();
+    hearth::start(router()).await.unwrap();
 }
 
 // --- Router -----------------------------------------------------------------
@@ -33,7 +33,7 @@ fn router() -> Router {
 async fn root_layout(slot: Slot<'_>) -> Result<impl View> {
     Ok(view! {
         <html>
-            <head>topcoat::dev::script()</head>
+            <head>hearth::dev::script()</head>
             <body>
                 <nav>
                     // A page as an href target resolves to the path it is

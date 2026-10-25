@@ -5,5 +5,5 @@ Typed values read from URL paths and query strings, with errors for values that 
 Run it with:
 
 ```sh
-cargo topcoat dev -p path-query-params
+cargo hearth dev -p path-query-params
 ```

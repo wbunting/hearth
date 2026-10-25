@@ -1,0 +1,19 @@
+[package]
+name = "hearth-site"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+hearth = { workspace = true, features = ["fs"] }
+toasty = { workspace = true, features = ["sqlite"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+uuid = { workspace = true, features = ["v4"] }
+
+[dev-dependencies]
+http.workspace = true
+
+[lints]
+workspace = true

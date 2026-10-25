@@ -1,4 +1,4 @@
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     mail::{Attachment, mail, send},
@@ -14,7 +14,7 @@ use crate::{FERRIS, GETTING_STARTED, Recipient};
 #[route(POST)]
 pub(crate) async fn send_welcome(cx: &Cx, Form(recipient): Form<Recipient>) -> Result<SeeOther> {
     let mail = mail! {
-        from: ("Topcoat", "welcome@example.com"),
+        from: ("Hearth", "welcome@example.com"),
 
         // Recipient fields accept a mailbox, an address, or a
         // `(name, address)` pair.

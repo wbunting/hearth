@@ -1,10 +1,10 @@
-Topcoat reads and writes cookies through a jar shared by the request. Register `.cookies()` on the router, then call `cookies(cx)` to read cookies or queue changes. When the handler returns, Topcoat adds the changes to the response as `Set-Cookie` headers. This also works when the handler returns an error or redirect.
+Hearth reads and writes cookies through a jar shared by the request. Register `.cookies()` on the router, then call `cookies(cx)` to read cookies or queue changes. When the handler returns, Hearth adds the changes to the response as `Set-Cookie` headers. This also works when the handler returns an error or redirect.
 
-Cookies are part of the default feature set, and everything below is re-exported from `topcoat::cookie`. Topcoat builds on the `cookie` crate: a cookie is a [`Cookie`], and signing and encryption use its [`Key`].
+Cookies are part of the default feature set, and everything below is re-exported from `hearth::cookie`. Hearth builds on the `cookie` crate: a cookie is a [`Cookie`], and signing and encryption use its [`Key`].
 
 ```rust,standalone_crate
-use topcoat::router::module_router;
-use topcoat::{
+use hearth::router::module_router;
+use hearth::{
     cookie::RouterBuilderCookieExt,
     router::Router,
 };
@@ -22,7 +22,7 @@ A cookie is a [`Cookie`] from the `cookie` crate. Build a bare one with `Cookie:
 
 ```rust
 // src/app/api/theme.rs
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     cookie::{Cookie, Cookies, cookies},
@@ -49,8 +49,8 @@ async fn toggle_theme(cx: &Cx) -> Result<String> {
 - `remove(cookie)` queues an expiring removal cookie. Pass the same `Path`/`Domain` the cookie was set with so the browser matches and clears it:
 
 ```rust
-# use topcoat::cookie::{Cookie, Cookies, cookies};
-# fn _example(cx: &topcoat::context::Cx) {
+# use hearth::cookie::{Cookie, Cookies, cookies};
+# fn _example(cx: &hearth::context::Cx) {
 # let jar = cookies(cx);
 jar.remove(Cookie::build(("session", "")).path("/").build());
 # }
@@ -59,8 +59,8 @@ jar.remove(Cookie::build(("session", "")).path("/").build());
 `add` and `remove` accept anything that implements `Into<Cookie>`, so a plain `(name, value)` tuple works too when you don't need attributes:
 
 ```rust
-# use topcoat::cookie::{Cookies, cookies};
-# fn _example(cx: &topcoat::context::Cx) {
+# use hearth::cookie::{Cookies, cookies};
+# fn _example(cx: &hearth::context::Cx) {
 # let jar = cookies(cx);
 jar.add(("theme", "dark"));
 # }
@@ -72,14 +72,14 @@ Set cookies before the handler returns. Later work, such as a streaming response
 
 ```rust
 // src/app/report.rs
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     cookie::{Cookies, cookies},
     router::page,
     view::{View, suspense, view},
 };
-# use topcoat::view::component;
+# use hearth::view::component;
 # #[component]
 # async fn figures() -> Result<impl View> { Ok(view! { <p>"42"</p> }) }
 
@@ -103,7 +103,7 @@ async fn report(cx: &Cx) -> Result<impl View> {
 For cookies with several attributes, the [`cookie!`] macro is more compact than the builder. It mirrors the [`Set-Cookie`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Set-Cookie) header: the `name = value` pair first, then any number of `;`-separated attributes.
 
 ```rust
-use topcoat::cookie::{Cookie, SameSite, cookie, time::Duration};
+use hearth::cookie::{Cookie, SameSite, cookie, time::Duration};
 
 let plain: Cookie = cookie!("theme" = "dark");
 
@@ -125,8 +125,8 @@ Use the [`Cookies`] methods to apply shared attributes to cookies written throug
 - `override_*` forces the attribute, replacing any value the cookie had.
 
 ```rust
-# fn _example(cx: &topcoat::context::Cx) {
-use topcoat::cookie::{Cookies, SameSite, cookie, cookies};
+# fn _example(cx: &hearth::context::Cx) {
+use hearth::cookie::{Cookies, SameSite, cookie, cookies};
 
 let jar = cookies(cx)
     .default_secure(true)
@@ -144,14 +144,14 @@ Build the configured jar once and reuse it for several writes. See [`Cookies`] f
 Put the configuration in an application helper so callers use consistent defaults:
 
 ```rust
-use topcoat::{
+use hearth::{
     context::Cx,
     cookie::{Cookies, SameSite},
 };
 
 /// The application cookie jar, with our security defaults applied.
 fn cookies(cx: &Cx) -> impl Cookies {
-    topcoat::cookie::cookies(cx)
+    hearth::cookie::cookies(cx)
         .default_secure(true)
         .default_http_only(true)
         .default_same_site(SameSite::Lax)
@@ -164,22 +164,22 @@ Callers use this helper whenever they need the configured jar. A helper can also
 Use [`map`](Cookies::map) to apply a custom change to each cookie:
 
 ```rust
-# use topcoat::cookie::{Cookies, cookies};
-# fn _example(cx: &topcoat::context::Cx) {
+# use hearth::cookie::{Cookies, cookies};
+# fn _example(cx: &hearth::context::Cx) {
 let jar = cookies(cx).map(|cookie| cookie.set_partitioned(true));
 # }
 ```
 
 # Name prefixes
 
-[RFC 6265bis] cookie name prefixes ask the browser to enforce extra constraints based on the cookie's name. Topcoat applies the prefix *and* its required attributes for you, and strips the prefix back off on read so your code keeps using the bare name.
+[RFC 6265bis] cookie name prefixes ask the browser to enforce extra constraints based on the cookie's name. Hearth applies the prefix *and* its required attributes for you, and strips the prefix back off on read so your code keeps using the bare name.
 
 - `prefix_host` (`__Host-`): the cookie must be `Secure`, have `Path=/`, and carry no `Domain`. The tightest scoping: bound to the exact host, unavailable to subdomains.
 - `prefix_secure` (`__Secure-`): the cookie must be `Secure`.
 
 ```rust
-# fn _example(cx: &topcoat::context::Cx) {
-use topcoat::cookie::{Cookies, cookie, cookies};
+# fn _example(cx: &hearth::context::Cx) {
+use hearth::cookie::{Cookies, cookie, cookies};
 
 let jar = cookies(cx).override_prefix_host();
 
@@ -200,8 +200,8 @@ As with attributes, each prefix has a `default_*` form that fills the required a
 A signed cookie lets the server detect changes to its value. The client can still read it. Wrap the jar with a [`Key`] to sign writes and verify reads. A missing cookie or invalid signature returns `None`.
 
 ```rust
-# fn _example(cx: &topcoat::context::Cx) {
-use topcoat::cookie::{Cookies, Key, cookie, cookies};
+# fn _example(cx: &hearth::context::Cx) {
+use hearth::cookie::{Cookies, Key, cookie, cookies};
 
 let key = Key::generate();
 let jar = cookies(cx).signed(&key);
@@ -218,8 +218,8 @@ let user_id = jar.get("user_id");
 A private cookie encrypts and authenticates its value. The client cannot read the plaintext or change it without detection. Read and write it with the same name, key, and jar configuration.
 
 ```rust
-# fn _example(cx: &topcoat::context::Cx) {
-use topcoat::cookie::{Cookies, Key, cookie, cookies};
+# fn _example(cx: &hearth::context::Cx) {
+use hearth::cookie::{Cookies, Key, cookie, cookies};
 
 let key = Key::generate();
 let jar = cookies(cx).private(&key);
@@ -237,7 +237,7 @@ Signed and private jars can be combined with prefixes and attribute defaults.
 Share a [`Key`] across requests by registering it as [app context](crate::context::app_context):
 
 ```rust,standalone_crate
-use topcoat::{
+use hearth::{
     cookie::{Key, RouterBuilderCookieExt},
     router::{Router, RouterBuilderDiscoverExt, module_router},
 };
@@ -255,7 +255,7 @@ Then `signed_cookies(cx)` and `private_cookies(cx)` use the registered key:
 
 ```rust
 // src/app/api/login.rs
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     cookie::{Cookies, cookie, private_cookies},
@@ -280,7 +280,7 @@ Create a store with [`cookie_store`] and the jar it should use. The store inheri
 ```rust
 // src/app/api/cart.rs
 use serde::{Deserialize, Serialize};
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     cookie::{cookie_store, private_cookies},
@@ -324,9 +324,9 @@ Once parsed, you hold a [`CookieStore<T>`](CookieStore) whose value is known, so
 Reads and mutations touch only the in-memory value. **No `Set-Cookie` is queued until you call [`commit`](CookieStore::commit)**, which serializes the value, writes it through the jar, and hands the value back:
 
 ```rust
-# use topcoat::cookie::{cookie_store, private_cookies};
+# use hearth::cookie::{cookie_store, private_cookies};
 # #[derive(Default, serde::Serialize, serde::Deserialize)] struct Cart { items: Vec<String> }
-# fn _example(cx: &topcoat::context::Cx) -> topcoat::Result<()> {
+# fn _example(cx: &hearth::context::Cx) -> hearth::Result<()> {
 let cart = cookie_store::<Cart, _>(private_cookies(cx), "cart")
     .parse_or_default()
     .update(|cart| cart.items.push("widget".to_owned()))
@@ -341,9 +341,9 @@ Dropping the store without committing (or calling [`rollback`](CookieStore::roll
 To overwrite a cookie without reading its current contents, [`set`](UnparsedCookieStore::set) on the unparsed store skips the parse step entirely:
 
 ```rust
-# use topcoat::cookie::{cookie_store, private_cookies};
+# use hearth::cookie::{cookie_store, private_cookies};
 # #[derive(Default, serde::Serialize, serde::Deserialize)] struct Cart { items: Vec<String> }
-# fn _example(cx: &topcoat::context::Cx) -> topcoat::Result<()> {
+# fn _example(cx: &hearth::context::Cx) -> hearth::Result<()> {
 cookie_store::<Cart, _>(private_cookies(cx), "cart")
     .set(Cart::default())
     .commit()?;
@@ -354,9 +354,9 @@ cookie_store::<Cart, _>(private_cookies(cx), "cart")
 To delete a cookie, `remove` queues an expiring removal. It's available both on a parsed store ([`CookieStore::remove`]) and directly on the unparsed one ([`UnparsedCookieStore::remove`]) when you just want to clear the cookie without reading it, for example on logout:
 
 ```rust
-# use topcoat::cookie::{cookie_store, private_cookies};
+# use hearth::cookie::{cookie_store, private_cookies};
 # #[derive(Default, serde::Serialize, serde::Deserialize)] struct Cart { items: Vec<String> }
-# fn _example(cx: &topcoat::context::Cx) {
+# fn _example(cx: &hearth::context::Cx) {
 cookie_store::<Cart, _>(private_cookies(cx), "cart").remove();
 # }
 ```
@@ -369,7 +369,7 @@ As with the jar combinators, the idiomatic pattern is to wrap each store in a sm
 
 ```rust
 # #[derive(Default, serde::Serialize, serde::Deserialize)] struct Cart { items: Vec<String> }
-use topcoat::{
+use hearth::{
     context::Cx,
     cookie::{CookieStore, Cookies, cookie_store, signed_cookies},
 };

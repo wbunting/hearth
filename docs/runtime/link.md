@@ -3,7 +3,7 @@ A link that opens a page without reloading the whole document. The server render
 Use `link` inside a view, with [`href!`] pointing to a page in your app:
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     router::{href, page},
     runtime::link,
@@ -28,7 +28,7 @@ mod about {
 # fn main() {}
 ```
 
-With module routing, this links to `/about`. Enable `.runtime()` on the router, load the asset bundle, and include `topcoat::runtime::script()` in the document head. See the [runtime setup guide] for the full setup.
+With module routing, this links to `/about`. Enable `.runtime()` on the router, load the asset bundle, and include `hearth::runtime::script()` in the document head. See the [runtime setup guide] for the full setup.
 
 The component renders an ordinary `<a>`, so the link also works without JavaScript. Use a plain `<a href=(href!(about::page))>` when you want a normal page load.
 
@@ -39,17 +39,17 @@ By default, a link starts loading its destination after a brief hover, on focus,
 Set `prefetch` on a link to choose when its destination loads:
 
 ```rust
-use topcoat::{
+use hearth::{
     router::href,
     runtime::{PrefetchMode, link},
     view::view,
 };
-# #[topcoat::router::page("/products")]
-# async fn products() -> topcoat::Result<impl topcoat::view::View> { Ok(view! { "Products" }) }
-# #[topcoat::router::page("/reports")]
-# async fn reports() -> topcoat::Result<impl topcoat::view::View> { Ok(view! { "Reports" }) }
-# #[topcoat::view::component]
-# async fn example() -> topcoat::Result<impl topcoat::view::View> {
+# #[hearth::router::page("/products")]
+# async fn products() -> hearth::Result<impl hearth::view::View> { Ok(view! { "Products" }) }
+# #[hearth::router::page("/reports")]
+# async fn reports() -> hearth::Result<impl hearth::view::View> { Ok(view! { "Reports" }) }
+# #[hearth::view::component]
+# async fn example() -> hearth::Result<impl hearth::view::View> {
 Ok(view! {
     link(href: href!(products), prefetch: PrefetchMode::Viewport, "Products")
     link(href: href!(reports), prefetch: PrefetchMode::Never, "Reports")
@@ -64,7 +64,7 @@ Prefetching renders the destination on the server even if the user never opens i
 Set the default for the app with [`RouterBuilderRuntimeExt::prefetch`](crate::RouterBuilderRuntimeExt::prefetch):
 
 ```rust
-use topcoat::{
+use hearth::{
     router::Router,
     runtime::{PrefetchMode, RouterBuilderRuntimeExt},
 };
@@ -78,14 +78,14 @@ let router = Router::builder()
 To choose a default for part of a page, add a `PrefetchMode` to its context:
 
 ```rust
-use topcoat::{
+use hearth::{
     context::Cx,
     router::href,
     runtime::{PrefetchMode, link},
     view::{View, view},
 };
-# #[topcoat::router::page("/reports")]
-# async fn reports() -> topcoat::Result<impl View> { Ok(view! { "Reports" }) }
+# #[hearth::router::page("/reports")]
+# async fn reports() -> hearth::Result<impl View> { Ok(view! { "Reports" }) }
 
 fn reports_nav(cx: &Cx) -> impl View {
     let cx = cx.with(PrefetchMode::Never);
@@ -102,11 +102,11 @@ A link's `prefetch` argument takes precedence over the request context, then the
 Pass `attrs` to add classes and other HTML attributes:
 
 ```rust
-# use topcoat::{router::href, runtime::link, view::{attributes, view}};
-# #[topcoat::router::page("/products")]
-# async fn products() -> topcoat::Result<impl topcoat::view::View> { Ok(view! { "Products" }) }
-# #[topcoat::view::component]
-# async fn example() -> topcoat::Result<impl topcoat::view::View> {
+# use hearth::{router::href, runtime::link, view::{attributes, view}};
+# #[hearth::router::page("/products")]
+# async fn products() -> hearth::Result<impl hearth::view::View> { Ok(view! { "Products" }) }
+# #[hearth::view::component]
+# async fn example() -> hearth::Result<impl hearth::view::View> {
 Ok(view! {
     link(
         href: href!(products),
@@ -122,14 +122,14 @@ The `href` and `prefetch` arguments override matching attributes in `attrs`. The
 For your own `<a>` markup, use [`link_attrs`] to create the destination and navigation attributes, then spread them onto the anchor:
 
 ```rust
-use topcoat::{
+use hearth::{
     context::Cx,
     router::href,
     runtime::{link_attrs, prefetch_mode},
     view::{View, view},
 };
-# #[topcoat::router::page("/products")]
-# async fn products() -> topcoat::Result<impl View> { Ok(view! { "Products" }) }
+# #[hearth::router::page("/products")]
+# async fn products() -> hearth::Result<impl View> { Ok(view! { "Products" }) }
 
 fn products_link(cx: &Cx) -> impl View {
     let attrs = link_attrs(cx, href!(products), prefetch_mode(cx));
@@ -150,5 +150,5 @@ Navigation updates the address bar and browser history. New pages scroll to the 
 
 Modifier clicks, downloads, external links, and links targeting another window or frame also retain their normal browser behavior. If a destination needs scripts that have not been loaded, or its response cannot be used for runtime navigation, the browser loads the page normally.
 
-[`href!`]: https://docs.rs/topcoat/latest/topcoat/router/macro.href.html
-[runtime setup guide]: https://docs.rs/topcoat/latest/topcoat/runtime/index.html#setup
+[`href!`]: https://docs.rs/hearth/latest/hearth/router/macro.href.html
+[runtime setup guide]: https://docs.rs/hearth/latest/hearth/runtime/index.html#setup

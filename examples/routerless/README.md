@@ -1,6 +1,6 @@
 # Routerless
 
-Render components and views to HTML strings without starting a server. The Topcoat dependency disables default features and enables only `view`.
+Render components and views to HTML strings without starting a server. The Hearth dependency disables default features and enables only `view`.
 
 Run it with:
 

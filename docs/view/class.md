@@ -1,13 +1,13 @@
-The [`class!`] macro builds a [`topcoat::view::Class`] value by joining HTML class names with spaces.
+The [`class!`] macro builds a [`hearth::view::Class`] value by joining HTML class names with spaces.
 
 Use it to combine base classes, variants, optional classes, conditional classes, and forwarded classes. It handles the spaces between entries, so callers do not need to format or concatenate a class list. Keep a fixed class list as an ordinary `class="btn btn-lg"` attribute.
 
 Pass the result directly as the value of a `class` attribute:
 
 ```rust
-# #[topcoat::view::component]
-# async fn example() -> topcoat::Result<impl topcoat::view::View> {
-use topcoat::view::{View, class, view};
+# #[hearth::view::component]
+# async fn example() -> hearth::Result<impl hearth::view::View> {
+use hearth::view::{View, class, view};
 
 let is_active = true;
 
@@ -26,9 +26,9 @@ The body is a comma-separated list of entries. Each entry is a Rust expression, 
 - `expr if cond else alt` includes `expr` when `cond` is true and `alt` otherwise.
 
 ```rust
-# #[topcoat::view::component]
-# async fn example() -> topcoat::Result<impl topcoat::view::View> {
-use topcoat::view::{View, class, view};
+# #[hearth::view::component]
+# async fn example() -> hearth::Result<impl hearth::view::View> {
+use hearth::view::{View, class, view};
 
 let variant: Option<&str> = Some("primary");
 let sizes = vec!["px-4".to_owned(), "py-2".to_owned()];
@@ -52,9 +52,9 @@ Entries must implement [`ClassViewParts`]. This includes strings, optional value
 Absent entries contribute no text or separator. This includes `None`, empty strings, and entries with a false condition. When every entry is absent, the element omits the `class` attribute:
 
 ```rust
-# #[topcoat::view::component]
-# async fn example() -> topcoat::Result<impl topcoat::view::View> {
-use topcoat::view::{View, class, view};
+# #[hearth::view::component]
+# async fn example() -> hearth::Result<impl hearth::view::View> {
+use hearth::view::{View, class, view};
 
 let variant: Option<&str> = None;
 
@@ -70,7 +70,7 @@ Ok(view! {
 When a component accepts an attribute collection, remove its `class` entry and combine it with the component's classes. Forward the remaining attributes separately:
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     view::{Attributes, Child, View, class, component, view},
 };
@@ -90,7 +90,7 @@ async fn panel(#[default] mut attrs: Attributes, #[default] child: Child<'_>) ->
 Use [`StaticClass`] to store a literal class list in a constant:
 
 ```rust
-use topcoat::view::{StaticClass, class};
+use hearth::view::{StaticClass, class};
 
 const BUTTON: StaticClass = class!("btn btn-lg rounded");
 ```
@@ -103,4 +103,4 @@ A class list's type depends on its entries. Use a `let` binding to let Rust infe
 [`ClassViewParts`]: trait.ClassViewParts.html
 [`AttributeValue`]: enum.AttributeValue.html
 [`class!`]: macro.class.html
-[`topcoat::view::Class`]: struct.Class.html
+[`hearth::view::Class`]: struct.Class.html

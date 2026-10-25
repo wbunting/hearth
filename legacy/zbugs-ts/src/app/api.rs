@@ -1,7 +1,7 @@
 //! P0 collection endpoints. In P1 these become generated procedures; the
 //! shape (full scoped table, scope fingerprint header) stays.
 
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{content::Json, route},
@@ -79,12 +79,12 @@ async fn delete_emoji(cx: &Cx, Json(input): Json<IdInput>) -> Result<Json<()>> {
     Ok(Json(data::delete_emoji(cx, input).await?))
 }
 
-topcoat::router::path_param!(issue_id);
+hearth::router::path_param!(issue_id);
 
 /// Detail-only text, fetched on demand (kept out of the list payload).
 #[route(GET "/api/issues/{issue_id}/description")]
 async fn description(cx: &Cx) -> Result<String> {
-    use topcoat::router::{error::RouterErrorExt, path_param};
+    use hearth::router::{error::RouterErrorExt, path_param};
     let id = path_param::<IssueId>(cx);
     Ok(data::issue_detail(cx, id).await?.ok_or_not_found()?.1)
 }

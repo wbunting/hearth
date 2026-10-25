@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::page,

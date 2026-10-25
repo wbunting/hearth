@@ -1,13 +1,13 @@
 [Alpine AJAX](https://alpine-ajax.js.org) updates parts of a page with HTML from the server. Add `x-target` to a form or link to select which elements the response replaces.
 
-Topcoat reads Alpine AJAX's request headers so handlers can return the requested fragments. Configure browser behavior through Alpine AJAX's markup and events.
+Hearth reads Alpine AJAX's request headers so handlers can return the requested fragments. Configure browser behavior through Alpine AJAX's markup and events.
 
-Everything below is re-exported from `topcoat::alpine_ajax` and gated behind the `alpine-ajax` feature.
+Everything below is re-exported from `hearth::alpine_ajax` and gated behind the `alpine-ajax` feature.
 
 ```toml
 # Cargo.toml
 [dependencies]
-topcoat = { version = "0.10.0", features = ["alpine-ajax"] }
+hearth = { version = "0.1.0", features = ["alpine-ajax"] }
 ```
 
 # Loading the Alpine AJAX script
@@ -15,7 +15,7 @@ topcoat = { version = "0.10.0", features = ["alpine-ajax"] }
 Load the Alpine AJAX plugin before Alpine.js. Give both scripts `defer` so they initialize after the document is parsed:
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     router::{Slot, layout},
     view::{View, view},
@@ -41,7 +41,7 @@ async fn root(slot: Slot<'_>) -> Result<impl View> {
 Use [`ajax_request`] to return a fragment for Alpine AJAX and a complete page for normal navigation:
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     alpine_ajax::ajax_request,
     context::Cx,
@@ -103,7 +103,7 @@ Return `422` with the form and an error message when validation fails. The `.422
 
 ```rust
 // src/app/comments.rs
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{StatusCode, response::{IntoResponse, Response}, route},
@@ -141,4 +141,4 @@ async fn create_comment(cx: &Cx /* , Form(input): Form<NewComment> */) -> Result
 
 # Header constants
 
-The raw `X-Alpine-*` header names are available as `HeaderName` constants in [`topcoat::alpine_ajax::header`](crate::alpine_ajax::header), for when you want to read a header directly.
+The raw `X-Alpine-*` header names are available as `HeaderName` constants in [`hearth::alpine_ajax::header`](crate::alpine_ajax::header), for when you want to read a header directly.

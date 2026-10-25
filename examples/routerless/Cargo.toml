@@ -7,7 +7,7 @@ publish = false
 [dependencies]
 tokio = { workspace = true, features = ["rt", "macros"] }
 # We cannot use `workspace = true` with `default-features = false`.
-topcoat = { path = "../../crates/topcoat", default-features = false, features = ["view"] }
+hearth = { path = "../../crates/hearth", default-features = false, features = ["view"] }
 
 [lints]
 workspace = true

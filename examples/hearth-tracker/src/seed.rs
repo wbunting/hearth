@@ -108,21 +108,42 @@ pub async fn seed(db: &mut Db, synthetic: usize) -> toasty::Result<()> {
     let user_ids: Vec<String> = users.iter().map(|u| u.id.clone()).collect();
     let n_users = insert_all!(db, User, users, |c, r| {
         let c = c.id(r.id).login(r.login).role(r.role);
-        let c = match r.name { Some(v) => c.name(v), None => c };
-        match r.avatar { Some(v) => c.avatar(v), None => c }
+        let c = match r.name {
+            Some(v) => c.name(v),
+            None => c,
+        };
+        match r.avatar {
+            Some(v) => c.avatar(v),
+            None => c,
+        }
     });
 
     let labels: Vec<Label> = read::<LabelRow>("label.csv")
         .into_iter()
-        .map(|l| Label { id: l.id, name: l.name, project_id: l.project_id })
+        .map(|l| Label {
+            id: l.id,
+            name: l.name,
+            project_id: l.project_id,
+        })
         .collect();
     let project_id = labels
         .first()
         .map(|l| l.project_id.clone())
         .unwrap_or_else(|| "iCNlS2qEpzYWEes1RTf-D".to_owned());
     let label_ids: Vec<String> = labels.iter().map(|l| l.id.clone()).collect();
-    insert_all!(db, Project, vec![Project { id: project_id.clone(), name: "Zero".to_owned() }], |c, r| c.id(r.id).name(r.name));
-    let n_labels = insert_all!(db, Label, labels, |c, r| c.id(r.id).name(r.name).project_id(r.project_id));
+    insert_all!(
+        db,
+        Project,
+        vec![Project {
+            id: project_id.clone(),
+            name: "Zero".to_owned()
+        }],
+        |c, r| c.id(r.id).name(r.name)
+    );
+    let n_labels = insert_all!(db, Label, labels, |c, r| c
+        .id(r.id)
+        .name(r.name)
+        .project_id(r.project_id));
 
     let mut issues: Vec<Issue> = read::<IssueRow>("issue.csv")
         .into_iter()
@@ -144,7 +165,10 @@ pub async fn seed(db: &mut Db, synthetic: usize) -> toasty::Result<()> {
 
     let mut issue_labels: Vec<IssueLabel> = read::<IssueLabelRow>("issueLabel.csv")
         .into_iter()
-        .map(|r| IssueLabel { label_id: r.label_id, issue_id: r.issue_id })
+        .map(|r| IssueLabel {
+            label_id: r.label_id,
+            issue_id: r.issue_id,
+        })
         .collect();
 
     // Synthetic issues are clones of real titles with random people, labels and times.
@@ -164,18 +188,29 @@ pub async fn seed(db: &mut Db, synthetic: usize) -> toasty::Result<()> {
             created,
             project_id: project_id.clone(),
             creator_id: user_ids.choose(&mut rng).unwrap().clone(),
-            assignee_id: rng.random_bool(0.6).then(|| user_ids.choose(&mut rng).unwrap().clone()),
+            assignee_id: rng
+                .random_bool(0.6)
+                .then(|| user_ids.choose(&mut rng).unwrap().clone()),
             description: String::new(),
-            visibility: if rng.random_bool(0.05) { "internal" } else { "public" }.to_owned(),
+            visibility: if rng.random_bool(0.05) {
+                "internal"
+            } else {
+                "public"
+            }
+            .to_owned(),
         });
         let k = rng.random_range(0..3);
         let chosen: Vec<&String> = label_ids.choose_multiple(&mut rng, k).collect();
         for label_id in chosen {
-            issue_labels.push(IssueLabel { label_id: label_id.clone(), issue_id: id.clone() });
+            issue_labels.push(IssueLabel {
+                label_id: label_id.clone(),
+                issue_id: id.clone(),
+            });
         }
     }
 
-    let issue_ids: std::collections::HashSet<String> = issues.iter().map(|i| i.id.clone()).collect();
+    let issue_ids: std::collections::HashSet<String> =
+        issues.iter().map(|i| i.id.clone()).collect();
     let n_issues = insert_all!(db, Issue, issues, |c, r| {
         let c = c
             .id(r.id)
@@ -188,12 +223,17 @@ pub async fn seed(db: &mut Db, synthetic: usize) -> toasty::Result<()> {
             .creator_id(r.creator_id)
             .description(r.description)
             .visibility(r.visibility);
-        match r.assignee_id { Some(v) => c.assignee_id(v), None => c }
+        match r.assignee_id {
+            Some(v) => c.assignee_id(v),
+            None => c,
+        }
     });
     issue_labels.retain(|il| issue_ids.contains(&il.issue_id));
     issue_labels.sort_by(|a, b| (&a.label_id, &a.issue_id).cmp(&(&b.label_id, &b.issue_id)));
     issue_labels.dedup_by(|a, b| a.label_id == b.label_id && a.issue_id == b.issue_id);
-    let n_issue_labels = insert_all!(db, IssueLabel, issue_labels, |c, r| c.label_id(r.label_id).issue_id(r.issue_id));
+    let n_issue_labels = insert_all!(db, IssueLabel, issue_labels, |c, r| c
+        .label_id(r.label_id)
+        .issue_id(r.issue_id));
 
     let comments: Vec<Comment> = read::<CommentRow>("comment.csv")
         .into_iter()

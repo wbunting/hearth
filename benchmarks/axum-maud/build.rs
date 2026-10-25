@@ -5,7 +5,7 @@ fn main() {
 
     // Writes the generated stylesheet to `$OUT_DIR/tailwind.css`; the server
     // embeds it with `include_str!` and serves it at `/tailwind.css`.
-    topcoat_tailwind::BuildConfig::new()
+    hearth_tailwind::BuildConfig::new()
         .input("style/tailwind.css")
         .render()
         .unwrap();

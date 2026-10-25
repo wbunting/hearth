@@ -2,7 +2,7 @@ mod error_boundary;
 mod redirect;
 mod suspense;
 
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{Slot, error::redirect, href, layout, module_router, page},
@@ -11,7 +11,7 @@ use topcoat::{
 
 #[tokio::main]
 async fn main() {
-    topcoat::start(module_router!().build()).await.unwrap();
+    hearth::start(module_router!().build()).await.unwrap();
 }
 
 #[page]
@@ -28,7 +28,7 @@ async fn layout(slot: Slot<'_>) -> Result<impl View> {
                 <title>"Suspense"</title>
 
                 // Reloads the browser when the dev server rebuilds the app.
-                topcoat::dev::script()
+                hearth::dev::script()
             </head>
             <body>
                 <nav>

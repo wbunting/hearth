@@ -1,7 +1,7 @@
 The [`#[component]`][`component`] attribute defines an async function that returns a view. Components accept typed parameters and return [`Result<impl View>`][`Result`].
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     view::{View, class, component, view},
 };
@@ -21,9 +21,9 @@ async fn badge(label: &str, is_success: bool) -> Result<impl View> {
 Call components inside [`view!`] with named arguments:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
-# async fn badge(label: &str, is_success: bool) -> Result<impl View> { Ok(view! { <span class=(topcoat::view::class!("badge", "badge-success" if is_success))>(label)</span> }) }
+# async fn badge(label: &str, is_success: bool) -> Result<impl View> { Ok(view! { <span class=(hearth::view::class!("badge", "badge-success" if is_success))>(label)</span> }) }
 # #[component]
 # async fn example() -> Result<impl View> {
 Ok(view! {
@@ -42,7 +42,7 @@ Ok(view! {
 If a component accepts a parameter named `child` with type [`Child`], any extra view nodes in the call are collected and passed as that child view. Give it `#[default]` so the component can also be called without children.
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     view::{Child, View, component, view},
 };
@@ -60,7 +60,7 @@ async fn panel(title: &str, #[default] child: Child<'_>) -> Result<impl View> {
 }
 
 # #[component]
-# async fn badge(label: &str, is_success: bool) -> Result<impl View> { Ok(view! { <span class=(topcoat::view::class!("badge", "badge-success" if is_success))>(label)</span> }) }
+# async fn badge(label: &str, is_success: bool) -> Result<impl View> { Ok(view! { <span class=(hearth::view::class!("badge", "badge-success" if is_success))>(label)</span> }) }
 # #[component]
 # async fn example() -> Result<impl View> {
 Ok(view! {
@@ -87,7 +87,7 @@ A parameter can have these attributes:
 - `#[into]` accepts any value that converts to the parameter's type through `Into`. The component receives the converted value.
 
 ```rust
-# use topcoat::{Result, view::{View, component, view}};
+# use hearth::{Result, view::{View, component, view}};
 # #[derive(Default)]
 # struct Tone;
 #[component]
@@ -102,7 +102,7 @@ async fn badge(#[into] label: String, #[default] tone: Tone, #[default(80)] max_
 Components can be generic. Depending on usage, you may need to declare the type as `Send` or `Sync`:
 
 ```rust
-# use topcoat::{Result, view::{View, component, view}};
+# use hearth::{Result, view::{View, component, view}};
 #[component]
 async fn count<T: Send + Sync>(items: Vec<T>) -> Result<impl View> {
     Ok(view! { <span>(items.len())</span> })
@@ -112,7 +112,7 @@ async fn count<T: Send + Sync>(items: Vec<T>) -> Result<impl View> {
 `impl Trait` parameters work too:
 
 ```rust
-# use topcoat::{Result, view::{View, component, view}};
+# use hearth::{Result, view::{View, component, view}};
 #[component]
 async fn shout(label: impl Into<String> + Send) -> Result<impl View> {
     Ok(view! { <b>(label.into().to_uppercase())</b> })
@@ -126,7 +126,7 @@ Prefer `#[into]` when the component only needs the converted value.
 Components can ask for the current request context by declaring a `cx` parameter that borrows [`Cx`]:
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::request::uri,
@@ -147,7 +147,7 @@ async fn current_path(cx: &Cx) -> Result<impl View> {
 A recursive component needs to box its view with [`boxed`](trait.ViewExt.html#method.boxed). This gives the view a type with a known size:
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     view::{View, ViewExt, component, view},
 };

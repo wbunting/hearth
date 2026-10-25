@@ -5,8 +5,7 @@ edition.workspace = true
 publish = false
 
 [dependencies]
-hearth.workspace = true
-topcoat = { workspace = true, features = ["tailwind", "fs", "ui"] }
+hearth = { workspace = true, features = ["tailwind", "fs", "ui"] }
 toasty = { workspace = true, features = ["sqlite"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
 serde = { workspace = true, features = ["derive"] }
@@ -16,4 +15,4 @@ rand.workspace = true
 
 [build-dependencies]
 # `default-features = false` can't be combined with `workspace = true`.
-topcoat = { path = "../../crates/topcoat/", default-features = false, features = ["tailwind"] }
+hearth = { path = "../../crates/hearth/", default-features = false, features = ["tailwind"] }

@@ -149,7 +149,7 @@ impl Catalog {
     }
 
     /// One page of the (filtered, sorted) product list; same semantics as the
-    /// other benchmark apps (see `benchmarks/topcoat/src/catalog.rs`).
+    /// other benchmark apps (see `benchmarks/hearth/src/catalog.rs`).
     pub fn page(
         &self,
         page: usize,

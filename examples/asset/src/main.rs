@@ -1,4 +1,4 @@
-use topcoat::{
+use hearth::{
     Result,
     asset::{AssetBundle, RouterBuilderAssetExt, asset},
     router::{module_router, page},
@@ -11,7 +11,7 @@ async fn main() {
         .assets(AssetBundle::load().unwrap())
         .build();
 
-    topcoat::start(router).await.unwrap();
+    hearth::start(router).await.unwrap();
 }
 
 #[page]
@@ -19,7 +19,7 @@ async fn home() -> Result<impl View> {
     Ok(view! {
         <!DOCTYPE html>
         <html>
-            <head>topcoat::dev::script()</head>
+            <head>hearth::dev::script()</head>
             <body>
                 // The path is relative to this source file; the asset renders
                 // as the bundled image's URL.

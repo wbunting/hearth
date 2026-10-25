@@ -1,4 +1,4 @@
-//! Synced tables: a Toasty model exposed to the browser as a TanStack DB
+//! Synced tables: a Toasty model exposed to the browser as a `TanStack` DB
 //! collection. Usually derived with `#[derive(hearth::Table)]`; the app
 //! supplies the read scope and write functions in Rust.
 
@@ -6,9 +6,8 @@ use std::{future::Future, pin::Pin};
 
 use serde::{Serialize, de::DeserializeOwned};
 use serde_json::Value;
-use topcoat::{Result, context::Cx};
 
-use crate::{ir::JsonRow, sql::SqlColumns};
+use crate::{Result, context::Cx, ir::JsonRow, sql::SqlColumns};
 
 pub type BoxFut<'a, T> = Pin<Box<dyn Future<Output = Result<T>> + Send + 'a>>;
 
@@ -21,7 +20,7 @@ pub type BoxFut<'a, T> = Pin<Box<dyn Future<Output = Result<T>> + Send + 'a>>;
 /// ```compile_fail,E0080
 /// use hearth::{Table, live_query};
 /// use serde::{Serialize, Deserialize};
-/// use topcoat::{Result, context::Cx};
+/// use hearth::{Result, context::Cx};
 /// #[derive(toasty::Model)]
 /// struct Model {
 ///     #[key]
@@ -61,6 +60,10 @@ pub trait Table: Send + Sync + Sized + 'static {
     fn indexes() -> Vec<&'static str>;
 
     /// Serializes a row for the browser, excluding server-only fields.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the row cannot be serialized.
     fn to_wire(row: Self::Row) -> serde_json::Result<Value> {
         let mut value = serde_json::to_value(row)?;
         if let Value::Object(fields) = &mut value {
@@ -73,23 +76,31 @@ pub trait Table: Send + Sync + Sized + 'static {
     fn load(cx: &Cx) -> BoxFut<'_, Vec<Self::Row>>;
 
     /// First-view rows for SSR: base-table filter/order/limit pushed to SQL.
-    fn load_first<'a>(cx: &'a Cx, _q: &'a crate::ir::Query, _params: &'a [Value]) -> BoxFut<'a, Vec<Self::Row>> {
+    fn load_first<'a>(
+        cx: &'a Cx,
+        _q: &'a crate::ir::Query,
+        _params: &'a [Value],
+    ) -> BoxFut<'a, Vec<Self::Row>> {
         Self::load(cx)
     }
 
-    fn update<'a>(_cx: &'a Cx, _key: String, _changes: JsonRow) -> BoxFut<'a, Self::Row> {
-        Box::pin(async { Err(topcoat::router::error::forbidden().into()) })
+    fn update(_cx: &Cx, _key: String, _changes: JsonRow) -> BoxFut<'_, Self::Row> {
+        Box::pin(async { Err(crate::router::error::forbidden().into()) })
     }
-    fn insert<'a>(_cx: &'a Cx, _row: JsonRow) -> BoxFut<'a, Self::Row> {
-        Box::pin(async { Err(topcoat::router::error::forbidden().into()) })
+    fn insert(_cx: &Cx, _row: JsonRow) -> BoxFut<'_, Self::Row> {
+        Box::pin(async { Err(crate::router::error::forbidden().into()) })
     }
-    fn delete<'a>(_cx: &'a Cx, _key: String) -> BoxFut<'a, ()> {
-        Box::pin(async { Err(topcoat::router::error::forbidden().into()) })
+    fn delete(_cx: &Cx, _key: String) -> BoxFut<'_, ()> {
+        Box::pin(async { Err(crate::router::error::forbidden().into()) })
     }
 }
 
 /// Runs `scope AND filter ORDER BY order LIMIT limit` on the table's model
 /// and converts rows with `From<Model>`.
+///
+/// # Errors
+///
+/// Returns an error when the database query fails.
 pub async fn run_query<T>(
     cx: &Cx,
     scope: Option<toasty::stmt::Expr<bool>>,
@@ -170,7 +181,10 @@ pub fn describe<T: Table>() -> TableDesc {
     TableDesc {
         name: T::NAME,
         key: T::KEY,
-        columns: T::COLUMNS.iter().map(|(k, v)| ((*k).to_owned(), Value::from(*v))).collect(),
+        columns: T::COLUMNS
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), Value::from(*v)))
+            .collect(),
         indexes: T::indexes(),
         load: format!("/_hearth/{}/load", T::NAME),
         mutate: format!("/_hearth/{}/mutate", T::NAME),
@@ -181,15 +195,19 @@ pub fn describe<T: Table>() -> TableDesc {
 #[must_use]
 pub fn client_schema(scope: String, tables: Vec<TableDesc>) -> ClientSchema {
     let json = serde_json::to_string(&tables).unwrap_or_default();
-    let version = format!(
-        "{:016x}",
-        fnv64(json.as_bytes())
-    );
-    ClientSchema { version, scope, tables, on_unauthorized: OnUnauthorized::default() }
+    let version = format!("{:016x}", fnv64(json.as_bytes()));
+    ClientSchema {
+        version,
+        scope,
+        tables,
+        on_unauthorized: OnUnauthorized::default(),
+    }
 }
 
 pub(crate) fn fnv64(bytes: &[u8]) -> u64 {
-    bytes.iter().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3))
+    bytes.iter().fold(0xcbf2_9ce4_8422_2325_u64, |h, b| {
+        (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3)
+    })
 }
 
 /// Body of `POST /_hearth/{table}/mutate`.
@@ -209,28 +227,40 @@ pub(crate) fn key_string(key: Value) -> String {
 }
 
 /// Dispatches a mutation request; returns the server's row (or null on delete).
+///
+/// # Errors
+///
+/// Returns an error when write authorization, validation or persistence fails.
 pub async fn mutation_route<T: Table>(cx: &Cx, m: Mutation) -> Result<Value> {
     let row = match m {
-        Mutation::Update { key, changes } => T::to_wire(T::update(cx, key_string(key), changes).await?),
+        Mutation::Update { key, changes } => {
+            T::to_wire(T::update(cx, key_string(key), changes).await?)
+        }
         Mutation::Insert { row } => T::to_wire(T::insert(cx, row).await?),
         Mutation::Delete { key } => {
             T::delete(cx, key_string(key)).await?;
             return Ok(Value::Null);
         }
     };
-    row.map_err(|e| topcoat::router::error::internal_server_error(e).into())
+    row.map_err(|e| crate::router::error::internal_server_error(e).into())
 }
 
 /// Guards `routes!` against a name that doesn't match `Table::NAME`.
+///
+/// # Errors
+///
+/// Returns an error when the registered name differs from the table declaration.
 pub fn check_table<T: Table>(route_name: &str) -> Result<()> {
     if route_name == T::NAME {
         Ok(())
     } else {
-        Err(topcoat::router::error::internal_server_error(std::io::Error::other(format!(
-            "hearth::routes!: `{route_name}` does not match table name `{}`",
-            T::NAME
-        )))
-        .into())
+        Err(
+            crate::router::error::internal_server_error(std::io::Error::other(format!(
+                "hearth::routes!: `{route_name}` does not match table name `{}`",
+                T::NAME
+            )))
+            .into(),
+        )
     }
 }
 
@@ -283,4 +313,3 @@ mod tests {
         assert_eq!(boot["schema"]["on_unauthorized"], "error");
     }
 }
-

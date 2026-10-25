@@ -5,7 +5,7 @@ mod shard;
 mod show;
 mod sort;
 
-use topcoat::{
+use hearth::{
     Result,
     asset::{AssetBundle, RouterBuilderAssetExt},
     context::Cx,
@@ -16,7 +16,7 @@ use topcoat::{
 
 #[tokio::main]
 async fn main() {
-    topcoat::start(
+    hearth::start(
         module_router!()
             .assets(AssetBundle::load().unwrap())
             .discover()
@@ -38,10 +38,10 @@ async fn layout(slot: Slot<'_>) -> Result<impl View> {
         <!DOCTYPE html>
         <html>
             <head>
-                topcoat::dev::script()
+                hearth::dev::script()
 
                 // Load the browser runtime to enable the interactive examples.
-                topcoat::runtime::script()
+                hearth::runtime::script()
             </head>
             <body>
                 // These links update the page without a full reload.

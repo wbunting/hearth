@@ -1,13 +1,13 @@
 use std::sync::Mutex;
 
-use tokio::sync::broadcast;
-use topcoat::{
+use hearth::{
     Result,
     context::{Cx, app_context},
     router::page,
     runtime::{Event, connected, procedure, shard, signal},
     view::{View, emit, live, view},
 };
+use tokio::sync::broadcast;
 
 #[page]
 pub async fn page(cx: &Cx) -> Result<impl View> {

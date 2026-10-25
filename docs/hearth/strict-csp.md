@@ -1,6 +1,6 @@
 # Strict CSP
 
-Hearth pages can use `default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'`. They do not need an eval exception, an inline style exception, or a script nonce. Set `HEARTH_STRICT_CSP=1` on the tracker to send this policy and load a small external violation recorder before the runtime. Inspect `window.__cspViolations` after using the page. The runtime records `topcoat:ready` when initial hydration and navigation listeners are installed.
+Hearth pages can use `default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'`. They do not need an eval exception, an inline style exception, or a script nonce. Set `HEARTH_STRICT_CSP=1` on the tracker to send this policy and load a small external violation recorder before the runtime. Inspect `window.__cspViolations` after using the page. The runtime records `hearth:ready` when initial hydration and navigation listeners are installed.
 
 ## Expression delivery
 
@@ -8,7 +8,7 @@ The Rust expression compiler still produces JavaScript. Expression macros submit
 
 Captured expressions are not flattened into their caller's source. The caller uses `cx.expression(...)` to evaluate a nested reference with the current context. References live in an `expressions` array; ordinary capture data lives in a separate `values` array. The browser follows only expression references when loading code. This keeps macro function shapes independent of runtime composition. Hearth row ids, table names, and route segment indexes are capture data passed to fixed inventory functions. Literal JavaScript event handlers are also collected at link time.
 
-The runtime router installs `/_topcoat/expressions.js?ids=<digests>`. It serves an ES module containing ordinary functions for up to 32 registered digests. Unknown digests and malformed requests return 404. The endpoint accepts no source or capture data and sets JavaScript content type, nosniff, and an immutable cache policy. Generated source is application code, not a sandbox. Never interpolate user input through `Js::source` or `JsBuilder::source`. Use surrogate captures instead.
+The runtime router installs `/_hearth/expressions.js?ids=<digests>`. It serves an ES module containing ordinary functions for up to 32 registered digests. Unknown digests and malformed requests return 404. The endpoint accepts no source or capture data and sets JavaScript content type, nosniff, and an immutable cache policy. Generated source is application code, not a sandbox. Never interpolate user input through `Js::source` or `JsBuilder::source`. Use surrogate captures instead.
 
 The browser scans runtime metadata in the initial document, including nested template contents. It imports missing functions before synchronous hydration. It ignores reference-shaped user text and strings inside captured data. Per-list `@N` entries still resolve through the owning list's table; the table now contains function references and captures rather than executable source. No eval fallback exists in the production runtime.
 
@@ -22,7 +22,7 @@ SSR remains visible but its body is inert and marked busy while code loads, then
 
 The tracker and baseline have no style attributes in server HTML and no inline style elements. The two `hearth-when` display writes use `wrapper.style.display`. These property writes are allowed under CSP, even though DevTools serializes them as a style attribute. They stay CSSOM property writes. There are no `setAttribute("style", ...)` or `cssText` writes in these flows. Application-authored `style=` and `:style=` attributes are not made CSP-safe by this feature; use classes or individual CSSOM properties.
 
-The policy is tested on the tracker and `/bench/topcoat`. The React comparison page has an application-owned inline bootstrap script and is not covered. Upstream Topcoat's raw HTML streaming delivery also emits inline swap and redirect scripts. These pages do not use that delivery path for updates: runtime requests use JSON frames. Strict CSP for arbitrary raw HTML live streams and the development refresh client is separate work.
+The policy is tested on the tracker and `/bench/hearth`. The React comparison page has an application-owned inline bootstrap script and is not covered. Upstream Topcoat's raw HTML streaming delivery also emits inline swap and redirect scripts. These pages do not use that delivery path for updates: runtime requests use JSON frames. Strict CSP for arbitrary raw HTML live streams and the development refresh client is separate work.
 
 ## Verification
 

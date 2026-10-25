@@ -1,4 +1,4 @@
-use topcoat::{
+use hearth::{
     Result,
     router::{
         content::websocket::{Message, WebSocketUpgrade},

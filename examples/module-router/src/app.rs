@@ -1,10 +1,10 @@
-use topcoat::router::module_router;
+use hearth::router::module_router;
 
 mod _marketing;
 mod api;
 mod docs;
 
-use topcoat::{
+use hearth::{
     Result,
     router::{Slot, href, layout, page},
     view::{View, view},
@@ -12,7 +12,7 @@ use topcoat::{
 
 // The `module_router!()` macro call must be placed at the root of your route structure.
 // In this case, the `app` module is marked as the root.
-pub fn router() -> topcoat::router::Router {
+pub fn router() -> hearth::router::Router {
     module_router!().build()
 }
 
@@ -21,7 +21,7 @@ pub fn router() -> topcoat::router::Router {
 async fn root_layout(slot: Slot<'_>) -> Result<impl View> {
     Ok(view! {
         <html>
-            <head>topcoat::dev::script()</head>
+            <head>hearth::dev::script()</head>
             <body>
                 // A page as an href target resolves to the path the module
                 // tree derives for it, so a moved module updates its links.
@@ -54,7 +54,7 @@ pub async fn page() -> Result<impl View> {
 
 // The module `about` adds a URL segment `/about`.
 mod about {
-    use topcoat::{
+    use hearth::{
         Result,
         router::page,
         view::{View, view},

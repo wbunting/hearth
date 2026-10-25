@@ -1,6 +1,6 @@
 use std::sync::atomic::Ordering;
 
-use topcoat::{
+use hearth::{
     Result,
     context::{Cx, app_context},
     htmx::HxResponseTrigger,

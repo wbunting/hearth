@@ -84,10 +84,10 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "alpine-ajax"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -160,18 +160,18 @@ checksum = "fb5dfbc6d8d2675589ccbe4d0fd61df2419075625f8c1a62325e718e2b0049f9"
 
 [[package]]
 name = "app-context"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
 name = "asset"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -536,13 +536,13 @@ checksum = "0c9ea0ac24bc397ab3c98583a3c9ba74fa56b09a4449bbe172b9b1ddb016027a"
 
 [[package]]
 name = "coffee-shop"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
+ "hearth-ui",
  "serde",
  "toasty",
  "tokio",
- "topcoat",
- "topcoat-ui",
 ]
 
 [[package]]
@@ -589,19 +589,19 @@ checksum = "a6ef517f0926dd24a1582492c791b6a4818a4d94e789a334894aa15b0d12f55c"
 
 [[package]]
 name = "context"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
 name = "cookie"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "serde",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -859,13 +859,13 @@ checksum = "4583a4551df46e2792f82ceeac45e850d2e2d5debba0b91f102385cda5b11f06"
 
 [[package]]
 name = "datastar"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
  "futures-core",
  "futures-util",
+ "hearth",
  "serde",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -1069,10 +1069,10 @@ dependencies = [
 
 [[package]]
 name = "error"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -1145,10 +1145,10 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "font"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -1409,20 +1409,263 @@ dependencies = [
 
 [[package]]
 name = "hearth"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "futures-core",
+ "futures-util",
+ "hearth-alpine-ajax",
+ "hearth-asset",
+ "hearth-cookie",
+ "hearth-datastar",
+ "hearth-font",
+ "hearth-font-macro",
+ "hearth-foundation",
+ "hearth-foundation-macro",
+ "hearth-htmx",
+ "hearth-icon",
+ "hearth-icon-macro",
  "hearth-macro",
+ "hearth-mail",
+ "hearth-mail-macro",
+ "hearth-router",
+ "hearth-router-macro",
+ "hearth-runtime",
+ "hearth-runtime-macro",
+ "hearth-session",
+ "hearth-tailwind",
+ "hearth-ui-registry",
+ "hearth-view",
+ "hearth-view-macro",
  "http",
+ "inventory",
  "serde",
  "serde_json",
  "toasty",
  "tokio",
- "topcoat",
+ "tokio-tungstenite",
+ "uuid",
+]
+
+[[package]]
+name = "hearth-alpine-ajax"
+version = "0.1.0"
+dependencies = [
+ "hearth",
+ "hearth-foundation",
+ "http",
+ "tokio",
+]
+
+[[package]]
+name = "hearth-asset"
+version = "0.1.0"
+dependencies = [
+ "hearth",
+ "hearth-foundation",
+ "hearth-router",
+ "hearth-view",
+ "http",
+ "memchr",
+ "mime_guess",
+ "serde",
+ "sha2 0.11.1",
+ "thiserror",
+ "tokio",
+ "toml",
+ "ureq",
+]
+
+[[package]]
+name = "hearth-cli"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "console",
+ "dialoguer",
+ "futures-util",
+ "glob",
+ "hearth",
+ "hearth-asset",
+ "hearth-font-grammar",
+ "hearth-foundation",
+ "hearth-foundation-grammar",
+ "hearth-mail-grammar",
+ "hearth-router",
+ "hearth-ui",
+ "hearth-view-grammar",
+ "ignore",
+ "indicatif",
+ "notify",
+ "proc-macro2",
+ "serde",
+ "serde_json",
+ "syn 3.0.9",
+ "tokio",
+ "toml",
+]
+
+[[package]]
+name = "hearth-cookie"
+version = "0.1.0"
+dependencies = [
+ "cookie 0.18.2",
+ "getrandom 0.2.17",
+ "hearth",
+ "hearth-foundation",
+ "hearth-router",
+ "http",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "hearth-datastar"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "hearth",
+ "hearth-foundation",
+ "hearth-router",
+ "http",
+ "memchr",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "hearth-font"
+version = "0.1.0"
+dependencies = [
+ "hearth",
+ "hearth-asset",
+ "hearth-foundation",
+ "hearth-router",
+ "hearth-view",
+ "hearth-view-macro",
+ "heck",
+ "inventory",
+ "serde",
+ "serde_json",
+ "tokio",
+ "ureq",
+]
+
+[[package]]
+name = "hearth-font-grammar"
+version = "0.1.0"
+dependencies = [
+ "hearth-font",
+ "hearth-foundation-grammar",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+]
+
+[[package]]
+name = "hearth-font-macro"
+version = "0.1.0"
+dependencies = [
+ "hearth",
+ "hearth-font-grammar",
+ "quote",
+ "syn 3.0.9",
+]
+
+[[package]]
+name = "hearth-foundation"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "anymap3",
+ "base64 0.22.1",
+ "elsa",
+ "hearth",
+ "http",
+ "pin-project-lite",
+ "siphasher",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "hearth-foundation-grammar"
+version = "0.1.0"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+]
+
+[[package]]
+name = "hearth-foundation-macro"
+version = "0.1.0"
+dependencies = [
+ "hearth",
+ "hearth-foundation-grammar",
+ "quote",
+ "serde",
+ "serde_json",
+ "syn 3.0.9",
+ "tokio",
+]
+
+[[package]]
+name = "hearth-htmx"
+version = "0.1.0"
+dependencies = [
+ "hearth",
+ "hearth-foundation",
+ "hearth-router",
+ "http",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "hearth-icon"
+version = "0.1.0"
+dependencies = [
+ "hearth",
+ "hearth-foundation",
+ "hearth-view",
+ "hearth-view-macro",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "ureq",
+]
+
+[[package]]
+name = "hearth-icon-grammar"
+version = "0.1.0"
+dependencies = [
+ "hearth-foundation-grammar",
+ "hearth-icon",
+ "heck",
+ "proc-macro2",
+ "quote",
+ "serde_json",
+ "syn 3.0.9",
+]
+
+[[package]]
+name = "hearth-icon-macro"
+version = "0.1.0"
+dependencies = [
+ "hearth",
+ "hearth-icon-grammar",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
 ]
 
 [[package]]
 name = "hearth-macro"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1430,8 +1673,211 @@ dependencies = [
 ]
 
 [[package]]
+name = "hearth-mail"
+version = "0.1.0"
+dependencies = [
+ "hearth-foundation",
+ "hearth-router",
+ "hearth-view",
+ "lettre",
+ "thiserror",
+ "time",
+ "tokio",
+]
+
+[[package]]
+name = "hearth-mail-grammar"
+version = "0.1.0"
+dependencies = [
+ "hearth-foundation-grammar",
+ "hearth-mail",
+ "hearth-view-grammar",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+]
+
+[[package]]
+name = "hearth-mail-macro"
+version = "0.1.0"
+dependencies = [
+ "hearth",
+ "hearth-mail-grammar",
+ "quote",
+ "syn 3.0.9",
+ "tokio",
+]
+
+[[package]]
+name = "hearth-router"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "form_urlencoded",
+ "futures-core",
+ "futures-sink",
+ "futures-util",
+ "hearth",
+ "hearth-foundation",
+ "hearth-view",
+ "heck",
+ "http",
+ "http-body",
+ "http-body-util",
+ "httpdate",
+ "hyper",
+ "hyper-util",
+ "inventory",
+ "ipnet",
+ "matchit",
+ "mime_guess",
+ "multer",
+ "percent-encoding",
+ "pin-project-lite",
+ "ref-cast",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "serde_urlencoded",
+ "time",
+ "tokio",
+ "tokio-tungstenite",
+ "tokio-util",
+ "tower",
+ "tower-http",
+]
+
+[[package]]
+name = "hearth-router-grammar"
+version = "0.1.0"
+dependencies = [
+ "hearth-foundation-grammar",
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+]
+
+[[package]]
+name = "hearth-router-macro"
+version = "0.1.0"
+dependencies = [
+ "hearth",
+ "hearth-router-grammar",
+ "http",
+ "quote",
+ "serde",
+ "syn 3.0.9",
+ "tokio",
+]
+
+[[package]]
+name = "hearth-runtime"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "hearth",
+ "hearth-asset",
+ "hearth-foundation",
+ "hearth-router",
+ "hearth-view",
+ "hearth-view-macro",
+ "inventory",
+ "pin-project-lite",
+ "ref-cast",
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "tokio",
+]
+
+[[package]]
+name = "hearth-runtime-coherence"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "hearth",
+ "serde",
+ "serde_json",
+ "tokio",
+ "toml",
+ "v8",
+]
+
+[[package]]
+name = "hearth-runtime-grammar"
+version = "0.1.0"
+dependencies = [
+ "hearth-foundation-grammar",
+ "hearth-router",
+ "hearth-runtime",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "syn 3.0.9",
+]
+
+[[package]]
+name = "hearth-runtime-macro"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "hearth",
+ "hearth-runtime-grammar",
+ "http",
+ "quote",
+ "serde_json",
+ "syn 3.0.9",
+ "tokio",
+ "tokio-tungstenite",
+]
+
+[[package]]
+name = "hearth-session"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "getrandom 0.4.3",
+ "hearth",
+ "hearth-cookie",
+ "hearth-foundation",
+ "hearth-router",
+ "sha2 0.11.1",
+ "thiserror",
+ "tokio",
+ "web-time",
+]
+
+[[package]]
+name = "hearth-site"
+version = "0.1.0"
+dependencies = [
+ "hearth",
+ "http",
+ "serde",
+ "serde_json",
+ "toasty",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "hearth-tailwind"
+version = "0.1.0"
+dependencies = [
+ "cssparser",
+ "hearth",
+ "hearth-foundation",
+ "sha2 0.11.1",
+ "tempfile",
+ "thiserror",
+ "ureq",
+]
+
+[[package]]
 name = "hearth-tracker"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
  "csv",
  "hearth",
@@ -1440,7 +1886,65 @@ dependencies = [
  "serde_json",
  "toasty",
  "tokio",
- "topcoat",
+]
+
+[[package]]
+name = "hearth-ui"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2 0.11.1",
+ "thiserror",
+ "toml",
+]
+
+[[package]]
+name = "hearth-ui-registry"
+version = "0.1.0"
+dependencies = [
+ "hearth",
+ "hearth-icon",
+]
+
+[[package]]
+name = "hearth-view"
+version = "0.1.0"
+dependencies = [
+ "criterion",
+ "futures-core",
+ "futures-util",
+ "hearth",
+ "hearth-foundation",
+ "http",
+ "memchr",
+ "pin-project-lite",
+ "siphasher",
+ "smallvec",
+]
+
+[[package]]
+name = "hearth-view-grammar"
+version = "0.1.0"
+dependencies = [
+ "hearth-foundation-grammar",
+ "hearth-view",
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+]
+
+[[package]]
+name = "hearth-view-macro"
+version = "0.1.0"
+dependencies = [
+ "futures-core",
+ "hearth",
+ "hearth-view-grammar",
+ "quote",
+ "syn 3.0.9",
+ "tokio",
 ]
 
 [[package]]
@@ -1451,10 +1955,10 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "hello-world"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -1497,10 +2001,10 @@ dependencies = [
 
 [[package]]
 name = "htmx"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -1594,10 +2098,10 @@ dependencies = [
 
 [[package]]
 name = "icon"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -1977,10 +2481,10 @@ checksum = "47d9d19d1d6efa0109d2f65ff4c85cddd50bd572e5a00127ab10987290bcefae"
 
 [[package]]
 name = "live"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -2000,19 +2504,19 @@ checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
 name = "mail"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "serde",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
 name = "manual-router"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -2082,10 +2586,10 @@ dependencies = [
 
 [[package]]
 name = "module-router"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -2243,10 +2747,10 @@ checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
 name = "path-query-params"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -2632,12 +3136,12 @@ checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "request-response"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "serde",
  "serde_json",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -2666,10 +3170,10 @@ dependencies = [
 
 [[package]]
 name = "routerless"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -2702,10 +3206,10 @@ dependencies = [
 
 [[package]]
 name = "runtime"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -2904,11 +3408,11 @@ dependencies = [
 
 [[package]]
 name = "session"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "serde",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -3123,13 +3627,13 @@ dependencies = [
 
 [[package]]
 name = "sse"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
  "futures-core",
  "futures-util",
+ "hearth",
  "serde",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -3139,14 +3643,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
-name = "storefront-topcoat"
-version = "0.10.0"
+name = "storefront-hearth"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "serde",
  "serde_json",
  "tikv-jemallocator",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -3172,10 +3676,10 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "suspense"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -3219,10 +3723,10 @@ dependencies = [
 
 [[package]]
 name = "tailwind"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -3480,12 +3984,12 @@ dependencies = [
 
 [[package]]
 name = "toasty-todo"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "serde",
  "toasty",
  "tokio",
- "topcoat",
 ]
 
 [[package]]
@@ -3614,508 +4118,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06bdbd8cfc056b8d2e2e85f29b56a3bdbecb527cef81eb39e3e7b98af4652770"
 
 [[package]]
-name = "topcoat"
-version = "0.10.0"
-dependencies = [
- "futures-core",
- "futures-util",
- "inventory",
- "serde",
- "serde_json",
- "tokio",
- "tokio-tungstenite",
- "topcoat-alpine-ajax",
- "topcoat-asset",
- "topcoat-cookie",
- "topcoat-core",
- "topcoat-core-macro",
- "topcoat-datastar",
- "topcoat-font",
- "topcoat-font-macro",
- "topcoat-htmx",
- "topcoat-icon",
- "topcoat-icon-macro",
- "topcoat-mail",
- "topcoat-mail-macro",
- "topcoat-router",
- "topcoat-router-macro",
- "topcoat-runtime",
- "topcoat-runtime-macro",
- "topcoat-session",
- "topcoat-tailwind",
- "topcoat-ui-registry",
- "topcoat-view",
- "topcoat-view-macro",
- "uuid",
-]
-
-[[package]]
-name = "topcoat-alpine-ajax"
-version = "0.10.0"
-dependencies = [
- "http",
- "tokio",
- "topcoat",
- "topcoat-core",
-]
-
-[[package]]
-name = "topcoat-asset"
-version = "0.10.0"
-dependencies = [
- "http",
- "memchr",
- "mime_guess",
- "serde",
- "sha2 0.11.1",
- "thiserror",
- "tokio",
- "toml",
- "topcoat",
- "topcoat-core",
- "topcoat-router",
- "topcoat-view",
- "ureq",
-]
-
-[[package]]
-name = "topcoat-cli"
-version = "0.10.0"
-dependencies = [
- "clap",
- "console",
- "dialoguer",
- "futures-util",
- "glob",
- "ignore",
- "indicatif",
- "notify",
- "proc-macro2",
- "serde",
- "serde_json",
- "syn 3.0.9",
- "tokio",
- "toml",
- "topcoat",
- "topcoat-asset",
- "topcoat-core",
- "topcoat-core-grammar",
- "topcoat-font-grammar",
- "topcoat-mail-grammar",
- "topcoat-router",
- "topcoat-ui",
- "topcoat-view-grammar",
-]
-
-[[package]]
-name = "topcoat-cookie"
-version = "0.10.0"
-dependencies = [
- "cookie 0.18.2",
- "getrandom 0.2.17",
- "http",
- "serde",
- "serde_json",
- "tokio",
- "topcoat",
- "topcoat-core",
- "topcoat-router",
-]
-
-[[package]]
-name = "topcoat-core"
-version = "0.10.0"
-dependencies = [
- "anyhow",
- "anymap3",
- "base64 0.22.1",
- "elsa",
- "http",
- "pin-project-lite",
- "siphasher",
- "thiserror",
- "tokio",
- "topcoat",
-]
-
-[[package]]
-name = "topcoat-core-grammar"
-version = "0.10.0"
-dependencies = [
- "proc-macro-crate",
- "proc-macro2",
- "quote",
- "syn 3.0.9",
-]
-
-[[package]]
-name = "topcoat-core-macro"
-version = "0.10.0"
-dependencies = [
- "quote",
- "serde",
- "serde_json",
- "syn 3.0.9",
- "tokio",
- "topcoat",
- "topcoat-core-grammar",
-]
-
-[[package]]
-name = "topcoat-datastar"
-version = "0.10.0"
-dependencies = [
- "futures-util",
- "http",
- "memchr",
- "serde",
- "serde_json",
- "tokio",
- "topcoat",
- "topcoat-core",
- "topcoat-router",
-]
-
-[[package]]
-name = "topcoat-font"
-version = "0.10.0"
-dependencies = [
- "heck",
- "inventory",
- "serde",
- "serde_json",
- "tokio",
- "topcoat",
- "topcoat-asset",
- "topcoat-core",
- "topcoat-router",
- "topcoat-view",
- "topcoat-view-macro",
- "ureq",
-]
-
-[[package]]
-name = "topcoat-font-grammar"
-version = "0.10.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 3.0.9",
- "topcoat-core-grammar",
- "topcoat-font",
-]
-
-[[package]]
-name = "topcoat-font-macro"
-version = "0.10.0"
-dependencies = [
- "quote",
- "syn 3.0.9",
- "topcoat",
- "topcoat-font-grammar",
-]
-
-[[package]]
-name = "topcoat-htmx"
-version = "0.10.0"
-dependencies = [
- "http",
- "serde",
- "serde_json",
- "tokio",
- "topcoat",
- "topcoat-core",
- "topcoat-router",
-]
-
-[[package]]
-name = "topcoat-icon"
-version = "0.10.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror",
- "topcoat",
- "topcoat-core",
- "topcoat-view",
- "topcoat-view-macro",
- "ureq",
-]
-
-[[package]]
-name = "topcoat-icon-grammar"
-version = "0.10.0"
-dependencies = [
- "heck",
- "proc-macro2",
- "quote",
- "serde_json",
- "syn 3.0.9",
- "topcoat-core-grammar",
- "topcoat-icon",
-]
-
-[[package]]
-name = "topcoat-icon-macro"
-version = "0.10.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 3.0.9",
- "topcoat",
- "topcoat-icon-grammar",
-]
-
-[[package]]
-name = "topcoat-mail"
-version = "0.10.0"
-dependencies = [
- "lettre",
- "thiserror",
- "time",
- "tokio",
- "topcoat-core",
- "topcoat-router",
- "topcoat-view",
-]
-
-[[package]]
-name = "topcoat-mail-grammar"
-version = "0.10.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 3.0.9",
- "topcoat-core-grammar",
- "topcoat-mail",
- "topcoat-view-grammar",
-]
-
-[[package]]
-name = "topcoat-mail-macro"
-version = "0.10.0"
-dependencies = [
- "quote",
- "syn 3.0.9",
- "tokio",
- "topcoat",
- "topcoat-mail-grammar",
-]
-
-[[package]]
-name = "topcoat-router"
-version = "0.10.0"
-dependencies = [
- "bytes",
- "form_urlencoded",
- "futures-core",
- "futures-sink",
- "futures-util",
- "heck",
- "http",
- "http-body",
- "http-body-util",
- "httpdate",
- "hyper",
- "hyper-util",
- "inventory",
- "ipnet",
- "matchit",
- "mime_guess",
- "multer",
- "percent-encoding",
- "pin-project-lite",
- "ref-cast",
- "serde",
- "serde_json",
- "serde_path_to_error",
- "serde_urlencoded",
- "time",
- "tokio",
- "tokio-tungstenite",
- "tokio-util",
- "topcoat",
- "topcoat-core",
- "topcoat-view",
- "tower",
- "tower-http",
-]
-
-[[package]]
-name = "topcoat-router-grammar"
-version = "0.10.0"
-dependencies = [
- "heck",
- "proc-macro2",
- "quote",
- "syn 3.0.9",
- "topcoat-core-grammar",
-]
-
-[[package]]
-name = "topcoat-router-macro"
-version = "0.10.0"
-dependencies = [
- "http",
- "quote",
- "serde",
- "syn 3.0.9",
- "tokio",
- "topcoat",
- "topcoat-router-grammar",
-]
-
-[[package]]
-name = "topcoat-runtime"
-version = "0.10.0"
-dependencies = [
- "futures-util",
- "inventory",
- "pin-project-lite",
- "ref-cast",
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "tokio",
- "topcoat",
- "topcoat-asset",
- "topcoat-core",
- "topcoat-router",
- "topcoat-view",
- "topcoat-view-macro",
-]
-
-[[package]]
-name = "topcoat-runtime-coherence"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
- "tokio",
- "toml",
- "topcoat",
- "v8",
-]
-
-[[package]]
-name = "topcoat-runtime-grammar"
-version = "0.10.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "serde",
- "serde_json",
- "syn 3.0.9",
- "topcoat-core-grammar",
- "topcoat-router",
- "topcoat-runtime",
-]
-
-[[package]]
-name = "topcoat-runtime-macro"
-version = "0.10.0"
-dependencies = [
- "futures-util",
- "http",
- "quote",
- "serde_json",
- "syn 3.0.9",
- "tokio",
- "tokio-tungstenite",
- "topcoat",
- "topcoat-runtime-grammar",
-]
-
-[[package]]
-name = "topcoat-session"
-version = "0.10.0"
-dependencies = [
- "base64 0.22.1",
- "getrandom 0.4.3",
- "sha2 0.11.1",
- "thiserror",
- "tokio",
- "topcoat",
- "topcoat-cookie",
- "topcoat-core",
- "topcoat-router",
- "web-time",
-]
-
-[[package]]
-name = "topcoat-tailwind"
-version = "0.10.0"
-dependencies = [
- "cssparser",
- "sha2 0.11.1",
- "tempfile",
- "thiserror",
- "topcoat",
- "topcoat-core",
- "ureq",
-]
-
-[[package]]
-name = "topcoat-ui"
-version = "0.10.0"
-dependencies = [
- "serde",
- "serde_json",
- "sha2 0.11.1",
- "thiserror",
- "toml",
-]
-
-[[package]]
-name = "topcoat-ui-registry"
-version = "0.10.0"
-dependencies = [
- "topcoat",
- "topcoat-icon",
-]
-
-[[package]]
-name = "topcoat-view"
-version = "0.10.0"
-dependencies = [
- "criterion",
- "futures-core",
- "futures-util",
- "http",
- "memchr",
- "pin-project-lite",
- "siphasher",
- "smallvec",
- "topcoat",
- "topcoat-core",
-]
-
-[[package]]
-name = "topcoat-view-grammar"
-version = "0.10.0"
-dependencies = [
- "heck",
- "proc-macro2",
- "quote",
- "syn 3.0.9",
- "topcoat-core-grammar",
- "topcoat-view",
-]
-
-[[package]]
-name = "topcoat-view-macro"
-version = "0.10.0"
-dependencies = [
- "futures-core",
- "quote",
- "syn 3.0.9",
- "tokio",
- "topcoat",
- "topcoat-view-grammar",
-]
-
-[[package]]
 name = "tower"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4221,11 +4223,11 @@ checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
 
 [[package]]
 name = "ui"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
+ "hearth-ui",
  "tokio",
- "topcoat",
- "topcoat-ui",
 ]
 
 [[package]]
@@ -4469,10 +4471,10 @@ dependencies = [
 
 [[package]]
 name = "websocket"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
+ "hearth",
  "tokio",
- "topcoat",
 ]
 
 [[package]]

@@ -5,7 +5,7 @@ mod baseline;
 mod issues;
 mod login;
 
-use topcoat::{
+use hearth::{
     Result,
     asset::{AssetBundle, RouterBuilderAssetExt},
     context::Cx,
@@ -20,7 +20,7 @@ use topcoat::{
 };
 
 pub fn router() -> RouterBuilder {
-    use topcoat::router::RouterBuilderDirectoryExt;
+    use hearth::router::RouterBuilderDirectoryExt;
     module_router!()
         .discover()
         // Benchmark comparison: the React + TanStack DB SPA build, served by the
@@ -39,19 +39,19 @@ pub fn router() -> RouterBuilder {
 }
 
 /// The benchmark stylesheet, shared with the React benchmark shell.
-pub const TAILWIND: topcoat::asset::Asset =
-    topcoat::asset::asset!(concat!(env!("OUT_DIR"), "/benchmark.css"));
-const APP_TAILWIND: topcoat::asset::Asset = tailwind::stylesheet!();
-const CSP_PROBE: topcoat::asset::Asset = topcoat::asset::asset!("./strict-csp.js");
+pub const TAILWIND: hearth::asset::Asset =
+    hearth::asset::asset!(concat!(env!("OUT_DIR"), "/benchmark.css"));
+const APP_TAILWIND: hearth::asset::Asset = tailwind::stylesheet!();
+const CSP_PROBE: hearth::asset::Asset = hearth::asset::asset!("./strict-csp.js");
 /// hearth's keyed-arch mark (source: `docs/hearth/brand/`).
-const FAVICON_SVG: topcoat::asset::Asset = topcoat::asset::asset!("./favicon.svg");
-const FAVICON_PNG: topcoat::asset::Asset = topcoat::asset::asset!("./favicon-32.png");
-const APPLE_TOUCH_ICON: topcoat::asset::Asset = topcoat::asset::asset!("./apple-touch-icon.png");
+const FAVICON_SVG: hearth::asset::Asset = hearth::asset::asset!("./favicon.svg");
+const FAVICON_PNG: hearth::asset::Asset = hearth::asset::asset!("./favicon-32.png");
+const APPLE_TOUCH_ICON: hearth::asset::Asset = hearth::asset::asset!("./apple-touch-icon.png");
 
 /// Hashed URL of the app stylesheet.
 pub fn tailwind_url(cx: &Cx) -> String {
     let mut out = String::new();
-    if let Some(cfg) = topcoat::context::try_app_context::<topcoat::asset::AssetConfig>(cx) {
+    if let Some(cfg) = hearth::context::try_app_context::<hearth::asset::AssetConfig>(cx) {
         let _ = cfg.fmt_url(TAILWIND, &mut out);
     }
     out
@@ -59,7 +59,7 @@ pub fn tailwind_url(cx: &Cx) -> String {
 
 #[layout]
 async fn root(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
-    let benchmark = topcoat::router::request::uri(cx)
+    let benchmark = hearth::router::request::uri(cx)
         .path()
         .starts_with("/bench/");
     Ok(view! {
@@ -79,8 +79,8 @@ async fn root(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
                 if std::env::var("HEARTH_STRICT_CSP").is_ok_and(|value| value == "1") {
                     <script src=(CSP_PROBE)></script>
                 }
-                topcoat::runtime::script()
-                topcoat::dev::script()
+                hearth::runtime::script()
+                hearth::dev::script()
             </head>
             <body
                 class=(if benchmark {
@@ -107,7 +107,7 @@ async fn tracker_header(login: &str, crew: bool) -> Result<impl View> {
             class="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-background/80 px-4 py-2 tracker-header"
         >
             <a
-                class=(topcoat::view::class!(
+                class=(hearth::view::class!(
                     button_variants(ButtonVariant::Ghost, ButtonSize::Sm),
                     "mr-auto",
                 ))
@@ -144,12 +144,12 @@ async fn home(cx: &Cx) -> Result<impl View> {
 /// Benchmarking: `SIMULATED_RTT_MS=50` delays every request by that much,
 /// emulating network latency for all apps alike (local-first apps hide it,
 /// server-round-trip apps can't). Off by default.
-#[topcoat::router::layer("/")]
+#[hearth::router::layer("/")]
 async fn simulated_latency(
     cx: &Cx,
-    body: topcoat::router::Body,
-    next: topcoat::router::Next<'_>,
-) -> Result<topcoat::router::response::Response> {
+    body: hearth::router::Body,
+    next: hearth::router::Next<'_>,
+) -> Result<hearth::router::response::Response> {
     if let Some(ms) = std::env::var("SIMULATED_RTT_MS")
         .ok()
         .and_then(|v| v.parse::<u64>().ok())
@@ -161,20 +161,20 @@ async fn simulated_latency(
     // page (otherwise a rebuilt runtime is silently ignored).
     let html = res
         .headers()
-        .get(topcoat::router::header::CONTENT_TYPE)
+        .get(hearth::router::header::CONTENT_TYPE)
         .is_some_and(|v| v.as_bytes().starts_with(b"text/html"));
     if std::env::var("HEARTH_STRICT_CSP").is_ok_and(|value| value == "1") {
         res.headers_mut().insert(
-            topcoat::router::header::CONTENT_SECURITY_POLICY,
-            topcoat::router::HeaderValue::from_static(
+            hearth::router::header::CONTENT_SECURITY_POLICY,
+            hearth::router::HeaderValue::from_static(
                 "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'",
             ),
         );
     }
     if html {
         res.headers_mut().insert(
-            topcoat::router::header::CACHE_CONTROL,
-            topcoat::router::HeaderValue::from_static("no-store"),
+            hearth::router::header::CACHE_CONTROL,
+            hearth::router::HeaderValue::from_static("no-store"),
         );
     }
     Ok(res)

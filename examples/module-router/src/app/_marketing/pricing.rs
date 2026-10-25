@@ -1,4 +1,4 @@
-use topcoat::{
+use hearth::{
     Result,
     router::page,
     view::{View, view},

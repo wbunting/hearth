@@ -5,5 +5,5 @@ A counter that updates with htmx. The server returns page fragments for htmx req
 Run it with:
 
 ```sh
-cargo topcoat dev -p htmx
+cargo hearth dev -p htmx
 ```

@@ -1,19 +1,19 @@
-`topcoat fmt` formats Topcoat macro bodies in Rust source files. Add `--rustfmt` to format the surrounding Rust code too.
+`hearth fmt` formats Hearth macro bodies in Rust source files. Add `--rustfmt` to format the surrounding Rust code too.
 
 # Running the formatter
 
 Run the formatter with:
 
 ```sh
-topcoat fmt
+hearth fmt
 ```
 
-You can also run `cargo topcoat fmt`. Use `topcoat fmt` in editors to avoid starting Cargo for each format request.
+You can also run `cargo hearth fmt`. Use `hearth fmt` in editors to avoid starting Cargo for each format request.
 
 With no file arguments, the command scans Rust files under the current directory and writes changes in place.
 
 ```sh
-topcoat fmt src/main.rs src/app
+hearth fmt src/main.rs src/app
 ```
 
 Pass file or directory paths to limit the files to format. The command searches directories recursively for Rust files.
@@ -21,25 +21,25 @@ Pass file or directory paths to limit the files to format. The command searches 
 Use `--check` to check formatting without writing files. The command reports each file that needs formatting on stderr and exits with status 1 if any input needs formatting or cannot be formatted. It exits with status 0 when all inputs are already formatted.
 
 ```sh
-topcoat fmt --check
-topcoat fmt --check --rustfmt src
+hearth fmt --check
+hearth fmt --check --rustfmt src
 ```
 
 For editor integrations and other tools, use stdin/stdout mode:
 
 ```sh
-topcoat fmt --stdin < src/main.rs > /tmp/main.rs
+hearth fmt --stdin < src/main.rs > /tmp/main.rs
 ```
 
 In stdin mode, the formatted source is written to stdout instead of updating files on disk.
 
 With `--stdin --check`, the command checks the input without emitting formatted source. Diagnostics go to stderr, with the same exit statuses as file checks.
 
-Pass `--rustfmt` to run `rustfmt` first, then format Topcoat macro bodies:
+Pass `--rustfmt` to run `rustfmt` first, then format Hearth macro bodies:
 
 ```sh
-topcoat fmt --rustfmt
-topcoat fmt --stdin --rustfmt < src/main.rs > /tmp/main.rs
+hearth fmt --rustfmt
+hearth fmt --stdin --rustfmt < src/main.rs > /tmp/main.rs
 ```
 
 This requires `rustfmt` on `PATH`. Install it with `rustup component add rustfmt`. Both formatters must succeed before a file is written or the formatted stdin is emitted. Errors go to stderr and cause a nonzero exit status.
@@ -52,7 +52,7 @@ edition = "2024"
 By default, the formatter handles all supported macros. Pass a comma-separated list with `--macros` to format only those macros:
 
 ```sh
-topcoat fmt --macros view,class
+hearth fmt --macros view,class
 ```
 
 # Supported syntax
@@ -61,10 +61,10 @@ Without `--rustfmt`, the formatter changes only supported macro bodies. For exam
 
 ```rust
 // src/app.rs
-use topcoat::{router::page, view::{View, view}};
+use hearth::{router::page, view::{View, view}};
 
 #[page]
-async fn page() -> topcoat::Result<impl View> {
+async fn page() -> hearth::Result<impl View> {
     Ok(view! {
         <main>
             <h1>"Hello"</h1>
@@ -89,33 +89,33 @@ Add the two files to your project root.
 2. `rust-analyzer.toml`
    ```toml
    [rustfmt]
-   overrideCommand = ["topcoat", "fmt", "--stdin", "--rustfmt"]
+   overrideCommand = ["hearth", "fmt", "--stdin", "--rustfmt"]
    ```
 
 ## Neovim
 
-This Neovim config uses `conform.nvim` and enables `topcoat fmt` for Rust buffers only when a `Topcoat.toml` marker exists in the project root.
+This Neovim config uses `conform.nvim` and enables `hearth fmt` for Rust buffers only when a `Hearth.toml` marker exists in the project root.
 
 ```lua
 require("conform").setup({
 	formatters = {
-		topcoat = {
-			command = "topcoat",
+		hearth = {
+			command = "hearth",
 			args = { "fmt", "--stdin" },
 			require_cwd = true,
 			cwd = function(self, ctx)
-				return require("conform.util").root_file({ "Topcoat.toml" })(self, ctx)
+				return require("conform.util").root_file({ "Hearth.toml" })(self, ctx)
 			end,
 		},
 	},
 	formatters_by_ft = {
-		rust = { "topcoat", lsp_format = "first" },
+		rust = { "hearth", lsp_format = "first" },
 	},
 })
 ```
 
-Create a `Topcoat.toml` marker at the root of a Topcoat project to opt in:
+Create a `Hearth.toml` marker at the root of a Hearth project to opt in:
 
 ```sh
-touch Topcoat.toml
+touch Hearth.toml
 ```

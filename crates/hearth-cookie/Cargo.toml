@@ -1,0 +1,44 @@
+[package]
+include = ["/src/**", "/docs/**", "/README.md", "/Cargo.toml", "/LICENSE", "/NOTICE", "/build.rs", "/browser/src/**", "/browser/dist/*.js", "/browser/package.json", "/browser/tsconfig.json", "/browser/tsup*.ts", "/components/**", "/styles/**", "/registry.toml", "/themes/**"]
+name = "hearth-cookie"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+
+[features]
+router = [
+	"dep:hearth-router",
+]
+
+[dependencies]
+hearth-router = { workspace = true, optional = true }
+hearth-foundation.workspace = true
+
+cookie = { workspace = true, features = ["secure", "percent-encode"] }
+http.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+# Signed and private jars draw their randomness from the JS host (`crypto.getRandomValues`) on wasm32-unknown-unknown.
+getrandom02 = { workspace = true, features = ["js"] }
+
+[dev-dependencies]
+hearth = { path = "../hearth", features = ["cookie"] }
+tokio = { workspace = true, features = ["macros", "rt"] }
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.cargo-udeps.ignore]
+development = ["hearth"]

@@ -3,7 +3,7 @@
 //! and routing below all compile to JS via the framework.
 
 use hearth::{json_script, live_query, route, table_handle};
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{error::RouterErrorExt, page},
@@ -16,7 +16,7 @@ use crate::{
     tables::{self, Issues, Users},
 };
 
-/// What a list row exposes to the template (a Topcoat `#[record]`).
+/// What a list row exposes to the template (a Hearth `#[record]`).
 #[hearth::row]
 pub struct IssueItem {
     pub id: String,
@@ -39,7 +39,7 @@ async fn issues(cx: &Cx) -> Result<impl View> {
     Ok(view! { app() })
 }
 
-#[topcoat::view::component]
+#[hearth::view::component]
 async fn app(cx: &Cx) -> Result<impl View> {
     let user = current_user(cx).await.map_err(Clone::clone)?.as_ref().ok_or_redirect("/login")?.clone();
     let scope = read_scope(cx).await?;
@@ -141,7 +141,7 @@ async fn app(cx: &Cx) -> Result<impl View> {
 // ---- generated-style endpoints (P1: a `hearth::routes!(Issues, Users, Labels)` macro)
 mod endpoints {
     use hearth::{Table, table::Mutation};
-    use topcoat::{Result, context::Cx, router::{content::Json, route}};
+    use hearth::{Result, context::Cx, router::{content::Json, route}};
 
     use crate::tables::{IssueWire, Issues, LabelWire, Labels, UserWire, Users};
 

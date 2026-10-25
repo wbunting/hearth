@@ -5,7 +5,7 @@ API handlers that read request bodies and return responses. Includes custom `Fro
 Run it with:
 
 ```sh
-cargo topcoat dev -p request-response
+cargo hearth dev -p request-response
 ```
 
 The example only serves API routes under `/api`; there is no page at `/`.

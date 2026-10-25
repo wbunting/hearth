@@ -54,3 +54,5 @@ Chromium, 50 ms simulated request delay, 50,516 issues, three baseline and warm 
 Cold response bytes increase about 1.4% because adding the cursor envelope changes Brotli compression. Warm transfers decrease more than 99.9%; rows are usable before server validation finishes. Cold full-data time has a modest scan/hash overhead; durability runs afterward. The O(table) server scan is the main remaining performance limitation.
 
 Verified in the running tracker: list/search/filter, detail navigation, labels, reactions, comments, a successful issue toggle, rejected-title rollback, and state after reload. Non-crew issue and child-table loads return only public issue data. Changing an issue's visibility directly in SQLite produces tombstones for that issue and its scoped comments and issue labels.
+
+Custom authentication can install a trusted `hearth::sync::Principal` in request context in a layer. This binds delta cursors to the same viewer as the table scope when no Hearth session is used. Derive the identity from validated authentication, not arbitrary request fields.

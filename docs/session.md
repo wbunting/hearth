@@ -1,10 +1,10 @@
-Topcoat manages session tokens. Your application stores each token's hash and expiry, associates it with a user, and checks that record on later requests. You choose the database and schema.
+Hearth manages session tokens. Your application stores each token's hash and expiry, associates it with a user, and checks that record on later requests. You choose the database and schema.
 
-Sessions are part of the default feature set, and everything below is re-exported from `topcoat::session`.
+Sessions are part of the default feature set, and everything below is re-exported from `hearth::session`.
 
 # The model
 
-A session token contains 32 bytes of cryptographically secure randomness. The client sends it with each request. By default, Topcoat carries it in a cookie with the `__Host-` prefix, `Secure`, `HttpOnly`, `SameSite=Lax`, and `Path=/`.
+A session token contains 32 bytes of cryptographically secure randomness. The client sends it with each request. By default, Hearth carries it in a cookie with the `__Host-` prefix, `Secure`, `HttpOnly`, `SameSite=Lax`, and `Path=/`.
 
 Store the token's SHA-256 hash, a [`TokenHash`], alongside the user ID and expiry. Do not store the raw token. Someone who obtains the session records cannot use a hash as a session token.
 
@@ -16,7 +16,7 @@ Session functions take `cx: &Cx`:
 - [`refresh`] re-issues the current token with a full lifetime ahead of it, for sliding expiration.
 - [`rotate`] replaces the current token with a fresh one, for privilege changes.
 
-Topcoat reads the token once per request. Session changes update that cached value, so later code in the same request sees the new session.
+Hearth reads the token once per request. Session changes update that cached value, so later code in the same request sees the new session.
 
 Changing the session involves setting cookies, which is only possible if the response body has not begun streaming yet. The [cookie guide](crate::cookie#writes-must-happen-before-the-response) explains this in more detail.
 
@@ -25,8 +25,8 @@ Changing the session involves setting cookies, which is only possible if the res
 Register session support on the router with [`RouterBuilderSessionExt::sessions`]. The default [`SessionConfig`] carries the token in a session cookie, which needs cookie support installed as well:
 
 ```rust,standalone_crate
-use topcoat::router::module_router;
-use topcoat::{
+use hearth::router::module_router;
+use hearth::{
     cookie::RouterBuilderCookieExt,
     router::Router,
     session::{RouterBuilderSessionExt, SessionConfig},
@@ -44,7 +44,7 @@ After authenticating the user, call [`start`] and store the returned [`Session`]
 
 ```rust
 // src/app/login.rs
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{error::{SeeOther, see_other}, href, route},
@@ -54,8 +54,8 @@ use topcoat::{
 # async fn verify_credentials(_cx: &Cx) -> Result<User> { Ok(User) }
 # async fn persist_session(_cx: &Cx, _user: &User, _session: &session::Session) -> Result<()> { Ok(()) }
 # mod app {
-#     #[topcoat::router::page]
-#     pub async fn home() -> topcoat::Result<impl topcoat::view::View> { Ok(topcoat::view::view! { "Home" }) }
+#     #[hearth::router::page]
+#     pub async fn home() -> hearth::Result<impl hearth::view::View> { Ok(hearth::view::view! { "Home" }) }
 # }
 
 #[route(POST)]
@@ -77,7 +77,7 @@ async fn login(cx: &Cx) -> Result<SeeOther> {
 [`token_hash`] returns the request token's hash, or `None` if the token is missing or malformed. Look up the hash in your storage and reject missing or expired records. A `current_user` helper keeps this check available wherever it is needed, as described in [functions, not middlewares](crate::context#functions-not-middlewares):
 
 ```rust
-use topcoat::{Result, context::Cx, session};
+use hearth::{Result, context::Cx, session};
 # #[derive(Clone)] struct User;
 # async fn load_session_user(_cx: &Cx, _hash: &session::TokenHash) -> Result<Option<User>> { Ok(None) }
 
@@ -96,7 +96,7 @@ Guard pages by combining it with the router's error helpers:
 
 ```rust
 // src/app/account.rs
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{error::RouterErrorExt, href, page},
@@ -106,8 +106,8 @@ use topcoat::{
 # async fn current_user(_cx: &Cx) -> Result<Option<User>> { Ok(None) }
 # mod app {
 #     pub mod login {
-#         #[topcoat::router::page]
-#         pub async fn page() -> topcoat::Result<impl topcoat::view::View> { Ok(topcoat::view::view! { "Sign in" }) }
+#         #[hearth::router::page]
+#         pub async fn page() -> hearth::Result<impl hearth::view::View> { Ok(hearth::view::view! { "Sign in" }) }
 #     }
 # }
 
@@ -129,7 +129,7 @@ async fn account(cx: &Cx) -> Result<impl View> {
 
 ```rust
 // src/app/logout.rs
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{error::{SeeOther, see_other}, href, route},
@@ -137,8 +137,8 @@ use topcoat::{
 };
 # async fn delete_session(_cx: &Cx, _hash: &session::TokenHash) -> Result<()> { Ok(()) }
 # mod app {
-#     #[topcoat::router::page]
-#     pub async fn home() -> topcoat::Result<impl topcoat::view::View> { Ok(topcoat::view::view! { "Home" }) }
+#     #[hearth::router::page]
+#     pub async fn home() -> hearth::Result<impl hearth::view::View> { Ok(hearth::view::view! { "Home" }) }
 # }
 
 #[route(POST)]
@@ -158,7 +158,7 @@ async fn logout(cx: &Cx) -> Result<SeeOther> {
 A session expires after its configured [`lifetime`](SessionConfigBuilder::lifetime). To keep an active session alive, call [`refresh`] after validating it and save the new expiry:
 
 ```rust
-use topcoat::{Result, context::Cx, session};
+use hearth::{Result, context::Cx, session};
 # use std::time::SystemTime;
 # async fn update_session_expiry(_cx: &Cx, _hash: &session::TokenHash, _expires_at: SystemTime) -> Result<()> { Ok(()) }
 
@@ -173,7 +173,7 @@ async fn slide_expiration(cx: &Cx) -> Result<()> {
 [`rotate`] issues a fresh token and returns a [`Rotation`]. Delete the record identified by `rotation.revoked` and save `rotation.session` in its place. Once you delete the old record, the old token no longer authenticates. Rotate after a change in privileges, such as re-authentication for a sensitive action.
 
 ```rust
-use topcoat::{Result, context::Cx, session};
+use hearth::{Result, context::Cx, session};
 # async fn rekey_session(_cx: &Cx, _revoked: &session::TokenHash, _session: &session::Session) -> Result<()> { Ok(()) }
 
 async fn escalate(cx: &Cx) -> Result<()> {
@@ -191,7 +191,7 @@ Use [`SessionConfig::builder`] to choose a token store and lifetime. For example
 ```rust
 use std::time::Duration;
 
-use topcoat::session::{SessionConfig, cookie::CookieTokenStore};
+use hearth::session::{SessionConfig, cookie::CookieTokenStore};
 
 let config = SessionConfig::builder()
     .token_store(CookieTokenStore::new().name("id"))
@@ -208,7 +208,7 @@ A [`TokenStore`] reads tokens from requests and sends token changes to the clien
 ```rust
 use std::time::Duration;
 
-use topcoat::{
+use hearth::{
     context::Cx,
     router::request::headers,
     session::{Token, TokenStore, TokenStoreFuture},

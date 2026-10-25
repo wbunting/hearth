@@ -1,18 +1,18 @@
-use serde::{Deserialize, Serialize};
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     cookie::{CookieStore, Cookies, Key, RouterBuilderCookieExt, cookie_store, signed_cookies},
     router::{module_router, page},
     view::{View, view},
 };
+use serde::{Deserialize, Serialize};
 
 #[tokio::main]
 async fn main() {
     // The key signs cookies so the client cannot forge the visit counter.
     // A real application would load a persistent key instead of generating
     // a new one on every start.
-    topcoat::start(
+    hearth::start(
         module_router!()
             .cookies()
             .app_context(Key::generate())
@@ -55,7 +55,7 @@ async fn home(cx: &Cx) -> Result<impl View> {
         <html>
             <head>
                 <title>"Cookie"</title>
-                topcoat::dev::script()
+                hearth::dev::script()
             </head>
             <body>
                 <p>

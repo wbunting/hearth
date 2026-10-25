@@ -3,7 +3,7 @@ mod error_handling;
 mod progress;
 mod suspense;
 
-use topcoat::{
+use hearth::{
     Result,
     asset::{AssetBundle, RouterBuilderAssetExt},
     context::Cx,
@@ -16,7 +16,7 @@ use crate::chat::Chat;
 
 #[tokio::main]
 async fn main() {
-    topcoat::start(
+    hearth::start(
         module_router!()
             .assets(AssetBundle::load().unwrap())
             .app_context(Chat::default())
@@ -42,10 +42,10 @@ async fn layout(slot: Slot<'_>) -> Result<impl View> {
                 <title>"Live"</title>
 
                 // Reloads the browser when the dev server rebuilds the app.
-                topcoat::dev::script()
+                hearth::dev::script()
 
                 // Load the browser runtime for chat connections and button handlers.
-                topcoat::runtime::script()
+                hearth::runtime::script()
             </head>
             <body>
                 <nav>

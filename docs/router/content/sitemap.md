@@ -1,4 +1,4 @@
-XML sitemaps for Topcoat routes.
+XML sitemaps for Hearth routes.
 
 A [sitemap](https://www.sitemaps.org) lists URLs for crawlers to discover. Enable the `sitemap` feature and return a [`Sitemap`] from a route to serve an XML sitemap.
 
@@ -8,7 +8,7 @@ This example serves a sitemap at `/sitemap.xml`. The relative path `./sitemap.xm
 
 ```rust
 // src/app.rs
-use topcoat::{
+use hearth::{
     Result,
     router::{
         content::sitemap::{ChangeFrequency, Sitemap, SitemapUrl},
@@ -29,7 +29,7 @@ async fn sitemap() -> Result<Sitemap> {
 The sitemap format requires absolute URLs, so register the base URL the application is publicly reachable at on the router. An entry given as a root-relative path is resolved against it when the response is rendered; an entry that is already an absolute `http` or `https` URL is used as is. Rendering a relative entry without a registered base URL panics.
 
 ```rust,no_run
-use topcoat::router::module_router;
+use hearth::router::module_router;
 
 let router = module_router!().base_url("https://example.com").build();
 ```
@@ -45,7 +45,7 @@ Beyond its location, a [`SitemapUrl`] carries the optional metadata of the sitem
 ```rust
 use std::time::SystemTime;
 
-use topcoat::router::content::sitemap::{ChangeFrequency, SitemapUrl};
+use hearth::router::content::sitemap::{ChangeFrequency, SitemapUrl};
 
 let url = SitemapUrl::new("/posts/42")
     .last_modified(SystemTime::now())

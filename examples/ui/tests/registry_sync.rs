@@ -4,7 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
-use topcoat_ui::{
+use hearth_ui::{
     DEFAULT_REGISTRY, Registry,
     manage::{InstallStatus, Package, list},
 };
@@ -16,7 +16,7 @@ fn package_root() -> &'static Path {
 
 /// The built-in registry, loaded from its crate in this workspace.
 fn registry() -> Registry {
-    let dir = package_root().join("../../crates/topcoat-ui/registry");
+    let dir = package_root().join("../../crates/hearth-ui/registry");
     Registry::load(dir).expect("the workspace's built-in registry loads")
 }
 
@@ -30,7 +30,7 @@ fn read_installed(path: &PathBuf, hint: Option<&str>) -> String {
 
 /// What to run when the component `name` has drifted from the registry.
 fn component_hint(name: &str) -> String {
-    format!("run `topcoat ui add {name} --overwrite` in examples/ui")
+    format!("run `hearth ui add {name} --overwrite` in examples/ui")
 }
 
 #[test]
@@ -88,11 +88,11 @@ fn components_are_up_to_date() {
             ),
             InstallStatus::Available { .. } => panic!(
                 "the registry offers `{name}`, which this example has not installed; \
-                 run `topcoat ui add {name}` in examples/ui and showcase it",
+                 run `hearth ui add {name}` in examples/ui and showcase it",
             ),
             InstallStatus::Orphaned { .. } => panic!(
                 "this example has `{name}` installed, which the registry no longer offers; \
-                 run `topcoat ui remove {name}` in examples/ui",
+                 run `hearth ui remove {name}` in examples/ui",
             ),
         }
     }

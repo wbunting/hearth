@@ -1,7 +1,6 @@
 mod api;
 
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{
@@ -12,10 +11,11 @@ use topcoat::{
         response::{IntoResponse, Response},
     },
 };
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 #[tokio::main]
 async fn main() {
-    topcoat::start(module_router!().build()).await.unwrap();
+    hearth::start(module_router!().build()).await.unwrap();
 }
 
 // --- JSON requests and responses -------------------------------------------
@@ -66,7 +66,7 @@ where
             .and_then(|value| value.to_str().ok())
             .ok_or_else(|| bad_request("missing x-signature header"))?;
 
-        if signature != "topcoat-demo" {
+        if signature != "hearth-demo" {
             return Err(bad_request("invalid x-signature header").into());
         }
 

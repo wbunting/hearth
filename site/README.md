@@ -1,0 +1,25 @@
+# Hearth website
+
+A small Rust application built with Hearth, including a real local-query and optimistic-write demo. No hand-written application JavaScript is required. Demo data is scoped to a random HttpOnly browser cookie. The in-memory database resets when the process restarts; opening the page reseeds the browser's rows.
+
+From the repository root:
+
+```sh
+pnpm install --frozen-lockfile
+pnpm build:runtime
+cargo build --locked --release -p hearth-cli -p hearth-site
+./target/release/hearth asset bundle --release -p hearth-site
+PORT=3620 HOST=127.0.0.1 ./target/release/hearth-site
+```
+
+Open `http://127.0.0.1:3620`. Build and deploy the binary with its matching `target/release/assets` directory. Production hosting is not configured in this change. Use a reverse proxy with HTTPS and preserve same-origin expression module and mutation routes.
+
+The page's strict CSP permits only same-origin scripts, styles, fonts, connections and images. Fonts are self-hosted. The Manrope license is in `assets/Manrope-LICENSE.txt`; logo assets come from `docs/hearth/brand`.
+
+The guide deliberately uses source installation until registry publication is confirmed. Update that copy only after verifying the real crates.io release and an independent consumer build.
+
+## Limits
+
+This is an illustrative demo, not an account system. Browser session identifiers are unguessable bearer cookies, not signed identities. The public demo creates a small set of database rows per new browser and retains at most 256 browser datasets and evicts the oldest. Add request rate limiting before exposing a long-running production instance. Do not store sensitive data in this example. The demo is intentionally ephemeral and always uses an in-memory database. It does not connect to an application database.
+
+Set `HEARTH_SITE_SECURE=1` behind HTTPS to require secure transport for the demo cookie. Per-browser delta cursors use the same request-scoped identity as the read policy.

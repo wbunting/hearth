@@ -1,13 +1,13 @@
-Use tower services and middleware with Topcoat.
+Use tower services and middleware with Hearth.
 
-Enable the `tower` feature to connect Topcoat with [tower](https://docs.rs/tower). Mount an existing service with [`TowerRoute`], apply middleware with [`TowerLayer`], or expose a Topcoat router through [`TowerService`].
+Enable the `tower` feature to connect Hearth with [tower](https://docs.rs/tower). Mount an existing service with [`TowerRoute`], apply middleware with [`TowerLayer`], or expose a Hearth router through [`TowerService`].
 
 # Mounting a service as a route
 
-[`TowerRoute`] forwards requests to a tower service. Use [`any`](TowerRoute::any) to accept every HTTP method and a catch-all path to forward a URL subtree. For example, an existing axum application can keep serving `/legacy` while other routes move to Topcoat:
+[`TowerRoute`] forwards requests to a tower service. Use [`any`](TowerRoute::any) to accept every HTTP method and a catch-all path to forward a URL subtree. For example, an existing axum application can keep serving `/legacy` while other routes move to Hearth:
 
 ```rust,ignore
-use topcoat::router::{Router, module_router, tower::TowerRoute};
+use hearth::router::{Router, module_router, tower::TowerRoute};
 
 // The pre-migration application, still serving everything under `/legacy`.
 let legacy: axum::Router = legacy_app();
@@ -23,12 +23,12 @@ Add [`StripPrefixLayer`](crate::StripPrefixLayer) if the service expects paths r
 
 # Running middleware as a layer
 
-[`TowerLayer`] runs tower middleware around Topcoat request handling. By default, it covers every request, including unmatched requests. Use [`at`](TowerLayer::at) to limit it to matched handlers under a path:
+[`TowerLayer`] runs tower middleware around Hearth request handling. By default, it covers every request, including unmatched requests. Use [`at`](TowerLayer::at) to limit it to matched handlers under a path:
 
 ```rust,no_run
 use std::time::Duration;
 
-use topcoat::router::{module_router, tower::TowerLayer};
+use hearth::router::{module_router, tower::TowerLayer};
 use tower::timeout::TimeoutLayer;
 
 let router = module_router!()
@@ -36,22 +36,22 @@ let router = module_router!()
     .build();
 ```
 
-# Serving a Topcoat router in another application
+# Serving a Hearth router in another application
 
-[`TowerService`] lets another application serve a Topcoat [`Router`](crate::Router). For example, an axum application can forward otherwise unmatched requests to Topcoat:
+[`TowerService`] lets another application serve a Hearth [`Router`](crate::Router). For example, an axum application can forward otherwise unmatched requests to Hearth:
 
 ```rust,ignore
-use topcoat::router::{Router, module_router, RouterBuilderDiscoverExt, tower::TowerService};
+use hearth::router::{Router, module_router, RouterBuilderDiscoverExt, tower::TowerService};
 
-let topcoat = module_router!().discover().build();
+let hearth = module_router!().discover().build();
 
 // Serve every request the surrounding axum application does not handle.
 let app = axum::Router::new()
     .route("/api/health", axum::routing::get(|| async { "ok" }))
-    .fallback_service(TowerService::new(topcoat));
+    .fallback_service(TowerService::new(hearth));
 ```
 
-Forward the full path, as the fallback above does. Topcoat uses its registered paths for both request matching and URL generation. If the surrounding service strips a prefix, generated links may point outside the mount.
+Forward the full path, as the fallback above does. Hearth uses its registered paths for both request matching and URL generation. If the surrounding service strips a prefix, generated links may point outside the mount.
 
 The service accepts compatible byte-stream request bodies. Routing errors and handler panics become HTTP responses. The service itself has no error result to handle.
 
@@ -65,7 +65,7 @@ In axum, middleware can copy the address from the request's `ConnectInfo<SocketA
 use std::net::SocketAddr;
 
 use axum::extract::{ConnectInfo, Request};
-use topcoat::router::RemoteAddr;
+use hearth::router::RemoteAddr;
 
 let app = app.layer(axum::middleware::map_request(|mut request: Request| async {
     if let Some(ConnectInfo(addr)) = request.extensions().get::<ConnectInfo<SocketAddr>>() {
@@ -80,11 +80,11 @@ Serve the axum application with `app.into_make_service_with_connect_info::<Socke
 
 [`remote_addr`](crate::request::remote_addr) reads this address. [`client_ip`](crate::request::client_ip) uses its IP unless you configure [`TrustedProxies`](crate::TrustedProxies) to read the client's address from a trusted proxy's header.
 
-Without `RemoteAddr`, `remote_addr(cx)` returns `None`. You can still trust a proxy by its position with [`TrustedProxies::nearest`](crate::TrustedProxies::nearest). This supports connections without an IP address, such as Unix sockets. The direct connection counts as the first hop. Use this only when every request passes through the configured number of proxies. Embedding Topcoat in another tower application adds no proxy hop.
+Without `RemoteAddr`, `remote_addr(cx)` returns `None`. You can still trust a proxy by its position with [`TrustedProxies::nearest`](crate::TrustedProxies::nearest). This supports connections without an IP address, such as Unix sockets. The direct connection counts as the first hop. Use this only when every request passes through the configured number of proxies. Embedding Hearth in another tower application adds no proxy hop.
 
 # Errors
 
-[`TowerLayer`] preserves errors from the inner Topcoat handler so outer code can catch them by type. Errors created by tower middleware or a mounted service become [`TowerServiceError`]. An unhandled service error produces `500 Internal Server Error`.
+[`TowerLayer`] preserves errors from the inner Hearth handler so outer code can catch them by type. Errors created by tower middleware or a mounted service become [`TowerServiceError`]. An unhandled service error produces `500 Internal Server Error`.
 
 # Requirements
 

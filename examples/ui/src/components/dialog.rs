@@ -1,4 +1,4 @@
-use topcoat::{
+use hearth::{
     Result,
     runtime::Expr,
     view::{Attributes, Child, StaticClass, View, class, component, view},

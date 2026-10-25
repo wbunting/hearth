@@ -1,4 +1,4 @@
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{
@@ -10,7 +10,7 @@ use topcoat::{
 
 #[tokio::main]
 async fn main() {
-    topcoat::start(module_router!().build()).await.unwrap();
+    hearth::start(module_router!().build()).await.unwrap();
 }
 
 fn current_path(cx: &Cx) -> &str {
@@ -32,7 +32,7 @@ async fn home(cx: &Cx) -> Result<impl View> {
         <html>
             <head>
                 <title>"Cx"</title>
-                topcoat::dev::script()
+                hearth::dev::script()
             </head>
             <body>
                 <h1>"Cx functions"</h1>

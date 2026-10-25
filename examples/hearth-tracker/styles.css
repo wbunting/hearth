@@ -1,4 +1,4 @@
-/* Topcoat neutral theme. System colors by default, .dark/.light override.
+/* Hearth neutral theme. System colors by default, .dark/.light override.
    System fonts and native controls avoid extra network requests. */
 @import "tailwindcss" source(none);
 @source "./src";

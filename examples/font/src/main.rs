@@ -1,4 +1,4 @@
-use topcoat::{
+use hearth::{
     Result,
     asset::{AssetBundle, RouterBuilderAssetExt},
     font::{Font, font, fontsource::fontsource_font},
@@ -6,7 +6,7 @@ use topcoat::{
     view::{View, view},
 };
 
-// `host: Asset` downloads the font files into the asset bundle, so Topcoat
+// `host: Asset` downloads the font files into the asset bundle, so Hearth
 // serves them itself.
 const LAVISHLY_YOURS: Font = fontsource_font!(LAVISHLY_YOURS, host: Asset);
 
@@ -30,7 +30,7 @@ async fn main() {
         .discover()
         .build();
 
-    topcoat::start(router).await.unwrap();
+    hearth::start(router).await.unwrap();
 }
 
 #[page]
@@ -40,16 +40,16 @@ async fn home() -> Result<impl View> {
         <html>
             <head>
                 <title>"Fonts"</title>
-                topcoat::dev::script()
+                hearth::dev::script()
 
                 // Renders the preload and style elements the font needs.
-                topcoat::font::link(font: LAVISHLY_YOURS)
-                topcoat::font::link(font: ORBITRON)
+                hearth::font::link(font: LAVISHLY_YOURS)
+                hearth::font::link(font: ORBITRON)
             </head>
 
             <body>
                 <h1 style=(format!("font-family: {:?}", LAVISHLY_YOURS.family()))>
-                    "This font is downloaded from Fontsource and self-hosted via Topcoat assets!"
+                    "This font is downloaded from Fontsource and self-hosted via Hearth assets!"
                 </h1>
 
                 <h2 style=(format!("font-family: {:?}", ORBITRON.family()))>

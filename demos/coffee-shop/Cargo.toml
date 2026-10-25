@@ -8,14 +8,14 @@ publish = false
 serde = { workspace = true, features = ["derive"] }
 toasty = { workspace = true, features = ["sqlite"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
-topcoat = { workspace = true, features = ["font-fontsource", "tailwind"] }
+hearth = { workspace = true, features = ["font-fontsource", "tailwind"] }
 
 [build-dependencies]
 # We cannot use `workspace = true` with `default-features = false`.
-topcoat = { path = "../../crates/topcoat/", default-features = false, features = ["tailwind"] }
+hearth = { path = "../../crates/hearth/", default-features = false, features = ["tailwind"] }
 
 [dev-dependencies]
-topcoat-ui.workspace = true
+hearth-ui.workspace = true
 
 [lints]
 workspace = true

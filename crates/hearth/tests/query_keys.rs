@@ -1,6 +1,5 @@
-use hearth::{RowTypes, Table, live_query};
+use hearth::{Result, RowTypes, Table, context::Cx, live_query};
 use serde::{Deserialize, Serialize};
-use topcoat::{Result, context::Cx};
 
 #[derive(toasty::Model)]
 struct Model {

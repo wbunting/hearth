@@ -24,11 +24,11 @@ is lowered by the forked `view!` grammar (`ForLoop` with a `$()` iterable) to:
    reactive ref the list region provides. That's a 30-line change in
    `NameResolver` plus a `RowCapture` marker type.
 3. **Markers**: the list region emits
-   `<!-- ::topcoat::list::start("<query js>", "<key js>", <template id>) -->`
-   … rendered rows (each wrapped in `<!-- ::topcoat::item(<key>) -->`) …
-   `<!-- ::topcoat::list::end -->`, plus one `<template>` holding the body
+   `<!-- ::hearth::list::start("<query js>", "<key js>", <template id>) -->`
+   … rendered rows (each wrapped in `<!-- ::hearth::item(<key>) -->`) …
+   `<!-- ::hearth::list::end -->`, plus one `<template>` holding the body
    rendered **once, with placeholder row data** so that all `$()` markers and
-   `data-topcoat-*` attrs exist in it. The browser clones it per new row and
+   `data-hearth-*` attrs exist in it. The browser clones it per new row and
    hydrates the clone in a child `Scope` whose `cx.row()` points at that row's
    signal.
 4. **Browser runtime** (`dom/list.ts`, new): subscribes to the query (TanStack
@@ -38,7 +38,7 @@ is lowered by the forked `view!` grammar (`ForLoop` with a `$()` iterable) to:
 
 ## Why not compile the whole body to DOM-building JS?
 That's #275's approach (a rustc backend). It's more powerful, but a much bigger
-project. The template-clone approach reuses Topcoat's existing `$()` →
+project. The template-clone approach reuses Hearth's existing `$()` →
 JS lowering, markers and hydration, so the fork stays small and SSR stays
 identical.
 

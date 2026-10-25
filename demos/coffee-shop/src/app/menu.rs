@@ -2,7 +2,7 @@ pub mod drink;
 
 use std::time::Duration;
 
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{href, page},

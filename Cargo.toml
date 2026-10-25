@@ -1,42 +1,42 @@
 [workspace]
 resolver = "2"
 members = [
+    "site",
     "crates/hearth",
     "crates/hearth-macro",
     "examples/hearth-tracker",
-    "crates/topcoat",
-    "crates/topcoat-alpine-ajax",
-    "crates/topcoat-asset",
-    "crates/topcoat-cli",
-    "crates/topcoat-cookie",
-    "crates/topcoat-core",
-    "crates/topcoat-datastar",
-    "crates/topcoat-core/grammar",
-    "crates/topcoat-core/macro",
-    "crates/topcoat-font",
-    "crates/topcoat-font/grammar",
-    "crates/topcoat-font/macro",
-    "crates/topcoat-htmx",
-    "crates/topcoat-icon",
-    "crates/topcoat-icon/grammar",
-    "crates/topcoat-icon/macro",
-    "crates/topcoat-mail",
-    "crates/topcoat-mail/grammar",
-    "crates/topcoat-mail/macro",
-    "crates/topcoat-router",
-    "crates/topcoat-router/grammar",
-    "crates/topcoat-router/macro",
-    "crates/topcoat-runtime",
-    "crates/topcoat-runtime/coherence",
-    "crates/topcoat-runtime/grammar",
-    "crates/topcoat-runtime/macro",
-    "crates/topcoat-session",
-    "crates/topcoat-tailwind",
-    "crates/topcoat-ui",
-    "crates/topcoat-ui/registry",
-    "crates/topcoat-view",
-    "crates/topcoat-view/grammar",
-    "crates/topcoat-view/macro",
+    "crates/hearth-alpine-ajax",
+    "crates/hearth-asset",
+    "crates/hearth-cli",
+    "crates/hearth-cookie",
+    "crates/hearth-foundation",
+    "crates/hearth-datastar",
+    "crates/hearth-foundation/grammar",
+    "crates/hearth-foundation/macro",
+    "crates/hearth-font",
+    "crates/hearth-font/grammar",
+    "crates/hearth-font/macro",
+    "crates/hearth-htmx",
+    "crates/hearth-icon",
+    "crates/hearth-icon/grammar",
+    "crates/hearth-icon/macro",
+    "crates/hearth-mail",
+    "crates/hearth-mail/grammar",
+    "crates/hearth-mail/macro",
+    "crates/hearth-router",
+    "crates/hearth-router/grammar",
+    "crates/hearth-router/macro",
+    "crates/hearth-runtime",
+    "crates/hearth-runtime/coherence",
+    "crates/hearth-runtime/grammar",
+    "crates/hearth-runtime/macro",
+    "crates/hearth-session",
+    "crates/hearth-tailwind",
+    "crates/hearth-ui",
+    "crates/hearth-ui/registry",
+    "crates/hearth-view",
+    "crates/hearth-view/grammar",
+    "crates/hearth-view/macro",
 
     "examples/alpine-ajax",
     "examples/app-context",
@@ -67,7 +67,7 @@ members = [
 
     "demos/coffee-shop",
 
-    "benchmarks/topcoat",
+    "benchmarks/hearth",
 ]
 exclude = [
     "legacy",
@@ -76,13 +76,13 @@ exclude = [
 ]
 
 [workspace.package]
-version = "0.10.0"
+version = "0.1.0"
 edition = "2024"
-authors = ["Julien Scholz <hello@julien-scholz.dev>"]
+authors = ["Will Bunting", "Julien Scholz <hello@julien-scholz.dev>"]
 license = "MIT"
-description = "A modular, batteries-included Rust web framework for server-rendered apps."
-repository = "https://github.com/tokio-rs/topcoat"
-homepage = "https://github.com/tokio-rs/topcoat"
+description = "Local-first web applications written in Rust. Server rendering, reactive queries and optimistic writes."
+repository = "https://github.com/wbunting/hearth"
+homepage = "https://github.com/wbunting/hearth"
 keywords = ["web", "framework", "ssr", "html", "server"]
 categories = ["web-programming", "web-programming::http-server"]
 rust-version = "1.99"
@@ -111,46 +111,38 @@ debug = 1
 debug = false
 
 [workspace.dependencies]
-hearth = { path = "crates/hearth" }
-hearth-macro = { path = "crates/hearth-macro" }
-# The `topcoat` facade is only ever a dev-dependency of the publishable
-# sub-crates (and a normal dependency of the non-publishable examples), so it
-# deliberately carries NO version. A versioned dev-dependency would force cargo
-# to resolve `topcoat = "^X.Y.Z"` against crates.io when *packaging* a sub-crate
-# for publish. That is impossible during a release, since the sub-crates publish
-# before the facade does. Path-only dev-dependencies are dropped from the published
-# manifest, sidestepping the facade<->sub-crate cycle. Do not add a version here.
-topcoat = { path = "crates/topcoat" }
-topcoat-alpine-ajax = { version = "0.10.0", path = "crates/topcoat-alpine-ajax" }
-topcoat-asset = { version = "0.10.0", path = "crates/topcoat-asset" }
-topcoat-cookie = { version = "0.10.0", path = "crates/topcoat-cookie" }
-topcoat-core = { version = "0.10.0", path = "crates/topcoat-core" }
-topcoat-core-grammar = { version = "0.10.0", path = "crates/topcoat-core/grammar" }
-topcoat-core-macro = { version = "0.10.0", path = "crates/topcoat-core/macro" }
-topcoat-datastar = { version = "0.10.0", path = "crates/topcoat-datastar" }
-topcoat-font = { version = "0.10.0", path = "crates/topcoat-font" }
-topcoat-font-grammar = { version = "0.10.0", path = "crates/topcoat-font/grammar" }
-topcoat-font-macro = { version = "0.10.0", path = "crates/topcoat-font/macro" }
-topcoat-htmx = { version = "0.10.0", path = "crates/topcoat-htmx" }
-topcoat-icon = { version = "0.10.0", path = "crates/topcoat-icon" }
-topcoat-icon-grammar = { version = "0.10.0", path = "crates/topcoat-icon/grammar" }
-topcoat-icon-macro = { version = "0.10.0", path = "crates/topcoat-icon/macro" }
-topcoat-mail = { version = "0.10.0", path = "crates/topcoat-mail" }
-topcoat-mail-grammar = { version = "0.10.0", path = "crates/topcoat-mail/grammar" }
-topcoat-mail-macro = { version = "0.10.0", path = "crates/topcoat-mail/macro" }
-topcoat-router = { version = "0.10.0", path = "crates/topcoat-router" }
-topcoat-router-grammar = { version = "0.10.0", path = "crates/topcoat-router/grammar" }
-topcoat-router-macro = { version = "0.10.0", path = "crates/topcoat-router/macro" }
-topcoat-runtime = { version = "0.10.0", path = "crates/topcoat-runtime" }
-topcoat-runtime-grammar = { version = "0.10.0", path = "crates/topcoat-runtime/grammar" }
-topcoat-runtime-macro = { version = "0.10.0", path = "crates/topcoat-runtime/macro" }
-topcoat-session = { version = "0.10.0", path = "crates/topcoat-session" }
-topcoat-tailwind = { version = "0.10.0", path = "crates/topcoat-tailwind" }
-topcoat-ui = { version = "0.10.0", path = "crates/topcoat-ui" }
-topcoat-ui-registry = { version = "0.10.0", path = "crates/topcoat-ui/registry" }
-topcoat-view = { version = "0.10.0", path = "crates/topcoat-view" }
-topcoat-view-grammar = { version = "0.10.0", path = "crates/topcoat-view/grammar" }
-topcoat-view-macro = { version = "0.10.0", path = "crates/topcoat-view/macro" }
+hearth = { version = "0.1.0", path = "crates/hearth" }
+hearth-macro = { version = "0.1.0", path = "crates/hearth-macro" }
+hearth-alpine-ajax = { version = "0.1.0", path = "crates/hearth-alpine-ajax" }
+hearth-asset = { version = "0.1.0", path = "crates/hearth-asset" }
+hearth-cookie = { version = "0.1.0", path = "crates/hearth-cookie" }
+hearth-foundation = { version = "0.1.0", path = "crates/hearth-foundation" }
+hearth-foundation-grammar = { version = "0.1.0", path = "crates/hearth-foundation/grammar" }
+hearth-foundation-macro = { version = "0.1.0", path = "crates/hearth-foundation/macro" }
+hearth-datastar = { version = "0.1.0", path = "crates/hearth-datastar" }
+hearth-font = { version = "0.1.0", path = "crates/hearth-font" }
+hearth-font-grammar = { version = "0.1.0", path = "crates/hearth-font/grammar" }
+hearth-font-macro = { version = "0.1.0", path = "crates/hearth-font/macro" }
+hearth-htmx = { version = "0.1.0", path = "crates/hearth-htmx" }
+hearth-icon = { version = "0.1.0", path = "crates/hearth-icon" }
+hearth-icon-grammar = { version = "0.1.0", path = "crates/hearth-icon/grammar" }
+hearth-icon-macro = { version = "0.1.0", path = "crates/hearth-icon/macro" }
+hearth-mail = { version = "0.1.0", path = "crates/hearth-mail" }
+hearth-mail-grammar = { version = "0.1.0", path = "crates/hearth-mail/grammar" }
+hearth-mail-macro = { version = "0.1.0", path = "crates/hearth-mail/macro" }
+hearth-router = { version = "0.1.0", path = "crates/hearth-router" }
+hearth-router-grammar = { version = "0.1.0", path = "crates/hearth-router/grammar" }
+hearth-router-macro = { version = "0.1.0", path = "crates/hearth-router/macro" }
+hearth-runtime = { version = "0.1.0", path = "crates/hearth-runtime" }
+hearth-runtime-grammar = { version = "0.1.0", path = "crates/hearth-runtime/grammar" }
+hearth-runtime-macro = { version = "0.1.0", path = "crates/hearth-runtime/macro" }
+hearth-session = { version = "0.1.0", path = "crates/hearth-session" }
+hearth-tailwind = { version = "0.1.0", path = "crates/hearth-tailwind" }
+hearth-ui = { version = "0.1.0", path = "crates/hearth-ui" }
+hearth-ui-registry = { version = "0.1.0", path = "crates/hearth-ui/registry" }
+hearth-view = { version = "0.1.0", path = "crates/hearth-view" }
+hearth-view-grammar = { version = "0.1.0", path = "crates/hearth-view/grammar" }
+hearth-view-macro = { version = "0.1.0", path = "crates/hearth-view/macro" }
 
 anyhow = "1.0"
 anymap3 = "1.0"

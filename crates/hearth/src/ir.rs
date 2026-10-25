@@ -1,5 +1,5 @@
-//! Query IR shared by the server (SSR evaluation) and the browser (TanStack
-//! DB lowering in `topcoat-runtime/browser/src/hearth/db.ts`). Built by
+//! Query IR shared by the server (SSR evaluation) and the browser (`TanStack`
+//! DB lowering in `hearth-runtime/browser/src/hearth/db.ts`). Built by
 //! `live_query!`; serialized as JSON into the list marker.
 
 use serde::Serialize;
@@ -8,13 +8,33 @@ use serde_json::Value;
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub enum Expr {
-    Col { col: (&'static str, &'static str) },
-    Lit { lit: Value },
-    Param { param: usize },
-    Bin { op: &'static str, l: Box<Expr>, r: Box<Expr> },
-    Many { op: &'static str, args: Vec<Expr> },
-    Not { op: &'static str, arg: Box<Expr> },
-    If { op: &'static str, cond: Box<Expr>, then: Box<Expr> },
+    Col {
+        col: (&'static str, &'static str),
+    },
+    Lit {
+        lit: Value,
+    },
+    Param {
+        param: usize,
+    },
+    Bin {
+        op: &'static str,
+        l: Box<Expr>,
+        r: Box<Expr>,
+    },
+    Many {
+        op: &'static str,
+        args: Vec<Expr>,
+    },
+    Not {
+        op: &'static str,
+        arg: Box<Expr>,
+    },
+    If {
+        op: &'static str,
+        cond: Box<Expr>,
+        then: Box<Expr>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -90,9 +110,18 @@ pub mod indexmap_lite {
 
 pub type JsonRow = serde_json::Map<String, Value>;
 
-pub fn eval(e: &Expr, row: &std::collections::HashMap<&str, &JsonRow>, params: &[Value]) -> Value {
+#[must_use]
+pub fn eval<S: std::hash::BuildHasher>(
+    e: &Expr,
+    row: &std::collections::HashMap<&str, &JsonRow, S>,
+    params: &[Value],
+) -> Value {
     match e {
-        Expr::Col { col: (a, c) } => row.get(a).and_then(|r| r.get(*c)).cloned().unwrap_or(Value::Null),
+        Expr::Col { col: (a, c) } => row
+            .get(a)
+            .and_then(|r| r.get(*c))
+            .cloned()
+            .unwrap_or(Value::Null),
         Expr::Lit { lit } => lit.clone(),
         Expr::Param { param } => params.get(*param).cloned().unwrap_or(Value::Null),
         Expr::Bin { op, l, r } => {
@@ -127,6 +156,7 @@ pub fn eval(e: &Expr, row: &std::collections::HashMap<&str, &JsonRow>, params: &
     }
 }
 
+#[must_use]
 pub fn truthy(v: &Value) -> bool {
     match v {
         Value::Null => false,
@@ -137,9 +167,13 @@ pub fn truthy(v: &Value) -> bool {
     }
 }
 
+#[must_use]
 pub fn cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
     match (a, b) {
-        (Value::Number(a), Value::Number(b)) => a.as_f64().partial_cmp(&b.as_f64()).unwrap_or(std::cmp::Ordering::Equal),
+        (Value::Number(a), Value::Number(b)) => a
+            .as_f64()
+            .partial_cmp(&b.as_f64())
+            .unwrap_or(std::cmp::Ordering::Equal),
         (Value::String(a), Value::String(b)) => a.cmp(b),
         (Value::Bool(a), Value::Bool(b)) => a.cmp(b),
         (Value::Null, Value::Null) => std::cmp::Ordering::Equal,

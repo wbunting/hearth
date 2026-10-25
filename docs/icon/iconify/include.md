@@ -36,7 +36,7 @@ Stage the set from `build.rs` with [`BuildConfig`]. It downloads missing sets an
 # #![allow(clippy::needless_doctest_main)]
 // build.rs
 fn main() {
-    topcoat::icon::iconify::BuildConfig::new()
+    hearth::icon::iconify::BuildConfig::new()
         .icon_set("mdi")
         .stage()
         .unwrap();

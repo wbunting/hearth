@@ -1,13 +1,13 @@
 mod todos;
 
-use serde::Deserialize;
-use toasty::Db;
-use topcoat::{
+use hearth::{
     Result,
     context::{Cx, app_context},
     router::{Slot, href, layout, module_router, page},
     view::{View, component, view},
 };
+use serde::Deserialize;
+use toasty::Db;
 
 #[tokio::main]
 async fn main() {
@@ -21,7 +21,7 @@ async fn main() {
 
     db.push_schema().await.unwrap();
 
-    topcoat::start(module_router!().app_context(db).build())
+    hearth::start(module_router!().app_context(db).build())
         .await
         .unwrap();
 }
@@ -50,7 +50,7 @@ async fn root(slot: Slot<'_>) -> Result<impl View> {
         <html>
             <head>
                 <title>"Toasty Todos"</title>
-                topcoat::dev::script()
+                hearth::dev::script()
             </head>
             <body>(slot)</body>
         </html>

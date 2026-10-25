@@ -5,7 +5,7 @@ A [`Router`] matches requests to handlers. You can derive paths from Rust module
 Call [`module_router!`] in the root of your route tree, then [`build`](RouterBuilder::build). Handlers omit path strings and take their paths from the enclosing modules:
 
 ```rust,standalone_crate
-use topcoat::router::{Router, module_router};
+use hearth::router::{Router, module_router};
 
 // src/app.rs: this module maps to /.
 pub fn router() -> Router {
@@ -20,7 +20,7 @@ Declare child modules with `mod`, just as in any Rust application. A `#[page]` i
 To choose paths directly, put an absolute path in each handler's attribute and register the handlers on [`Router::builder`]. Their Rust module locations do not affect the URLs:
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     router::{Router, page, route},
     view::{View, view},
@@ -49,17 +49,17 @@ You can also combine the approaches. `module_router!()` collects module-derived 
 
 # Linking to pages and routes
 
-Use [`href!`](macro@href) for URLs targeting Topcoat handlers, including navigation links, form actions, and redirects. Pass the handler's Rust name so the URL follows its registered path when you rename a module or change an explicit path. Pass each path parameter as a `path_param!` value:
+Use [`href!`](macro@href) for URLs targeting Hearth handlers, including navigation links, form actions, and redirects. Pass the handler's Rust name so the URL follows its registered path when you rename a module or change an explicit path. Pass each path parameter as a `path_param!` value:
 
 ```rust
-use topcoat::{router::href, view::view};
-# use topcoat::{Result, router::{page, route}, view::View};
-# #[page("/posts")] async fn posts() -> Result<impl View> { Ok(topcoat::view::view! { "Posts" }) }
+use hearth::{router::href, view::view};
+# use hearth::{Result, router::{page, route}, view::View};
+# #[page("/posts")] async fn posts() -> Result<impl View> { Ok(hearth::view::view! { "Posts" }) }
 # #[route(POST "/posts")] async fn publish() -> Result<()> { Ok(()) }
 # mod post_id {
 #     use super::*;
-#     topcoat::router::path_param!(pub post_id: u64);
-#     #[page("/posts/{post_id}")] pub async fn post() -> Result<impl View> { Ok(topcoat::view::view! { "Post" }) }
+#     hearth::router::path_param!(pub post_id: u64);
+#     #[page("/posts/{post_id}")] pub async fn post() -> Result<impl View> { Ok(hearth::view::view! { "Post" }) }
 # }
 # #[page] async fn example() -> Result<impl View> {
 Ok(view! {
@@ -76,13 +76,13 @@ Ok(view! {
 A view renders the returned [`Href`] directly. Call [`resolve`](Href::resolve) when a redirect helper needs a string:
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{error::{SeeOther, see_other}, href, route},
 };
-# #[topcoat::router::page("/posts")]
-# async fn posts() -> Result<impl topcoat::view::View> { Ok(topcoat::view::view! { "Posts" }) }
+# #[hearth::router::page("/posts")]
+# async fn posts() -> Result<impl hearth::view::View> { Ok(hearth::view::view! { "Posts" }) }
 
 #[route(POST)]
 async fn publish(cx: &Cx) -> Result<SeeOther> {
@@ -95,7 +95,7 @@ Use ordinary URLs for external destinations and standalone fragment links such a
 
 # Path syntax
 
-Explicit route paths use Topcoat's [`Path`] syntax. A path is made of `/`-separated segments, and each segment is one of four kinds.
+Explicit route paths use Hearth's [`Path`] syntax. A path is made of `/`-separated segments, and each segment is one of four kinds.
 
 - `/users` is a static segment.
 - `/{id}` is a dynamic parameter that matches one non-empty segment.
@@ -112,7 +112,7 @@ A page is an async function annotated with [`#[page]`](page), returning a render
 
 ```rust
 // src/app.rs
-use topcoat::{Result, router::page, view::{View, view}};
+use hearth::{Result, router::page, view::{View, view}};
 
 #[page]
 async fn home() -> Result<impl View> {
@@ -121,7 +121,7 @@ async fn home() -> Result<impl View> {
 
 mod users {
     mod id {
-        use topcoat::{Result, router::{module_param, page}, view::{View, view}};
+        use hearth::{Result, router::{module_param, page}, view::{View, view}};
 
         module_param!(id);
 
@@ -143,16 +143,16 @@ A layout wraps pages. It receives the inner page (or nested layout) as a [`Slot`
 
 ```rust
 // src/app.rs
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{Slot, href, layout},
     view::{View, class, view},
 };
-# #[topcoat::router::page] async fn home() -> Result<impl View> { Ok(topcoat::view::view! { "Home" }) }
+# #[hearth::router::page] async fn home() -> Result<impl View> { Ok(hearth::view::view! { "Home" }) }
 # mod about {
 #     use super::*;
-#     #[topcoat::router::page] pub async fn page() -> Result<impl View> { Ok(topcoat::view::view! { "About" }) }
+#     #[hearth::router::page] pub async fn page() -> Result<impl View> { Ok(hearth::view::view! { "About" }) }
 # }
 
 #[layout]
@@ -192,7 +192,7 @@ A layer wraps request handling under its path prefix. It receives the request co
 
 ```rust
 // src/app.rs
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{Body, Next, layer, response::Response},
@@ -215,7 +215,7 @@ An API route is an async function annotated with [`#[route]`](macro@route) and a
 
 ```rust
 // src/app/api/health.rs
-use topcoat::{Result, router::route};
+use hearth::{Result, router::route};
 
 #[route(GET)]
 async fn health() -> Result<&'static str> {
@@ -235,7 +235,7 @@ A page or route handler can take the request context as `cx: &`[`Cx`](crate::con
 // src/app/api/users.rs
 # #[derive(serde::Deserialize)] struct CreateUser { name: String }
 # #[derive(serde::Serialize)] struct User { name: String }
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{content::Json, route},
@@ -266,7 +266,7 @@ Both macros accept the same options, and you read their values with `path_param:
 
 ```rust
 // src/app/posts/post_id.rs
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{module_param, page, path_param},
@@ -294,7 +294,7 @@ Apply [`#[query_params]`](macro@query_params) to a struct with named fields. The
 
 ```rust
 // src/app/posts.rs
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{page, query_params},
@@ -327,7 +327,7 @@ The [`error`](mod@error) module has a constructor for each response, like [`not_
 
 ```rust
 // src/app/dashboard.rs
-# use topcoat::{Result, context::Cx, router::{error::RouterErrorExt, page}, view::{View, view}};
+# use hearth::{Result, context::Cx, router::{error::RouterErrorExt, page}, view::{View, view}};
 # struct User;
 # async fn current_session(_cx: &Cx) -> Option<User> { None }
 #[page]
@@ -344,7 +344,7 @@ See the [`error`](mod@error) module docs for how to raise, convert, and catch th
 A [`StatusCode`] in a `view!`'s body sets the response status, and a [`HeaderMap`] or a single `(HeaderName, HeaderValue)` pair adds response headers. This pairs with error handling. Wrapping the slot in an [`error_boundary`](crate::view::error_boundary) lets a layout catch a page's [`NotFoundError`](error::NotFoundError) and replace it with a branded not-found page:
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{
@@ -408,7 +408,7 @@ The router applies an [`OriginPolicy`] to every request before any layer or hand
 For routes with explicit paths, register each handler with `.page()`, `.layout()`, `.layer()`, or `.route()`, then call [`build`](RouterBuilder::build):
 
 ```rust
-# use topcoat::{Result, context::Cx, router::{Body, Next, Slot, layer, layout, page, response::Response, route}, view::{View, view}};
+# use hearth::{Result, context::Cx, router::{Body, Next, Slot, layer, layout, page, response::Response, route}, view::{View, view}};
 # #[layout("/")] async fn root_layout(slot: Slot<'_>) -> Result<impl View> { Ok(view! { (slot) }) }
 # #[layout("/settings")] async fn settings_layout(slot: Slot<'_>) -> Result<impl View> { Ok(view! { (slot) }) }
 # #[layer("/")] async fn timing(cx: &Cx, body: Body, next: Next<'_>) -> Result<Response> { next.run(cx, body).await }
@@ -416,7 +416,7 @@ For routes with explicit paths, register each handler with `.page()`, `.layout()
 # #[page("/about")] async fn about() -> Result<impl View> { Ok(view! { <h1>"About"</h1> }) }
 # #[page("/settings/profile")] async fn profile() -> Result<impl View> { Ok(view! { <h1>"Profile"</h1> }) }
 # #[route(GET "/api/health")] async fn health() -> Result<&'static str> { Ok("ok") }
-use topcoat::router::Router;
+use hearth::router::Router;
 
 pub fn router() -> Router {
     Router::builder()
@@ -438,7 +438,7 @@ Layout and layer matching is based on path prefixes, not registration order; see
 With the `discover` feature enabled, explicit-path [`#[page]`](page), [`#[layout]`](layout), [`#[layer]`](layer), and [`#[route]`](macro@route) handlers can be collected at link time. Instead of listing each item by hand, call [`discover`](RouterBuilderDiscoverExt::discover) on the builder:
 
 ```rust
-use topcoat::router::{Router, RouterBuilderDiscoverExt};
+use hearth::router::{Router, RouterBuilderDiscoverExt};
 
 pub fn router() -> Router {
     Router::builder().discover().build()
@@ -460,7 +460,7 @@ Enable the `fs` feature to serve files from a directory. Import [`RouterBuilderD
 ```rust,standalone_crate
 # #[cfg(feature = "fs")]
 # {
-use topcoat::router::{RouterBuilderDirectoryExt, module_router};
+use hearth::router::{RouterBuilderDirectoryExt, module_router};
 
 let router = module_router!().public_dir("./public").build();
 # }
@@ -473,7 +473,7 @@ Use [`serve_dir`](RouterBuilderDirectoryExt::serve_dir) to choose a different ro
 ```rust,standalone_crate
 # #[cfg(feature = "fs")]
 # {
-use topcoat::router::{RouterBuilderDirectoryExt, module_router};
+use hearth::router::{RouterBuilderDirectoryExt, module_router};
 
 let router = module_router!()
     .serve_dir("/downloads/{*file}", "./files")
@@ -489,13 +489,13 @@ Use [`start`](crate::start) to run a finalized router:
 
 ```rust,no_run
 # mod my_app {
-#     use topcoat::router::{Router, RouterBuilderDiscoverExt, module_router};
+#     use hearth::router::{Router, RouterBuilderDiscoverExt, module_router};
 #     pub fn router() -> Router { module_router!().discover().build() }
 # }
 #[tokio::main]
 async fn main() {
     let router = my_app::router();
-    topcoat::start(router).await.unwrap();
+    hearth::start(router).await.unwrap();
 }
 ```
 
@@ -503,11 +503,11 @@ async fn main() {
 
 ```rust,no_run
 # #[cfg(unix)]
-# async fn serve(router: topcoat::router::Router) -> std::io::Result<()> {
+# async fn serve(router: hearth::router::Router) -> std::io::Result<()> {
 let path = "/run/my-app.sock";
 let _ = std::fs::remove_file(path);
 let listener = tokio::net::UnixListener::bind(path)?;
-topcoat::serve(listener, router).await
+hearth::serve(listener, router).await
 # }
 ```
 
@@ -522,7 +522,7 @@ With the `tower` feature enabled, the [`tower`](mod@tower) module bridges the to
 # Example: full manual setup
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{
@@ -601,7 +601,7 @@ pub fn router() -> Router {
 # Example: same app with `discover()`
 
 ```rust
-use topcoat::router::{Router, RouterBuilderDiscoverExt};
+use hearth::router::{Router, RouterBuilderDiscoverExt};
 
 // The page, layout, layer, and route definitions are identical. Only the
 // router function changes.

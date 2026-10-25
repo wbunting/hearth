@@ -12,7 +12,7 @@ Annotate any function that takes a `cx: &Cx` parameter:
 # mod db {
 #     pub async fn load_user(_id: i64) -> super::User { super::User }
 # }
-use topcoat::context::{Cx, memoize};
+use hearth::context::{Cx, memoize};
 
 #[memoize]
 async fn get_user(cx: &Cx, id: i64) -> User {
@@ -28,7 +28,7 @@ The attribute works on synchronous and `async` functions.
 
 ```rust
 # fn main() {}
-# use topcoat::context::{Cx, memoize};
+# use hearth::context::{Cx, memoize};
 # #[derive(serde::Deserialize)]
 # struct Config;
 # struct Post;
@@ -55,7 +55,7 @@ Memoized functions can recurse if and only if recursive calls use different argu
 Recursion with different arguments uses a different cache entry for each call:
 
 ```rust
-# use topcoat::context::{Cx, memoize};
+# use hearth::context::{Cx, memoize};
 #[memoize]
 fn factorial(cx: &Cx, n: u64) -> u64 {
     match n {
@@ -72,7 +72,7 @@ assert_eq!(*factorial(cx, 5), 120);
 A nested call with the same arguments panics because it would otherwise deadlock:
 
 ```should_panic
-use topcoat::context::{Cx, memoize};
+use hearth::context::{Cx, memoize};
 
 #[memoize]
 fn recurse(cx: &Cx, n: u64) -> u64 {
@@ -89,7 +89,7 @@ fn main() {
 Every argument except `cx` is hashed into the cache key. The function's request context dependencies also determine whether a cached result can be reused.
 
 ```rust
-# use topcoat::context::{Cx, memoize};
+# use hearth::context::{Cx, memoize};
 #[memoize]
 fn add(cx: &Cx, x: i32, y: i32) -> i32 {
     println!("computing");
@@ -115,7 +115,7 @@ This matters because `Cx::with` derives a child scope holding additional values,
 
 ```rust
 # fn main() {}
-use topcoat::context::{Cx, memoize, request_context};
+use hearth::context::{Cx, memoize, request_context};
 
 struct Locale(&'static str);
 
@@ -140,7 +140,7 @@ Values the body registers itself are not dependencies:
 
 ```rust
 # fn main() {}
-# use topcoat::context::{Cx, memoize, request_context};
+# use hearth::context::{Cx, memoize, request_context};
 # struct Locale(&'static str);
 #[memoize]
 fn banner(cx: &Cx) -> String {
@@ -155,7 +155,7 @@ Dependencies also propagate through nested memoized calls:
 
 ```rust
 # fn main() {}
-# use topcoat::context::{Cx, memoize, request_context};
+# use hearth::context::{Cx, memoize, request_context};
 # struct Locale(&'static str);
 #[memoize]
 fn locale(cx: &Cx) -> String {
@@ -182,7 +182,7 @@ By default the macro returns a reference to the cached value itself: a function 
 # mod db {
 #     pub async fn load_user(_id: i64) -> Option<super::User> { None }
 # }
-use topcoat::context::{Cx, memoize};
+use hearth::context::{Cx, memoize};
 
 #[memoize(as_ref)]
 async fn find_user(cx: &Cx, id: i64) -> Option<User> {
@@ -203,7 +203,7 @@ Arguments can be passed by value or by reference. The cache never stores a copy 
 
 ```rust
 # fn main() {}
-# use topcoat::context::{Cx, memoize};
+# use hearth::context::{Cx, memoize};
 # struct Record;
 # struct Error;
 # mod db {
@@ -243,9 +243,9 @@ Use `#[memoize]` when several callers need the same expensive result during one 
 # fn main() {}
 # struct User { name: String }
 # mod auth {
-#     pub async fn resolve(_cx: &topcoat::context::Cx) -> Option<super::User> { None }
+#     pub async fn resolve(_cx: &hearth::context::Cx) -> Option<super::User> { None }
 # }
-use topcoat::{
+use hearth::{
     context::{Cx, memoize},
     Result,
     router::{Slot, layout, page},

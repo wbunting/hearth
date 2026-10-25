@@ -2,7 +2,7 @@ mod login;
 
 use std::time::Duration;
 
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{error::redirect, href, page},

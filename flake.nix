@@ -1,5 +1,5 @@
 {
-  description = "Topcoat development shell";
+  description = "Hearth development shell";
 
   inputs = {
     fenix = {

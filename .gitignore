@@ -4,3 +4,6 @@ node_modules/
 *.db-*
 .DS_Store
 legacy/zbugs-ts/target
+
+site/.impeccable/review/
+site/.impeccable/mocks/

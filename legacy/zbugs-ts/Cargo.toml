@@ -7,7 +7,7 @@ publish.workspace = true
 
 [dependencies]
 hearth = { path = "../../crates/hearth" }
-topcoat.workspace = true
+hearth.workspace = true
 toasty.workspace = true
 toasty-cli.workspace = true
 tokio.workspace = true

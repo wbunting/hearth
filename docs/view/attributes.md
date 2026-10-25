@@ -1,11 +1,11 @@
-The [`attributes!`] macro builds a [`topcoat::view::Attributes`] value from Topcoat's attribute syntax.
+The [`attributes!`] macro builds a [`hearth::view::Attributes`] value from Hearth's attribute syntax.
 
 Use it to build attributes separately from the element that renders them.
 
 ```rust
-# #[topcoat::view::component]
-# async fn example() -> topcoat::Result<impl topcoat::view::View> {
-use topcoat::view::{View, attributes, view};
+# #[hearth::view::component]
+# async fn example() -> hearth::Result<impl hearth::view::View> {
+use hearth::view::{View, attributes, view};
 
 let attrs = attributes! {
     class="button"
@@ -24,9 +24,9 @@ Ok(view! {
 The body uses the same attribute syntax as an element in [`view!`], including expressions and control flow:
 
 ```rust
-# #[topcoat::view::component]
-# async fn example() -> topcoat::Result<impl topcoat::view::View> {
-use topcoat::view::{View, attributes, view};
+# #[hearth::view::component]
+# async fn example() -> hearth::Result<impl hearth::view::View> {
+use hearth::view::{View, attributes, view};
 
 let id = "submit";
 let extra = [
@@ -66,10 +66,10 @@ Control-flow bodies produce attributes, just as they do in an element's opening 
 You can add or replace attributes before rendering the collection:
 
 ```rust
-# use topcoat::{Result, context::Cx, view::{View, component, view}};
+# use hearth::{Result, context::Cx, view::{View, component, view}};
 # #[component]
 # async fn example(cx: &Cx) -> Result<impl View> {
-use topcoat::view::attributes;
+use hearth::view::attributes;
 
 let mut attrs = attributes! {
     class="button"
@@ -91,9 +91,9 @@ Each key appears at most once. Inserting the same key again replaces its value. 
 Insert an [`Attributes`] value into an element by using it as a parenthesized attribute fragment:
 
 ```rust
-# #[topcoat::view::component]
-# async fn example() -> topcoat::Result<impl topcoat::view::View> {
-use topcoat::view::{View, attributes, view};
+# #[hearth::view::component]
+# async fn example() -> hearth::Result<impl hearth::view::View> {
+use hearth::view::{View, attributes, view};
 
 let attrs = attributes! {
     class="card"
@@ -117,7 +117,7 @@ Inserting an [`Attributes`] value consumes it. Clone the value first if the same
 Components can accept [`Attributes`] as a normal argument. This is useful for forwarding caller-controlled attributes to one of the component's HTML elements.
 
 ```rust
-use topcoat::{
+use hearth::{
     Result,
     view::{Attributes, Child, View, attributes, component, view},
 };
@@ -131,7 +131,7 @@ async fn panel(attrs: Attributes, #[default] child: Child<'_>) -> Result<impl Vi
     })
 }
 
-# #[topcoat::view::component]
+# #[hearth::view::component]
 # async fn example() -> Result<impl View> {
 Ok(view! {
     panel(
@@ -148,5 +148,5 @@ Ok(view! {
 [`AttributeViewParts`]: trait.AttributeViewParts.html
 [`Attributes`]: struct.Attributes.html
 [`attributes!`]: macro.attributes.html
-[`topcoat::view::Attributes`]: struct.Attributes.html
+[`hearth::view::Attributes`]: struct.Attributes.html
 [`view!`]: macro.view.html

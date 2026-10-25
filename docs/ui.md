@@ -1,17 +1,17 @@
-Topcoat UI provides components you can copy into your project and edit. Run `topcoat ui add` to install a component, then change its source to suit your app.
+Hearth UI provides components you can copy into your project and edit. Run `hearth ui add` to install a component, then change its source to suit your app.
 
-Components use `#[component]`, `view!`, and Tailwind classes. Their colors and other shared styles come from a theme stylesheet installed by `topcoat ui init`.
+Components use `#[component]`, `view!`, and Tailwind classes. Their colors and other shared styles come from a theme stylesheet installed by `hearth ui init`.
 
 # Setup
 
-Set up the [`topcoat` CLI](https://github.com/tokio-rs/topcoat/blob/main/docs/getting_started.md#install-the-cli) and the [Tailwind integration](crate::tailwind), then enable the `ui` feature. This example also uses Fontsource to load the theme's font:
+Set up the [`hearth` CLI](https://github.com/wbunting/hearth/blob/main/docs/getting_started.md#install-the-cli) and the [Tailwind integration](crate::tailwind), then enable the `ui` feature. This example also uses Fontsource to load the theme's font:
 
 ```toml
 [dependencies]
-topcoat = { version = "0.10.0", features = ["font-fontsource", "tailwind", "ui"] }
+hearth = { version = "0.1.0", features = ["font-fontsource", "tailwind", "ui"] }
 
 [build-dependencies]
-topcoat = { version = "0.10.0", default-features = false, features = ["tailwind"] }
+hearth = { version = "0.1.0", default-features = false, features = ["tailwind"] }
 ```
 
 ## Initialize the package
@@ -19,14 +19,14 @@ topcoat = { version = "0.10.0", default-features = false, features = ["tailwind"
 From the package directory, run:
 
 ```sh
-topcoat ui init
+hearth ui init
 ```
 
 The command creates `components.toml` to track installed components and writes the theme to `styles.css`. Check both files into version control. Run `init` before using the other UI commands.
 
 If several themes are available, the command asks you to choose one. Pass `--theme <name>` to select it directly.
 
-Components install into `src/components` by default. Use `--components-dir` to choose another directory. In a workspace, use `--package <name>` with any `topcoat ui` subcommand to select the package.
+Components install into `src/components` by default. Use `--components-dir` to choose another directory. In a workspace, use `--package <name>` with any `hearth ui` subcommand to select the package.
 
 ## Wire the theme into Tailwind
 
@@ -34,7 +34,7 @@ Use the installed `styles.css` as your Tailwind input. It imports Tailwind, defi
 
 ```rust,no_run
 fn main() {
-    topcoat::tailwind::BuildConfig::new()
+    hearth::tailwind::BuildConfig::new()
         .input("styles.css")
         .render()
         .unwrap();
@@ -46,7 +46,7 @@ fn main() {
 Load the generated stylesheet in your root layout. If the theme names a web font, load that font too. For example, use the [Fontsource integration](crate::font) to load Geist:
 
 ```rust,ignore
-use topcoat::{
+use hearth::{
     Result,
     font::fontsource::fontsource_font,
     router::{Slot, layout},
@@ -60,7 +60,7 @@ async fn layout(slot: Slot<'_>) -> Result<impl View> {
         <!DOCTYPE html>
         <html>
             <head>
-                topcoat::font::link(font: fontsource_font!(GEIST))
+                hearth::font::link(font: fontsource_font!(GEIST))
                 <link rel="stylesheet" href=(tailwind::stylesheet!())>
             </head>
             <body>
@@ -78,7 +78,7 @@ The theme applies its base styles to `<body>` when the stylesheet loads.
 Add components by name:
 
 ```sh
-topcoat ui add button
+hearth ui add button
 ```
 
 The command copies the source into your components directory, adds its module declaration, and records the installation in `components.toml`. It also installs any components the requested component depends on.
@@ -88,7 +88,7 @@ Module declarations go in `src/components.rs`, or in `src/components/mod.rs` if 
 To install every component the registry offers, pass `--all`:
 
 ```sh
-topcoat ui add --all
+hearth ui add --all
 ```
 
 Components that are already installed are skipped and reported. Add `--overwrite` to replace them with the registry's source as well.
@@ -96,7 +96,7 @@ Components that are already installed are skipped and reported. Add `--overwrite
 To see what is on offer, run:
 
 ```sh
-topcoat ui list
+hearth ui list
 ```
 
 The list shows available components and their install status. Use `--installed` to show only installed components.
@@ -114,7 +114,7 @@ use components::card::{
 };
 use components::field::{field, field_description, field_group, field_label};
 use components::input::input;
-use topcoat::{Result, view::{View, attributes, component, view}};
+use hearth::{Result, view::{View, attributes, component, view}};
 
 #[component]
 async fn sign_in() -> Result<impl View> {
@@ -172,7 +172,7 @@ The components share a few conventions:
   }
   ```
 
-Read each component's source for its props and behavior. The [`ui` example](https://github.com/tokio-rs/topcoat/tree/main/examples/ui) provides a runnable showcase.
+Read each component's source for its props and behavior. The [`ui` example](https://github.com/wbunting/hearth/tree/main/examples/ui) provides a runnable showcase.
 
 # Theming
 
@@ -186,24 +186,24 @@ The UI commands preserve `styles.css` after initialization, so you can customize
 
 # Updating components
 
-`topcoat ui list` reports an update when a component's registry source has changed since installation. It compares the current registry hash with the hash saved in `components.toml`. Edits to your local copy do not affect this comparison.
+`hearth ui list` reports an update when a component's registry source has changed since installation. It compares the current registry hash with the hash saved in `components.toml`. Edits to your local copy do not affect this comparison.
 
 To pull the newer source, re-add the component:
 
 ```sh
-topcoat ui add button --overwrite
+hearth ui add button --overwrite
 ```
 
 This replaces your file with the registry's source. Save any local changes first, then review the diff and reapply the changes you want to keep.
 
-To refresh every component at once, run `topcoat ui add --all --overwrite`. This also installs any component you do not have yet.
+To refresh every component at once, run `hearth ui add --all --overwrite`. This also installs any component you do not have yet.
 
 # Removing components
 
 Remove a component by name:
 
 ```sh
-topcoat ui remove button
+hearth ui remove button
 ```
 
 This deletes the component's file, removes its module declaration, and drops it from `components.toml`. It does not remove components that were installed as its dependencies.
@@ -214,7 +214,7 @@ A custom registry is a Cargo crate that provides component sources and a `regist
 
 ```toml
 # Cargo.toml of the registry crate
-[package.metadata.topcoat-ui]
+[package.metadata.hearth-ui]
 registry = "registry"
 ```
 
@@ -237,12 +237,12 @@ dependencies = ["button", { registry = "other-registry-crate", name = "spinner" 
 
 Component versions are computed from their source. To distribute an update, publish a new version of the registry crate with the changed source.
 
-To consume a registry, declare its crate as a direct dependency in `Cargo.toml`. Its components then show up in `topcoat ui list` and can be added with:
+To consume a registry, declare its crate as a direct dependency in `Cargo.toml`. Its components then show up in `hearth ui list` and can be added with:
 
 ```sh
-topcoat ui add data_table --registry my-registry-crate
+hearth ui add data_table --registry my-registry-crate
 ```
 
-Without `--registry`, the command prefers the built-in `topcoat` registry. It asks for confirmation if the component is available only from another registry. All registries share the same install directory. If a component would replace a file from another registry, the command asks before replacing it.
+Without `--registry`, the command prefers the built-in `hearth` registry. It asks for confirmation if the component is available only from another registry. All registries share the same install directory. If a component would replace a file from another registry, the command asks before replacing it.
 
-The built-in registry is available through Topcoat's `ui` feature and needs no separate dependency.
+The built-in registry is available through Hearth's `ui` feature and needs no separate dependency.

@@ -3,7 +3,7 @@ Declares a typed view of the request's query string.
 Apply `#[query_params]` to a struct with named fields. The macro derives [`serde::Deserialize`](https://docs.rs/serde/latest/serde/trait.Deserialize.html), so each field maps to a key in the query string.
 
 ```rust
-# use topcoat::router::query_params;
+# use hearth::router::query_params;
 #[query_params]
 struct PageQuery {
     page: Option<u32>,
@@ -20,7 +20,7 @@ Set `error = ...` to convert parse failures into a router error. Callers can the
 
 ```rust
 // src/app/posts.rs
-# use topcoat::{context::Cx, Result, router::{page, query_params}, view::{View, view}};
+# use hearth::{context::Cx, Result, router::{page, query_params}, view::{View, view}};
 #[query_params(error = bad_request)]
 struct PageQuery {
     page: Option<u32>,
@@ -50,7 +50,7 @@ Without `error = ...`, the same conversions are available per call site through 
 The client resolves a redirect target against the current URL. The target `"?"` reloads the current page with an empty query string:
 
 ```rust
-# use topcoat::router::query_params;
+# use hearth::router::query_params;
 #[query_params(error = redirect("?"))]
 struct PageQuery {
     page: Option<u32>,

@@ -1,6 +1,6 @@
-# Contributing to Topcoat
+# Contributing to Hearth
 
-This guide explains how to prepare and submit a change to Topcoat.
+This guide explains how to prepare and submit a change to Hearth.
 
 ## Fixes are welcome, features need a conversation first
 
@@ -16,25 +16,25 @@ Keep pull requests focused. If a fix grows into a new feature or a broader redes
 
 ## Local setup
 
-Topcoat is a plain Cargo workspace. The framework crates live in `crates/`, small single-feature examples in `examples/`, and complete demo applications in `demos/`.
+Hearth is a plain Cargo workspace. The framework crates live in `crates/`, small single-feature examples in `examples/`, and complete demo applications in `demos/`.
 
 Use the toolchain selected by `rust-toolchain.toml` to build and test. Formatting and documentation checks also need nightly:
 
 ```sh
-git clone https://github.com/tokio-rs/topcoat
-cd topcoat
+git clone https://github.com/wbunting/hearth
+cd hearth
 cargo test --workspace --all-features
 ```
 
 If you use Nix, `nix develop` gives you a shell with the toolchain already set up.
 
-Install the CLI from the workspace so `topcoat fmt` and the dev server match the code you are working on:
+Install the CLI from the workspace so `hearth fmt` and the dev server match the code you are working on:
 
 ```sh
-cargo install --path crates/topcoat-cli
+cargo install --path crates/hearth-cli
 ```
 
-Try framework changes in an example or demo. Run `topcoat dev` in an example directory to build and serve it. Examples focus on individual features, while demos show how features work together in an app.
+Try framework changes in an example or demo. Run `hearth dev` in an example directory to build and serve it. Examples focus on individual features, while demos show how features work together in an app.
 
 ## Fork and branch
 
@@ -52,7 +52,7 @@ Run these checks before opening a pull request:
 
 ```sh
 cargo +nightly fmt --all # nightly is required, CI checks formatting with it
-cargo topcoat fmt # formats Topcoat macro bodies inside source files
+cargo hearth fmt # formats Hearth macro bodies inside source files
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 cargo test --workspace --all-features
 RUSTDOCFLAGS="--cfg docsrs -Dwarnings" cargo +nightly doc --workspace --all-features --no-deps --locked
@@ -68,7 +68,7 @@ cargo hack clippy --workspace --each-feature --exclude-features stage-icons --no
 cargo +nightly udeps --workspace --all-targets --all-features --locked
 ```
 
-For browser changes, run the following commands from `crates/topcoat-runtime/browser` or `crates/topcoat-cli/browser`, depending on the project you changed. Changes to the shared code in `crates/topcoat-core/browser` need both projects checked and rebuilt. CI checks formatting, linting, tests, and that the committed bundles match their source:
+For browser changes, run the following commands from `crates/hearth-runtime/browser` or `crates/hearth-cli/browser`, depending on the project you changed. Changes to the shared code in `crates/hearth-foundation/browser` need both projects checked and rebuilt. CI checks formatting, linting, tests, and that the committed bundles match their source:
 
 ```sh
 yarn install --frozen-lockfile
@@ -98,7 +98,7 @@ Commit messages and pull request titles follow [Conventional Commits](https://ww
 <type>(<scope>): <subject>
 ```
 
-Choose a type that describes the change. Use an optional scope for the affected area, usually the crate name without `topcoat-`. Write the subject in lowercase imperative form, with no trailing period:
+Choose a type that describes the change. Use an optional scope for the affected area, usually the crate name without `hearth-`. Write the subject in lowercase imperative form, with no trailing period:
 
 ```
 fix(router): isolate request panics
@@ -112,8 +112,8 @@ More detail is in the [`commit`](.agents/skills/commit/SKILL.md) and [`pr`](.age
 
 ## Where to find things
 
-- [README](README.md): an introduction to Topcoat and an index of guides.
-- [`docs/getting_started.md`](docs/getting_started.md): building an app with Topcoat, which is worth doing before changing the framework.
+- [README](README.md): an introduction to Hearth and an index of guides.
+- [`docs/getting_started.md`](docs/getting_started.md): building an app with Hearth, which is worth doing before changing the framework.
 - [Tokio Discord](https://discord.gg/tokio): questions, feature discussions, and everything else.
 
 By contributing, you agree that your contributions are licensed under the [MIT license](LICENSE).

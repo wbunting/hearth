@@ -1,7 +1,7 @@
 mod docs;
 mod posts;
 
-use topcoat::{
+use hearth::{
     Result,
     router::{Slot, href, layout, module_router, page, query_params},
     view::{View, view},
@@ -9,7 +9,7 @@ use topcoat::{
 
 #[tokio::main]
 async fn main() {
-    topcoat::start(module_router!().build()).await.unwrap();
+    hearth::start(module_router!().build()).await.unwrap();
 }
 
 // --- Layout -----------------------------------------------------------------
@@ -19,7 +19,7 @@ async fn root_layout(slot: Slot<'_>) -> Result<impl View> {
     Ok(view! {
         <!DOCTYPE html>
         <html>
-            <head>topcoat::dev::script()</head>
+            <head>hearth::dev::script()</head>
             <body>(slot)</body>
         </html>
     })

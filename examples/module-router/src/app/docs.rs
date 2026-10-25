@@ -1,6 +1,6 @@
 pub mod install;
 
-use topcoat::{
+use hearth::{
     Result,
     router::{Slot, layout, page},
     view::{View, view},

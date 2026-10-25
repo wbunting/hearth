@@ -1,7 +1,7 @@
 Creates a [`FontFace`] with CSS [`@font-face`] syntax. Write descriptors as `name: value;` in any order. Include at least `font-family` and `src`:
 
 ```rust
-# use topcoat::font::*;
+# use hearth::font::*;
 # fn example() -> FontFace {
 font_face! {
     font-family: "Inter";
@@ -19,7 +19,7 @@ Literal values are checked at compile time. Invalid values, such as an out-of-ra
 The family name, given as a string literal:
 
 ```rust
-# use topcoat::font::*;
+# use hearth::font::*;
 # fn example() -> FontFace {
 font_face! {
     font-family: "Inter";
@@ -35,7 +35,7 @@ Learn more on [MDN][mdn-font-family].
 List sources in preference order, separated by commas. Use `local("Family Name")` for an installed font or `url("...")` for a font file to download. Optional `format(...)` and `tech(...)` hints help the browser skip unsupported files:
 
 ```rust
-# use topcoat::font::*;
+# use hearth::font::*;
 # fn example() -> FontFace {
 font_face! {
     font-family: "Inter";
@@ -49,7 +49,7 @@ The `format(...)` and `tech(...)` hints may appear in either order. Literal keyw
 These arguments also accept Rust expressions. Pass a family name to `local(...)`, a URL to `url(...)`, a [`FontFormat`] to `format(...)`, or a [`FontTech`] to `tech(...)`. A `url(...)` argument can also be an [`Asset`], resolved when the face is rendered. Sources containing expressions are built at runtime.
 
 ```rust
-# use topcoat::font::*;
+# use hearth::font::*;
 # fn example(installed: String, href: String) -> FontFace {
 font_face! {
     font-family: "Inter";
@@ -65,7 +65,7 @@ Learn more on [MDN][mdn-src].
 A single weight, or a space-separated range carried by a variable font. Weights are integers in `1..=1000` or the keywords `normal` (`400`) and `bold` (`700`):
 
 ```rust
-# use topcoat::font::*;
+# use hearth::font::*;
 # fn example() -> FontFace {
 font_face! {
     font-family: "Inter";
@@ -78,7 +78,7 @@ font_face! {
 A range declares the weights available from a variable font:
 
 ```rust
-# use topcoat::font::*;
+# use hearth::font::*;
 # fn example() -> FontFace {
 font_face! {
     font-family: "Inter";
@@ -97,7 +97,7 @@ Learn more on [MDN][mdn-font-weight].
 Use `normal`, `italic`, or `oblique`. An oblique face can include a slant angle or, for a variable font, an angle range. Angles must be within `-90deg..=90deg`:
 
 ```rust
-# use topcoat::font::*;
+# use hearth::font::*;
 # fn example() -> FontFace {
 font_face! {
     font-family: "Inter";
@@ -110,7 +110,7 @@ font_face! {
 A bare `oblique` keyword and an angle range are both accepted:
 
 ```rust
-# use topcoat::font::*;
+# use hearth::font::*;
 # fn example() -> FontFace {
 font_face! {
     font-family: "Inter";
@@ -127,7 +127,7 @@ Learn more on [MDN][mdn-font-style].
 Controls how text appears while the font loads. For example, `swap` lets the browser show fallback text until the font is ready:
 
 ```rust
-# use topcoat::font::*;
+# use hearth::font::*;
 # fn example() -> FontFace {
 font_face! {
     font-family: "Inter";
@@ -144,7 +144,7 @@ Learn more on [MDN][mdn-font-display].
 One or more `U+` ranges, separated by commas, restricting the face to a subset of code points. A bare `U+0041` covers a single code point; `U+0041-005A` covers an inclusive range:
 
 ```rust
-# use topcoat::font::*;
+# use hearth::font::*;
 # fn example() -> FontFace {
 font_face! {
     font-family: "Inter";
@@ -170,7 +170,7 @@ Use Rust expressions to build descriptors from runtime data. Each expression mus
 | `unicode-range` | [`UnicodeRanges`] |
 
 ```rust
-# use topcoat::font::*;
+# use hearth::font::*;
 # fn example() -> FontFace {
 let family = String::from("Inter");
 let sources = vec![FontSource::local("Inter")];

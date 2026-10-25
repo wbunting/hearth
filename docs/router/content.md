@@ -1,4 +1,4 @@
-Request extractors and response types for Topcoat handlers.
+Request extractors and response types for Hearth handlers.
 
 A handler's parameters describe the request body it accepts. Its return type describes the response it sends. This module provides types for both roles.
 
@@ -9,7 +9,7 @@ A page or route can accept one body parameter that implements [`FromRequest`](cr
 ```rust
 // src/app/api/users.rs
 # #[derive(serde::Deserialize)] struct CreateUser { name: String }
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{content::Json, route},
@@ -29,7 +29,7 @@ The context and body parameters are optional and may appear in either order. The
 Extractors that buffer the body reject requests above the body limit with `413 Content Too Large`. The default is 2 MiB. Register a [`BodyLimit`](crate::BodyLimit) layer to change it for the application or a path:
 
 ```rust,no_run
-use topcoat::router::{BodyLimit, module_router};
+use hearth::router::{BodyLimit, module_router};
 
 let router = module_router!()
     // Allow up to 32 MiB under /upload, keep the 2 MiB default elsewhere.
@@ -50,7 +50,7 @@ A tuple builds a response from several parts. The last element is the body, a le
 ```rust
 // src/app/api/users.rs
 # #[derive(serde::Serialize)] struct User { name: String }
-use topcoat::{
+use hearth::{
     Result,
     router::{StatusCode, content::Json, route},
 };

@@ -1,6 +1,6 @@
 ---
 name: pr
-description: Always use this skill before opening a pull request in the Topcoat repository
+description: Always use this skill before opening a pull request in the Hearth repository
 ---
 
 # Opening Pull Requests
@@ -26,4 +26,4 @@ No template. Keep it short and high-signal:
 - **Testing** -- how you verified it (which checks you ran; see the [`check`](../check/SKILL.md) skill).
 - **Disclaimer** -- if you are an AI agent creating the PR, add a disclaimer about specific model and how AI was used to create the change. 
 
-Reviewers already know Topcoat and Rust. Include what they need to evaluate the change, and nothing else.
+Reviewers already know Hearth and Rust. Include what they need to evaluate the change, and nothing else.

@@ -1,7 +1,7 @@
 Creates an [`IconData`] expression for one icon from a staged [Iconify] set. The result can be assigned to a constant.
 
 ```rust,ignore
-use topcoat::icon::IconData;
+use hearth::icon::IconData;
 
 const DELETE: IconData = iconify::iconify_icon!("mdi:delete");
 ```
@@ -24,7 +24,7 @@ Stage the set from `build.rs` with [`BuildConfig`]. It downloads missing sets an
 # #![allow(clippy::needless_doctest_main)]
 // build.rs
 fn main() {
-    topcoat::icon::iconify::BuildConfig::new()
+    hearth::icon::iconify::BuildConfig::new()
         .icon_set("mdi")
         .stage()
         .unwrap();

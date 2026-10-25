@@ -1,4 +1,4 @@
-Topcoat's runtime adds browser interactions to server-rendered pages. Write state and expressions in Rust alongside your markup. The runtime compiles the browser code to JavaScript and includes it with the page.
+Hearth's runtime adds browser interactions to server-rendered pages. Write state and expressions in Rust alongside your markup. The runtime compiles the browser code to JavaScript and includes it with the page.
 
 The runtime is **highly experimental**. Expressions support a limited set of Rust types and operations, and the API may change.
 
@@ -9,13 +9,13 @@ Use [`link`](struct.link.html) for navigation without a full document reload, wi
 Interactive pages need the runtime's browser script. `script()` renders the script tag; include it in your document head:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn document() -> Result<impl View> {
 Ok(view! {
     <html>
         <head>
-            topcoat::runtime::script()
+            hearth::runtime::script()
         </head>
         <body></body>
     </html>
@@ -26,7 +26,7 @@ Ok(view! {
 Call [`runtime()`](RouterBuilderRuntimeExt::runtime) to enable page reruns, and load the [asset bundle](../asset/index.html) to serve the browser script. Register your application layers before calling `.runtime()`:
 
 ```rust,no_run
-use topcoat::{
+use hearth::{
     asset::{AssetBundle, RouterBuilderAssetExt},
     router::{Router, RouterBuilderDiscoverExt, module_router},
     runtime::RouterBuilderRuntimeExt,
@@ -50,7 +50,7 @@ The runtime reruns a page by sending its current signal values to the page's URL
 A `$(...)` block is a **runtime expression**. Use it in a view to render its value:
 
 ```rust
-# use topcoat::{Result, view::*};
+# use hearth::{Result, view::*};
 # #[component]
 # async fn example() -> Result<impl View> {
 Ok(view! {
@@ -70,7 +70,7 @@ The expression `1 + 2` is static. To make an expression update, have it read a s
 A **signal** holds state for the browser. Create one with [`signal`], passing the request context and a closure for its initial value. Read it in a runtime expression with `.get()`:
 
 ```rust
-# use topcoat::{Result, context::Cx, runtime::signal, view::*};
+# use hearth::{Result, context::Cx, runtime::signal, view::*};
 # #[component]
 # async fn example(cx: &Cx) -> Result<impl View> {
 let count = signal(cx, || 0usize);
@@ -92,7 +92,7 @@ In the browser, an expression runs again whenever a signal it reads changes. `.g
 An attribute starting with `@` attaches a DOM event handler, such as `@click`. Its value is a runtime expression returning a closure. The browser calls that closure when the event fires:
 
 ```rust
-# use topcoat::{Result, context::Cx, runtime::signal, view::*};
+# use hearth::{Result, context::Cx, runtime::signal, view::*};
 # #[component]
 # async fn example(cx: &Cx) -> Result<impl View> {
 let count = signal(cx, || 0usize);
@@ -109,7 +109,7 @@ Clicking the button runs the closure, the closure updates the signal, and the `$
 The closure receives an [`Event`] with access to the DOM event's data and methods. For example, an input handler can copy the element's value into a signal:
 
 ```rust
-# use topcoat::{Result, context::Cx, runtime::{Event, signal}, view::*};
+# use hearth::{Result, context::Cx, runtime::{Event, signal}, view::*};
 # #[component]
 # async fn example(cx: &Cx) -> Result<impl View> {
 let query = signal(cx, String::new);
@@ -129,13 +129,13 @@ Signals also have methods for common updates. For example, `$(|_e| count.increme
 An attribute starting with `:` is a **bind attribute**. The server renders its expression's initial value. The browser updates the attribute whenever a signal read by the expression changes:
 
 ```rust
-# use topcoat::{Result, context::Cx, runtime::signal, view::*};
+# use hearth::{Result, context::Cx, runtime::signal, view::*};
 # #[component]
 # async fn example(cx: &Cx) -> Result<impl View> {
 let open = signal(cx, || false);
 
 Ok(view! {
-    <button @click=$(|_e| open.set(!open.get()))>"What is Topcoat?"</button>
+    <button @click=$(|_e| open.set(!open.get()))>"What is Hearth?"</button>
     <p :hidden=$(!open.get())>"A fullstack Rust framework."</p>
 })
 # }
@@ -144,7 +144,7 @@ Ok(view! {
 Combine `:value` and `@input` to keep an input and signal in sync. The binding displays the signal's value, and the handler writes user edits back to it:
 
 ```rust
-# use topcoat::{Result, context::Cx, runtime::{Event, signal}, view::*};
+# use hearth::{Result, context::Cx, runtime::{Event, signal}, view::*};
 # #[component]
 # async fn example(cx: &Cx) -> Result<impl View> {
 let name = signal(cx, String::new);
@@ -165,7 +165,7 @@ Ok(view! {
 A **procedure** is an async server function called from a runtime expression. Use one when an event handler needs a server resource, such as a database:
 
 ```rust
-# use topcoat::{Result, context::Cx, runtime::{procedure, signal}, view::*};
+# use hearth::{Result, context::Cx, runtime::{procedure, signal}, view::*};
 #[procedure]
 async fn double(value: usize) -> Result<usize> {
     Ok(value * 2)
@@ -193,7 +193,7 @@ The browser sends an HTTP request with the arguments and waits for the result. *
 A **shard** is a component that re-renders on the server when its inputs change. Use one to update markup from server data, such as search results. Arguments accept fixed values or runtime expressions:
 
 ```rust
-# use topcoat::{Result, context::Cx, view::*, runtime::{shard, signal, Event}};
+# use hearth::{Result, context::Cx, view::*, runtime::{shard, signal, Event}};
 # async fn search_products(_cx: &Cx, _query: &str) -> Result<Vec<String>> { Ok(vec![]) }
 #[shard]
 async fn search_results(cx: &Cx, query: String) -> Result<impl View> {
@@ -225,7 +225,7 @@ Read a signal in server Rust with `.get()` to clone its value or `.read()` to bo
 
 ```rust
 // src/app/search.rs
-# use topcoat::{Result, context::Cx, router::page, runtime::{Event, signal}, view::*};
+# use hearth::{Result, context::Cx, router::page, runtime::{Event, signal}, view::*};
 # async fn search_products(_cx: &Cx, _query: &str) -> Result<Vec<String>> { Ok(vec![]) }
 #[page]
 async fn search(cx: &Cx) -> Result<impl View> {
@@ -251,7 +251,7 @@ The browser updates existing elements in place to preserve focus, scroll positio
 To avoid re-running the whole page, use a shard: a signal tracked inside a shard re-renders only that shard, not the entire page. The shard creates the signal, reads it, and hands the browser the handlers that change it:
 
 ```rust
-# use topcoat::{Result, context::Cx, runtime::{shard, signal}, view::*};
+# use hearth::{Result, context::Cx, runtime::{shard, signal}, view::*};
 # async fn load_page(_cx: &Cx, _page: usize) -> Result<Vec<String>> { Ok(vec![]) }
 #[shard]
 async fn paginated(cx: &Cx) -> Result<impl View> {

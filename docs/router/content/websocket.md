@@ -1,4 +1,4 @@
-WebSocket connections for Topcoat routes.
+WebSocket connections for Hearth routes.
 
 A WebSocket lets a client and server exchange messages over a persistent connection. Enable the `websocket` feature to accept upgrade requests with [`WebSocketUpgrade`] and exchange messages through [`WebSocket`].
 
@@ -8,7 +8,7 @@ Accept a [`WebSocketUpgrade`] parameter and return the response from [`on_upgrad
 
 ```rust
 // src/app/echo.rs
-use topcoat::{
+use hearth::{
     Result,
     router::{
         content::websocket::{Message, WebSocketUpgrade},
@@ -39,7 +39,7 @@ The callback outlives the handler that upgraded the connection, so it cannot bor
 
 ```rust
 // src/app/greet.rs
-use topcoat::{
+use hearth::{
     Result,
     context::{Cx, request_context},
     router::{
@@ -77,4 +77,4 @@ let (mut sender, mut receiver) = socket.split();
 
 # Subprotocols and limits
 
-Pass supported subprotocols to [`protocols`](WebSocketUpgrade::protocols) in preference order. Topcoat selects the first one also requested by the client. Read the result with [`WebSocket::protocol`]. Use the [`WebSocketUpgrade`] builder to set message, frame, and write buffer limits.
+Pass supported subprotocols to [`protocols`](WebSocketUpgrade::protocols) in preference order. Hearth selects the first one also requested by the client. Read the result with [`WebSocket::protocol`]. Use the [`WebSocketUpgrade`] builder to set message, frame, and write buffer limits.

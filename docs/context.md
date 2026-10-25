@@ -1,13 +1,13 @@
 [`Cx`] gives handlers and components access to request data and shared application values.
 
-Add `cx: &Cx` to a handler or component's parameters when it needs context. Topcoat supplies it automatically.
+Add `cx: &Cx` to a handler or component's parameters when it needs context. Hearth supplies it automatically.
 
 # Router request helpers
 
 The [`router::request`](crate::router::request) module exposes small functions for reading HTTP request data from `cx`.
 
 ```rust
-use topcoat::{
+use hearth::{
     context::Cx,
     router::request::{headers, method, uri},
 };
@@ -27,7 +27,7 @@ Use a field helper such as [`headers(cx)`](crate::router::request::headers) for 
 Use [`parts(cx)`](crate::router::request::parts) when you need several fields at once:
 
 ```rust
-use topcoat::{context::Cx, router::request::parts};
+use hearth::{context::Cx, router::request::parts};
 
 fn cache_key(cx: &Cx) -> String {
     let parts = parts(cx);
@@ -38,7 +38,7 @@ fn cache_key(cx: &Cx) -> String {
 Use [`extensions(cx)`](crate::router::request::extensions) for typed request values attached by a lower-level request layer or service integration:
 
 ```rust
-use topcoat::{context::Cx, router::request::extensions};
+use hearth::{context::Cx, router::request::extensions};
 
 struct RequestId(String);
 
@@ -51,11 +51,11 @@ A handler reached through a [rewrite](crate::router::error#rewrites) sees the re
 
 # Path and query helpers
 
-The [`module_param!`](macro@crate::router::module_param) macro and [`#[query_params]`](macro@crate::router::query_params) attribute declare typed values that you read with the [`path_param::<T>(cx)`](fn@crate::router::path_param) and [`query_params::<T>(cx)`](fn@crate::router::query_params) functions. Topcoat parses typed path parameters and query structs lazily and memoizes them for the request.
+The [`module_param!`](macro@crate::router::module_param) macro and [`#[query_params]`](macro@crate::router::query_params) attribute declare typed values that you read with the [`path_param::<T>(cx)`](fn@crate::router::path_param) and [`query_params::<T>(cx)`](fn@crate::router::query_params) functions. Hearth parses typed path parameters and query structs lazily and memoizes them for the request.
 
 ```rust
 // src/app/posts/post_id.rs
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{module_param, page, path_param, query_params},
@@ -94,7 +94,7 @@ This module exposes typed context accessors:
 - [`try_request_context::<T>(cx)`](try_request_context) reads an optional typed value attached to the current request.
 
 ```rust
-use topcoat::context::{Cx, app_context};
+use hearth::context::{Cx, app_context};
 #
 # struct Database;
 
@@ -108,7 +108,7 @@ Values are keyed by Rust type. The required helpers panic when the requested typ
 Use the `try_` helpers when a value is intentionally optional on some requests:
 
 ```rust
-use topcoat::context::{Cx, try_request_context};
+use hearth::context::{Cx, try_request_context};
 #
 # struct Customer;
 
@@ -122,7 +122,7 @@ fn current_customer(cx: &Cx) -> Option<&Customer> {
 [`Cx::with`] creates a child context with an additional value. [`Cx::with_many`] adds several values at once. The child inherits other context values and shares the request's state with its parent.
 
 ```rust
-use topcoat::context::{Cx, request_context};
+use hearth::context::{Cx, request_context};
 
 struct Customer {
     name: String,
@@ -147,7 +147,7 @@ A [`Cx`] is a handle to state shared by everything serving one request. The rout
 ```rust
 // src/app/orders.rs
 # async fn record(name: &str) {}
-use topcoat::{
+use hearth::{
     Result,
     context::{Cx, request_context},
     router::route,
@@ -179,7 +179,7 @@ A cloned handle can still read context after the handler returns. It cannot chan
 Any helper can accept `cx: &`[`Cx`], call other helpers, and return a domain-specific result:
 
 ```rust
-use topcoat::{
+use hearth::{
     context::Cx,
     router::request::{headers, uri},
 };

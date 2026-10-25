@@ -1,4 +1,4 @@
-use topcoat::{
+use hearth::{
     Result,
     context::Cx,
     router::{error::RouterErrorExt, module_param, page, path_param},
@@ -11,7 +11,7 @@ module_param!(pub(crate) post_id: u64, error = bad_request);
 #[page]
 pub(crate) async fn post(cx: &Cx) -> Result<impl View> {
     let title = match *path_param::<crate::posts::post_id::PostId>(cx)? {
-        1 => Some("Hello Topcoat"),
+        1 => Some("Hello Hearth"),
         2 => Some("Error handling"),
         _ => None,
     }

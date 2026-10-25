@@ -5,5 +5,5 @@ Page sections that show placeholders while loading and fallback content when ren
 Run it with:
 
 ```sh
-cargo topcoat dev -p suspense
+cargo hearth dev -p suspense
 ```

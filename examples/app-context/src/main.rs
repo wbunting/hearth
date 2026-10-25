@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use topcoat::{
+use hearth::{
     Result,
     context::{Cx, app_context},
     router::{module_router, page},
@@ -12,7 +12,7 @@ struct PageViews(AtomicU64);
 
 #[tokio::main]
 async fn main() {
-    topcoat::start(
+    hearth::start(
         module_router!()
             .app_context(PageViews(AtomicU64::new(0)))
             .build(),
@@ -31,7 +31,7 @@ async fn home(cx: &Cx) -> Result<impl View> {
         <html>
             <head>
                 <title>"App context"</title>
-                topcoat::dev::script()
+                hearth::dev::script()
             </head>
             <body>
                 <p>

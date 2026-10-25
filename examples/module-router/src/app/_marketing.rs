@@ -1,6 +1,6 @@
 pub mod pricing;
 
-use topcoat::{
+use hearth::{
     Result,
     router::{Slot, layout},
     view::{View, view},

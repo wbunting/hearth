@@ -1,5 +1,5 @@
 use toasty::Db;
-use topcoat::context::{Cx, app_context};
+use hearth::context::{Cx, app_context};
 
 /// Override with `DATABASE_URL` (e.g. a Turso URL when deployed).
 const DEFAULT_DATABASE_URL: &str = concat!("sqlite:", env!("CARGO_MANIFEST_DIR"), "/data.db");
