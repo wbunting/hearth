@@ -5,7 +5,7 @@
 
 use hearth::Table;
 use serde::{Deserialize, Serialize};
-use toasty::stmt::Expr;
+use toasty::stmt::{Expr, List, Query};
 use topcoat::{
     Result,
     context::Cx,
@@ -100,15 +100,10 @@ async fn visible_issue(cx: &Cx, id: &str) -> Result<Issue> {
         .ok_or_else(|| forbidden().into())
 }
 
-/// Child tables (labels, comments, reactions) are scoped through issue
-/// visibility. Non-crew: only rows whose issue is public.
-async fn public_issue_ids(cx: &Cx) -> Result<Option<Vec<String>>> {
-    let v = viewer(cx).await?;
-    if v.crew {
-        return Ok(None);
-    }
-    let ids = Issue::filter(Issue::fields().visibility().eq("public")).exec(&mut hearth::db(cx)).await?;
-    Ok(Some(ids.into_iter().map(|i| i.id).collect()))
+/// Keep child authorization in SQL so the number of public issues does
+/// not become a list of bound parameters.
+fn public_issue_ids() -> Query<List<String>> {
+    Issue::filter(Issue::fields().visibility().eq("public")).select(Issue::fields().id())
 }
 
 // ---------------------------------------------------------------- users, labels
@@ -173,7 +168,8 @@ impl From<IssueLabel> for IssueLabelRow {
 }
 
 async fn issue_label_scope(cx: &Cx) -> Result<Option<Expr<bool>>> {
-    Ok(public_issue_ids(cx).await?.map(|ids| IssueLabel::fields().issue_id().in_list(ids)))
+    let v = viewer(cx).await?;
+    Ok((!v.crew).then(|| IssueLabel::fields().issue_id().in_query(public_issue_ids())))
 }
 
 async fn add_label(cx: &Cx, row: IssueLabelRow) -> Result<IssueLabelRow> {
@@ -225,7 +221,8 @@ impl From<Comment> for CommentRow {
 }
 
 async fn comment_scope(cx: &Cx) -> Result<Option<Expr<bool>>> {
-    Ok(public_issue_ids(cx).await?.map(|ids| Comment::fields().issue_id().in_list(ids)))
+    let v = viewer(cx).await?;
+    Ok((!v.crew).then(|| Comment::fields().issue_id().in_query(public_issue_ids())))
 }
 
 async fn add_comment(cx: &Cx, row: CommentRow) -> Result<CommentRow> {
@@ -360,3 +357,6 @@ fn nanoid_like() -> String {
     let t = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
     format!("tc-{t:x}-{}", N.fetch_add(1, Ordering::Relaxed))
 }
+
+#[cfg(test)]
+mod tests;
