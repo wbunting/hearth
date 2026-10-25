@@ -9,6 +9,8 @@ use topcoat_core_grammar::paths::topcoat_runtime;
 pub(super) struct Js {
     source: String,
     parts: TokenStream,
+    compiled: String,
+    captures: usize,
 }
 
 impl Js {
@@ -21,7 +23,15 @@ impl Js {
     }
 
     pub(super) fn expression(&mut self, ident: &Ident) {
+        use std::fmt::Write;
         let source = std::mem::take(&mut self.source);
+        self.compiled.push_str(&source);
+        let _ = write!(
+            self.compiled,
+            "cx.expression(__topcoatCaptures.expressions[{}])",
+            self.captures
+        );
+        self.captures += 1;
         quote! { .source(#source).expression(&#ident) }.to_tokens(&mut self.parts);
     }
 }
@@ -30,8 +40,14 @@ impl ToTokens for Js {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let parts = &self.parts;
         let source = &self.source;
-        quote! { #topcoat_runtime::Js::builder() #parts .source(#source).build() }
-            .to_tokens(tokens);
+        let compiled = format!("{}{source}", self.compiled);
+        quote! {{
+            #topcoat_runtime::internal::inventory::submit! {
+                #topcoat_runtime::expression_module::ExpressionSource(#compiled)
+            }
+            #topcoat_runtime::Js::builder().compiled(#compiled) #parts .source(#source).build()
+        }}
+        .to_tokens(tokens);
     }
 }
 

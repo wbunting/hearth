@@ -48,3 +48,7 @@ the same mechanism: one `<template>` per arm, a region swaps arms when the
 discriminant changes, and arm bindings are row-style captures. The spike
 does routing with a string signal + `if`-chain regions (`$if`), which is the
 same machinery with boolean arms.
+
+## Strict CSP expression modules (DEV-121)
+
+The forked runtime separates trusted expression source from surrogate capture data in `Js::to_client()`. Expression macros collect function shapes in link-time inventory, and HTML carries a digest plus JSON captures; `runtime()` serves these startup-known function bodies from a same-origin ES module route. The browser imports functions before hydration, including nested templates and subsequent shard/navigation frames. Per-list `@N` tables contain these references without a protocol change. Captured expressions are references evaluated in context rather than source flattened into their callers. This avoids eval, keeps captures out of public module caches, works across processes and restarts, and requires no nonce or asset-bundler changes. See [strict CSP](strict-csp.md) for deployment constraints, the style audit, tests, and local measurements.

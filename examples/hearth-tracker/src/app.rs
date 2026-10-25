@@ -42,6 +42,7 @@ pub fn router() -> RouterBuilder {
 pub const TAILWIND: topcoat::asset::Asset =
     topcoat::asset::asset!(concat!(env!("OUT_DIR"), "/benchmark.css"));
 const APP_TAILWIND: topcoat::asset::Asset = tailwind::stylesheet!();
+const CSP_PROBE: topcoat::asset::Asset = topcoat::asset::asset!("./strict-csp.js");
 /// hearth's keyed-arch mark (source: `docs/hearth/brand/`).
 const FAVICON_SVG: topcoat::asset::Asset = topcoat::asset::asset!("./favicon.svg");
 const FAVICON_PNG: topcoat::asset::Asset = topcoat::asset::asset!("./favicon-32.png");
@@ -75,6 +76,9 @@ async fn root(cx: &Cx, slot: Slot<'_>) -> Result<impl View> {
                     rel="stylesheet"
                     href=(if benchmark { TAILWIND } else { APP_TAILWIND })
                 >
+                if std::env::var("HEARTH_STRICT_CSP").is_ok_and(|value| value == "1") {
+                    <script src=(CSP_PROBE)></script>
+                }
                 topcoat::runtime::script()
                 topcoat::dev::script()
             </head>
@@ -159,6 +163,14 @@ async fn simulated_latency(
         .headers()
         .get(topcoat::router::header::CONTENT_TYPE)
         .is_some_and(|v| v.as_bytes().starts_with(b"text/html"));
+    if std::env::var("HEARTH_STRICT_CSP").is_ok_and(|value| value == "1") {
+        res.headers_mut().insert(
+            topcoat::router::header::CONTENT_SECURITY_POLICY,
+            topcoat::router::HeaderValue::from_static(
+                "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'",
+            ),
+        );
+    }
     if html {
         res.headers_mut().insert(
             topcoat::router::header::CACHE_CONTROL,

@@ -31,6 +31,7 @@ export abstract class RenderUnit implements ConnectionTarget {
 	contentScope: Scope;
 	/** Names the unit in error messages. */
 	protected abstract readonly label: string;
+	readonly documentSnapshot: boolean = false;
 	private readonly requestController: RenderRequest;
 	/** Watches the signals used by the current content. */
 	private watch: Effect | null = null;
@@ -230,6 +231,7 @@ export abstract class RenderUnit implements ConnectionTarget {
 			(signal) => this.request(signal, FRAMES_MEDIA_TYPE),
 			(frame) => applyFrame(this, frame, this.label, render),
 			this.label,
+			this.documentSnapshot,
 		);
 	}
 

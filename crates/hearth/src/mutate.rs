@@ -33,7 +33,7 @@ impl<T: Table> Clone for TableHandle<T> {
 /// Handle for `T`, to capture in `$()` handlers.
 #[must_use]
 pub fn table<T: Table>() -> Expr<TableHandle<T>> {
-    Expr::evaluate_dynamic(TableHandle(PhantomData), Js::source(format!("cx.db.table({:?})", T::NAME)))
+    Expr::evaluate_dynamic(TableHandle(PhantomData), Js::builder().compiled("cx.db.table(__topcoatCaptures.values[0])").source(format!("cx.db.table({:?})", T::NAME)).capture(T::NAME).build())
 }
 
 /// The surrogate (Rust-side type inside `$()`) for a table handle.
@@ -106,3 +106,5 @@ impl<T: Table> TableSurrogate<T> {
         browser_only()
     }
 }
+
+ topcoat::runtime::internal::inventory::submit! { topcoat::runtime::expression_module::ExpressionSource("cx.db.table(__topcoatCaptures.values[0])") }

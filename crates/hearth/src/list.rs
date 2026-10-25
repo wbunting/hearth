@@ -49,7 +49,7 @@ impl<R> LiveQuery<R> {
     #[doc(hidden)]
     pub fn param<T: Serialize>(e: Expr<T>) -> (Value, String) {
         let (value, js) = e.into_evaluated_and_js();
-        (serde_json::to_value(&value).unwrap_or(Value::Null), js.to_source())
+        (serde_json::to_value(&value).unwrap_or(Value::Null), js.to_client())
     }
 }
 

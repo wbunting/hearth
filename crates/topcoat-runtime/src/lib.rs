@@ -6,6 +6,8 @@ mod connection;
 mod event_handler;
 mod expr;
 #[doc(hidden)]
+pub mod expression_module;
+#[doc(hidden)]
 pub mod internal;
 mod js;
 #[cfg(feature = "router")]

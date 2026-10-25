@@ -3,6 +3,7 @@ import {
 	type DevRuntimeDetail,
 } from "../../../../topcoat-core/browser/dev";
 import { morph } from "../../../../topcoat-core/browser/morph";
+import { expressionResponse } from "../expression/response";
 import { untrack } from "../reactivity";
 import type { Runtime } from "../runtime";
 import type { Scope } from "../scope";
@@ -18,6 +19,7 @@ import { RenderUnit } from "./unit";
  */
 export class PageUnit extends RenderUnit {
 	protected readonly label = "Page";
+	override readonly documentSnapshot = true;
 	private devRefresh: Promise<void> | null = null;
 
 	/** The dev response still streaming into the current document, if any. */
@@ -89,12 +91,13 @@ export class PageUnit extends RenderUnit {
 				const { detail } = event as CustomEvent<DevRuntimeDetail>;
 				const render = newRender();
 				detail.runtime = {
-					request: (signal, finished) => {
+					request: async (signal, finished) => {
 						this.devRefresh = finished;
 						void finished.then(() => {
 							if (this.devRefresh === finished) this.devRefresh = null;
 						});
-						return this.request(signal, FRAMES_MEDIA_TYPE);
+						const response = await this.request(signal, FRAMES_MEDIA_TYPE);
+						return response.ok && !response.redirected ? expressionResponse(response, signal) : response;
 					},
 					replace: (update) => {
 						this.runtime.connection.stop(this);

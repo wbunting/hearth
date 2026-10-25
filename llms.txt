@@ -78,6 +78,8 @@ Ok(view! {
 
 - [Hearth idle warming](docs/hearth/idle-warming.md): inactive `if $(...)` regions outside list items pre-mount hidden after load in yielding background slices. One-row lists can prepare a pooled row shell with placeholder fields; keep expressions safe for those values. Route changes reuse the warmed scope and nested lists.
 
+- [Hearth strict CSP](docs/hearth/strict-csp.md): expression code is served as same-origin modules; captured values remain data. `runtime()` installs the module route. Do not interpolate user data into `Js::source`; use surrogate captures. Expression macros collect function shapes at link time so every process can serve them before any render. Captured expressions stay nested references. Arbitrary runtime-generated source requires explicit static `ExpressionSource` registration; ordinary macro captures and shards need no warming. Tracker enforcement and violation recording: `HEARTH_STRICT_CSP=1`.
+
 ## Assets and services
 
 - [Assets](docs/asset.md): `asset!("./image.png")` renders hashed URL. `./`/`../` from source file, bare paths from crate root, HTTP(S) downloaded/cached. `topcoat dev` bundles; manual `topcoat asset bundle --release` must match profile/package. Bundling, listing, and `topcoat dev` select explicit `--bin`, then `[package] default-run`, then the only binary; ambiguous packages require `--bin` and list choices. Use `-p` for the workspace package. `.assets(AssetBundle::load()?)` loads `assets/` beside binary. Custom `--out` needs `load_dir`. Deploy matching binary+bundle; missing assets panic. `AssetConfig::hosted_at(base, catalog)` supports separately uploaded CDN files.

@@ -69,11 +69,15 @@ impl LowerView for EventHandler {
         let value = &self.value;
         match value {
             EventHandlerValue::LitStr(value) => {
-                builder.str_unescaped("data-topcoat-on:");
-                key.lower(builder);
-                builder.str_unescaped("=\"");
-                builder.attribute_value(&value.value());
-                builder.str_unescaped("\"");
+                let source = value.value();
+                builder.expr(ExprKind::Attributes, quote! {{
+                    #topcoat_runtime::internal::inventory::submit! {
+                        #topcoat_runtime::expression_module::ExpressionSource(#source)
+                    }
+                    #topcoat_runtime::EventHandler::new(#key,
+                        #topcoat_runtime::Expr::evaluate(|| |_: #topcoat_runtime::Event| {},
+                            #topcoat_runtime::Js::builder().compiled(#source).source(#source).build()))
+                }});
             }
             EventHandlerValue::Expr(value) => {
                 builder.expr(
@@ -95,12 +99,17 @@ impl LowerAttribute for EventHandler {
         let key = &self.key;
         match &self.value {
             EventHandlerValue::LitStr(value) => {
+                let source = value.value();
                 builder.insert_block(
                     1,
                     quote! {
                         {
                             let __key = ::core::convert::Into::<::std::string::String>::into(#key);
-                            __attrs.insert(__cx, ::std::format!("data-topcoat-on:{}", __key), #value);
+                            #topcoat_runtime::internal::inventory::submit! {
+                                #topcoat_runtime::expression_module::ExpressionSource(#source)
+                            }
+                            __attrs.insert(__cx, ::std::format!("data-topcoat-on:{}", __key),
+                                #topcoat_runtime::Js::builder().compiled(#source).source(#source).build());
                         }
                     },
                 );
