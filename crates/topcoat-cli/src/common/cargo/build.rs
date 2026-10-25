@@ -33,10 +33,19 @@ impl BuildOpts {
         // An explicit --bin always wins and Cargo validates its name.
         let mut opts = self.clone();
         if opts.bin.is_none()
-            && let Some(metadata) = Metadata::workspace().await
+            && let Some(mut metadata) = Metadata::workspace().await
         {
+            if metadata.has_gated_binaries()
+                && let Some(resolved) = Metadata::full().await
+            {
+                metadata = resolved;
+            }
+            let package = match opts.package.as_deref() {
+                Some(spec) => metadata.package_name_for_spec(spec).await,
+                None => None,
+            };
             opts.bin = metadata
-                .binary_for_build(opts.package.as_deref())
+                .binary_for_build(package.as_deref().or(opts.package.as_deref()))
                 .map_err(BuildError::MultipleBins)?;
         }
         let mut child = opts

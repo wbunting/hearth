@@ -101,7 +101,7 @@ topcoat asset bundle
 topcoat asset clean
 ```
 
-`topcoat asset bundle`, `topcoat asset list`, and `topcoat dev` use the same binary selection. Pass `--bin` to choose a binary explicitly. Otherwise, they use the package's `[package] default-run` or its only binary. A package with several binaries and no `default-run` requires `--bin`; the error lists the choices. Assets are bundled from the selected binary only, not merged across binaries.
+`topcoat asset bundle`, `topcoat asset list`, and `topcoat dev` use the same binary selection. Pass `--bin` to choose a binary explicitly. Otherwise, they use the package's `[package] default-run` or its only binary. A package with several binaries and no `default-run` requires `--bin`; the error lists the choices. Assets are bundled from the selected binary only, not merged across binaries. Implicit selection skips binaries whose required features are disabled. Packages with no enabled binaries can still bundle a dynamic library. Workspace selection follows Cargo's default members unless `--package` is supplied.
 
 Use `--package` (`-p`) to select a workspace package, and `--bin` to select a binary within it:
 

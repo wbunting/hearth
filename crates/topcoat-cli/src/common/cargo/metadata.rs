@@ -28,6 +28,7 @@ impl Metadata {
             .args(extra_args)
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
+            .kill_on_drop(true)
             .spawn()
             .ok()?
             .wait_with_output()
@@ -87,13 +88,7 @@ impl Metadata {
     /// the binary names so callers can ask for `--bin`. Packages without binaries
     /// leave output selection to Cargo, allowing dynamic libraries to be bundled.
     pub fn binary_for_build(&self, package: Option<&str>) -> Result<Option<String>, Vec<String>> {
-        let current_dir = std::env::current_dir().ok();
-        let package = package.or_else(|| {
-            current_dir
-                .as_deref()
-                .and_then(|dir| self.package_containing_dir(dir))
-                .or_else(|| self.default_package())
-        });
+        let package = package.or_else(|| self.default_package());
         let Some(package) = package else {
             return Ok(None);
         };
@@ -105,7 +100,7 @@ impl Metadata {
             .and_then(|package| package["targets"].as_array())
             .into_iter()
             .flatten()
-            .filter(|target| is_bin(target))
+            .filter(|target| is_bin(target) && self.target_enabled(package, target))
             .filter_map(|target| target["name"].as_str().map(str::to_owned))
             .collect();
         bins.sort();
@@ -116,7 +111,7 @@ impl Metadata {
         }
     }
 
-    /// A virtual workspace with one default member also identifies a single package.
+    /// Cargo reports the packages selected from the current directory as default members.
     fn default_package(&self) -> Option<&str> {
         let members = self.0["workspace_default_members"].as_array()?;
         if members.len() != 1 {
@@ -136,23 +131,57 @@ impl Metadata {
             .find(|package| package["name"].as_str() == Some(name))
     }
 
-    /// The name of the local package whose manifest directory contains `dir`.
-    ///
-    /// The deepest match wins, so a package nested in another still wins over the one
-    /// that merely contains it.
-    fn package_containing_dir(&self, dir: &Path) -> Option<&str> {
+    /// Resolve Cargo package ID specifications without duplicating Cargo's grammar.
+    pub async fn package_name_for_spec(&self, spec: &str) -> Option<String> {
+        if self.package(spec).is_some() {
+            return Some(spec.to_owned());
+        }
+        let output = Command::new("cargo")
+            .args(["pkgid", "--package", spec])
+            .kill_on_drop(true)
+            .output()
+            .await
+            .ok()?;
+        if !output.status.success() {
+            return None;
+        }
+        let id = String::from_utf8(output.stdout).ok()?;
         self.0["packages"]
             .as_array()?
             .iter()
-            .filter(|package| package["source"].is_null())
-            .filter_map(|package| {
-                let manifest = Path::new(package["manifest_path"].as_str()?);
-                let root = manifest.parent()?;
-                dir.starts_with(root)
-                    .then_some((root.components().count(), package))
+            .find(|package| package["id"].as_str() == Some(id.trim()))?["name"]
+            .as_str()
+            .map(str::to_owned)
+    }
+
+    /// Feature-gated targets need the resolved graph, not just workspace manifests.
+    pub fn has_gated_binaries(&self) -> bool {
+        self.0["packages"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|package| package["targets"].as_array())
+            .flatten()
+            .any(|target| {
+                is_bin(target)
+                    && target["required-features"]
+                        .as_array()
+                        .is_some_and(|features| !features.is_empty())
             })
-            .max_by_key(|(depth, _)| *depth)
-            .and_then(|(_, package)| package["name"].as_str())
+    }
+
+    fn target_enabled(&self, package: &str, target: &serde_json::Value) -> bool {
+        let Some(required) = target["required-features"].as_array() else {
+            return true;
+        };
+        let id = &self.package(package).unwrap()["id"];
+        let enabled = self.0["resolve"]["nodes"]
+            .as_array()
+            .and_then(|nodes| nodes.iter().find(|node| &node["id"] == id))
+            .and_then(|node| node["features"].as_array());
+        required
+            .iter()
+            .all(|feature| enabled.is_some_and(|enabled| enabled.contains(feature)))
     }
 }
 
@@ -309,69 +338,5 @@ mod tests {
             ]),
         )]));
         assert_eq!(metadata.default_run("app").as_deref(), Some("app"));
-    }
-
-    /// The package containing `dir` is the one a build without `--package` compiles,
-    /// so a `default-run` in a sibling package must not be picked up.
-    #[test]
-    fn the_package_containing_the_current_directory_wins() {
-        let metadata = Metadata(json!({
-            "packages": [
-                { "name": "workspace-root", "source": null, "manifest_path": "/w/Cargo.toml" },
-                {
-                    "name": "app",
-                    "source": null,
-                    "manifest_path": "/w/examples/app/Cargo.toml",
-                    "default_run": "cli",
-                    "targets": [bin("cli", "/w/examples/app/src/bin/cli.rs")],
-                },
-            ],
-        }));
-        assert_eq!(
-            metadata.package_containing_dir(Path::new("/w/examples/app/src")),
-            Some("app")
-        );
-        assert_eq!(metadata.default_run("app").as_deref(), Some("cli"));
-    }
-
-    #[test]
-    fn a_directory_outside_every_package_matches_none() {
-        let metadata = Metadata(json!({
-            "packages": [
-                { "name": "app", "source": null, "manifest_path": "/w/app/Cargo.toml" },
-            ],
-        }));
-        assert_eq!(
-            metadata.package_containing_dir(Path::new("/elsewhere")),
-            None
-        );
-    }
-
-    /// A package prefix that is not a path-component prefix is not a match:
-    /// `/w/app` is not inside `/w/app-two`.
-    #[test]
-    fn package_matching_respects_path_components() {
-        let metadata = Metadata(json!({
-            "packages": [
-                { "name": "app-two", "source": null, "manifest_path": "/w/app-two/Cargo.toml" },
-            ],
-        }));
-        assert_eq!(
-            metadata.package_containing_dir(Path::new("/w/app/src")),
-            None
-        );
-    }
-
-    #[test]
-    fn registry_dependencies_are_never_the_build_package() {
-        let metadata = Metadata(json!({
-            "packages": [
-                { "name": "dep", "source": "registry+https://github.com/rust-lang/crates.io-index", "manifest_path": "/reg/dep/Cargo.toml" },
-            ],
-        }));
-        assert_eq!(
-            metadata.package_containing_dir(Path::new("/reg/dep/src")),
-            None
-        );
     }
 }

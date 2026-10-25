@@ -1,4 +1,5 @@
 use std::{
+    fmt::Write as _,
     path::PathBuf,
     process::{Command, Output, Stdio},
     sync::atomic::{AtomicUsize, Ordering},
@@ -44,12 +45,14 @@ impl Project {
             default_run
                 .map(|bin| format!("default-run = {bin:?}\n"))
                 .unwrap_or_default(),
-            asset_crate,
+            asset_crate.to_str().unwrap(),
         );
         for bin in bins {
-            manifest.push_str(&format!(
+            write!(
+                manifest,
                 "\n[[bin]]\nname = {bin:?}\npath = \"src/bin/{bin}.rs\"\n"
-            ));
+            )
+            .unwrap();
         }
         std::fs::write(self.path.join("Cargo.toml"), manifest).unwrap();
     }
@@ -148,6 +151,81 @@ async fn bundle_selects_one_binary_and_keeps_its_assets() {
     let listed = String::from_utf8(output.stdout).unwrap();
     assert!(listed.contains("helper.txt"), "{listed}");
     assert!(!listed.contains("server.txt"), "{listed}");
+    let qualified = project
+        .command(&["asset", "list", "--release", "-p", "app@0.1.0"])
+        .output()
+        .unwrap();
+    assert_success(&qualified);
+    assert!(String::from_utf8_lossy(&qualified.stdout).contains("helper.txt"));
     project.dev(&[], "helper").await;
     project.dev(&["--bin", "server"], "server").await;
+}
+
+#[test]
+fn workspace_defaults_override_the_root_package() {
+    let project = Project::new();
+    project.manifest(&["server"], None);
+    std::fs::create_dir_all(project.path.join("web/src")).unwrap();
+    std::fs::write(
+        project.path.join("web/Cargo.toml"),
+        "[package]\nname = \"web\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .unwrap();
+    std::fs::write(project.path.join("web/src/main.rs"), "fn main() {}\n").unwrap();
+    let manifest = std::fs::read_to_string(project.path.join("Cargo.toml")).unwrap();
+    std::fs::write(
+        project.path.join("Cargo.toml"),
+        manifest.replace(
+            "[workspace]",
+            "[workspace]\nmembers = [\"web\"]\ndefault-members = [\"web\"]",
+        ),
+    )
+    .unwrap();
+    let output = project
+        .command(&["asset", "list", "--release"])
+        .output()
+        .unwrap();
+    assert_success(&output);
+    assert!(project.path.join("target/release/web").is_file());
+    assert!(!project.path.join("target/release/server").is_file());
+    let output = project
+        .command(&["asset", "list", "--release", "-p", "app"])
+        .current_dir(project.path.join("web/src"))
+        .output()
+        .unwrap();
+    assert_success(&output);
+    assert!(String::from_utf8_lossy(&output.stdout).contains("server.txt"));
+}
+
+#[test]
+fn disabled_optional_binary_does_not_block_library_bundling() {
+    let project = Project::new();
+    project.manifest(&["helper"], None);
+    std::fs::write(
+        project.path.join("src/lib.rs"),
+        "pub fn value() -> u8 { 1 }",
+    )
+    .unwrap();
+    let manifest = std::fs::read_to_string(project.path.join("Cargo.toml")).unwrap();
+    std::fs::write(project.path.join("Cargo.toml"), format!("{manifest}required-features = [\"cli\"]\n[features]\ncli = []\n[lib]\ncrate-type = [\"cdylib\"]\n")).unwrap();
+    let output = project
+        .command(&["asset", "bundle", "--release", "-p", "app"])
+        .output()
+        .unwrap();
+    assert_success(&output);
+    assert!(
+        project
+            .path
+            .join("target/release/assets/manifest.toml")
+            .is_file()
+    );
+    assert!(!project.path.join("target/release/helper").is_file());
+
+    let manifest = std::fs::read_to_string(project.path.join("Cargo.toml")).unwrap();
+    std::fs::write(
+        project.path.join("Cargo.toml"),
+        manifest.replace("[features]", "[features]\ndefault = [\"cli\"]"),
+    )
+    .unwrap();
+    project.bundle(&[], "helper asset");
 }
