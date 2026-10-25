@@ -16,6 +16,7 @@ pub(super) struct Inputs {
     roots: BTreeSet<PathBuf>,
     excluded: Vec<PathBuf>,
     automatic: bool,
+    utilities_seen: bool,
 }
 
 impl Inputs {
@@ -119,11 +120,13 @@ impl Inputs {
                                 // Tailwind preserves url(...) imports for the browser.
                                 if let Ok(path) = rule.expect_string_cloned() {
                                     let automatic = self.automatic;
+                                    let utilities_seen = self.utilities_seen;
                                     if let Err(error) = self.import(base, &path) {
                                         import_error = Some(error);
                                     }
                                     if name == "reference" {
                                         self.automatic = automatic;
+                                        self.utilities_seen = utilities_seen;
                                     }
                                     // A source modifier only controls scanning if the
                                     // imported stylesheet supplies utilities. For other
@@ -151,6 +154,8 @@ impl Inputs {
     }
 
     fn scan_root(&mut self, base: &Path, rule: &mut Parser<'_, '_>, controls_scan: bool) {
+        let controls_scan = controls_scan && !self.utilities_seen;
+        self.utilities_seen |= controls_scan;
         while let Ok(token) = rule.next().cloned() {
             if let Token::Function(name) = token
                 && name == "source"
@@ -540,6 +545,32 @@ mod tests {
                 .paths()
                 .unwrap()
                 .contains(&root.join("shared"))
+        );
+    }
+
+    #[test]
+    fn later_utilities_do_not_disable_the_first_automatic_scan() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = fs::canonicalize(dir.path()).unwrap();
+        fs::create_dir(root.join("src")).unwrap();
+        fs::write(
+            root.join("app.css"),
+            "@import 'tailwindcss'; @tailwind utilities source(none);",
+        )
+        .unwrap();
+        let command = Command {
+            input: "app.css".into(),
+            output: "target/out.css".into(),
+            cwd: root.clone(),
+            optimize: false,
+            minify: false,
+        };
+        assert!(
+            Inputs::discover(&command, None)
+                .unwrap()
+                .paths()
+                .unwrap()
+                .contains(&root.join("src"))
         );
     }
 
