@@ -78,7 +78,7 @@ Ok(view! {
 
 - [Hearth idle warming](docs/hearth/idle-warming.md): inactive `if $(...)` regions outside list items pre-mount hidden after load in yielding background slices. One-row lists can prepare a pooled row shell with placeholder fields; keep expressions safe for those values. Route changes reuse the warmed scope and nested lists.
 
-- [Hearth strict CSP](docs/hearth/strict-csp.md): expression code is served as same-origin modules; captured values remain data. `runtime()` installs the module route. Do not interpolate user data into `Js::source`; use surrogate captures. Module registration is process-local, so multi-process deployments need routing affinity or registry warming. Tracker enforcement and violation recording: `HEARTH_STRICT_CSP=1`.
+- [Hearth strict CSP](docs/hearth/strict-csp.md): expression code is served as same-origin modules; captured values remain data. `runtime()` installs the module route. Do not interpolate user data into `Js::source`; use surrogate captures. Expression macros collect function shapes at link time so every process can serve them before any render. Captured expressions stay nested references. Arbitrary runtime-generated source requires explicit static `ExpressionSource` registration; ordinary macro captures and shards need no warming. Tracker enforcement and violation recording: `HEARTH_STRICT_CSP=1`.
 
 ## Assets and services
 

@@ -3,7 +3,7 @@ import { loadExpressions } from "./expression/compile";
 
 import { localDb } from "./hearth/db";
 import { route } from "./hearth/router";
-import { startAfterPaint } from "./hearth/start";
+import { bootExpressions } from "./expression/boot";
 
 // [hearth] Local DB first, so list regions can query during hydration.
 const boot = document.getElementById("hearth-boot");
@@ -20,14 +20,10 @@ if (boot) {
 	}, 0);
 }
 
-await loadExpressions(document);
 const runtime = new Runtime();
 const start = () => {
 	runtime.start(document);
 	runtime.page.listenForDevRefresh();
 	performance.mark("topcoat:ready");
 };
-// SSR already provides the first screen. Adopt it after the browser has a
-// chance to paint, rather than making that paint wait for live query setup.
-if (boot) startAfterPaint(start);
-else start();
+await bootExpressions(() => loadExpressions(document), start);

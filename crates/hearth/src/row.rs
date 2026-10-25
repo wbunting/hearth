@@ -14,7 +14,7 @@ use topcoat::runtime::{Expr, Js};
 /// captured outer rows resolve correctly at any depth).
 #[must_use]
 pub fn row_surrogate_js(list: &str) -> Js {
-    Js::source(format!("cx.row({list:?})"))
+    Js::builder().compiled("cx.row(__topcoatCaptures.values[0])").source(format!("cx.row({list:?})")).capture(list).build()
 }
 
 /// Wraps an SSR row as the loop variable of a client list body.
@@ -84,3 +84,5 @@ pub(crate) fn trailer(cx: &topcoat::context::Cx, html: &mut String, data: &str) 
         html.push_str(data);
     }
 }
+
+ topcoat::runtime::internal::inventory::submit! { topcoat::runtime::expression_module::ExpressionSource("cx.row(__topcoatCaptures.values[0])") }

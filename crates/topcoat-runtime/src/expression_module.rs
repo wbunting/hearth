@@ -1,33 +1,38 @@
 //! [hearth fork] Trusted expression modules, separate from captured request data.
 
-use std::{
-    collections::HashMap,
-    sync::{OnceLock, RwLock},
-};
+#[cfg(any(feature = "router", test))]
+use std::{collections::HashMap, sync::OnceLock};
 
 use sha2::{Digest, Sha256};
 
-fn sources() -> &'static RwLock<HashMap<String, String>> {
-    static SOURCES: OnceLock<RwLock<HashMap<String, String>>> = OnceLock::new();
-    SOURCES.get_or_init(RwLock::default)
-}
+/// Trusted function source collected by expression macros at link time.
+pub struct ExpressionSource(pub &'static str);
+inventory::collect!(ExpressionSource);
 
-pub(crate) fn register(source: &str) -> String {
+pub(crate) fn digest(source: &str) -> String {
     use std::fmt::Write;
     let mut id = String::with_capacity(64);
     for byte in Sha256::digest(source.as_bytes()) {
         let _ = write!(id, "{byte:02x}");
     }
-    let mut sources = sources().write().expect("expression registry poisoned");
-    sources
-        .entry(id.clone())
-        .or_insert_with(|| source.to_owned());
     id
+}
+
+#[cfg(any(feature = "router", test))]
+fn sources() -> &'static HashMap<String, String> {
+    static SOURCES: OnceLock<HashMap<String, String>> = OnceLock::new();
+    SOURCES.get_or_init(|| {
+        inventory::iter::<ExpressionSource>
+            .into_iter()
+            .map(|entry| (digest(entry.0), entry.0.to_owned()))
+            .collect()
+    })
 }
 
 #[cfg(feature = "router")]
 pub(crate) fn route() -> topcoat_router::RouteFn {
     use topcoat_router::{Method, RouteFn};
+    let _ = sources();
     RouteFn::new(Method::GET, "/_topcoat/expressions.js", |cx, _body| {
         Box::pin(async move {
             use topcoat_router::{StatusCode, header, request::uri, response::IntoResponse};
@@ -67,7 +72,7 @@ fn module(ids: &str) -> Option<String> {
     {
         return None;
     }
-    let sources = sources().read().expect("expression registry poisoned");
+    let sources = sources();
     let mut module = String::from("export default {\n");
     for id in ids {
         let source = sources.get(id)?;
@@ -81,9 +86,11 @@ fn module(ids: &str) -> Option<String> {
 mod tests {
     use super::*;
 
+    inventory::submit! { ExpressionSource("cx.some(__topcoatCaptures[0])") }
+
     #[test]
     fn serves_only_registered_source_under_its_digest() {
-        let id = register("cx.some(__topcoatCaptures[0])");
+        let id = digest("cx.some(__topcoatCaptures[0])");
         let module = module(&id).unwrap();
         assert!(module.contains("(cx,__topcoatCaptures)=>(cx.some(__topcoatCaptures[0])\n)"));
         assert!(module.contains(&id));

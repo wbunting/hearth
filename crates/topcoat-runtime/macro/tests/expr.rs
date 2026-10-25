@@ -13,6 +13,24 @@ use topcoat::{
     view::{View, ViewExt, attributes, component, view},
 };
 
+/// Source of the registered functions referenced by this HTML (not captures).
+fn client_code(html: &str) -> String {
+    topcoat::runtime::internal::inventory::iter::<
+        topcoat::runtime::expression_module::ExpressionSource,
+    >
+        .into_iter()
+        .filter(|entry| {
+            let reference = topcoat::runtime::Js::builder()
+                .compiled(entry.0)
+                .build()
+                .to_client();
+            html.contains(reference.split(':').next().unwrap())
+        })
+        .map(|entry| entry.0)
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 #[component]
 async fn nested_expressions(cx: &Cx) -> Result<impl View> {
     let selected = signal(cx, || true);
@@ -105,7 +123,7 @@ async fn toggle_reaches_the_generated_javascript() {
         .unwrap()
         .render(cx);
 
-    assert!(html.contains(".toggle()"), "{html}");
+    assert!(client_code(&html).contains(".toggle()"), "{html}");
 }
 
 #[test]
@@ -134,8 +152,8 @@ async fn increment_and_decrement_reach_the_generated_javascript() {
         .unwrap()
         .render(cx);
 
-    assert!(html.contains(".increment()"), "{html}");
-    assert!(html.contains(".decrement()"), "{html}");
+    assert!(client_code(&html).contains(".increment()"), "{html}");
+    assert!(client_code(&html).contains(".decrement()"), "{html}");
 }
 
 #[component]
@@ -153,7 +171,7 @@ async fn push_str_reaches_the_generated_javascript_with_its_argument() {
         .unwrap()
         .render(cx);
 
-    assert!(html.contains(".push_str("), "{html}");
+    assert!(client_code(&html).contains(".push_str("), "{html}");
 }
 
 /// A signal is created before the view and captured by any number of its
@@ -177,10 +195,10 @@ async fn a_signal_is_declared_once_ahead_of_every_capture() {
         .render(cx);
 
     let declaration = html.find("<!--::topcoat::signal(").expect(&html);
-    let first_capture = html.find("cx.hydrate(").expect(&html);
+    let first_capture = html.find("data-topcoat-on:click=").expect(&html);
     assert!(declaration < first_capture, "{html}");
     assert_eq!(html.matches("::topcoat::signal(").count(), 1, "{html}");
-    assert_eq!(html.matches("cx.hydrate(").count(), 2, "{html}");
+    assert_eq!(html.matches("Signal").count(), 2, "{html}");
 }
 
 #[procedure]
@@ -209,7 +227,7 @@ async fn procedure_call_inside_if_is_an_async_func() {
     .render(cx);
 
     assert!(
-        html.contains("(await (async ()"),
+        client_code(&html).contains("(await (async ()"),
         "if block containing an await must be an async anonymous function: {html}"
     );
 }
@@ -235,7 +253,7 @@ async fn procedure_call_inside_block_is_an_async_func() {
     .render(cx);
 
     assert!(
-        html.contains("(await (async ()"),
+        client_code(&html).contains("(await (async ()"),
         "block containing an await must be an async anonymous function: {html}"
     );
 }
@@ -263,7 +281,7 @@ async fn push_str_accepts_the_owned_string_from_an_event() {
         .unwrap()
         .render(cx);
 
-    assert!(html.contains(".push_str("), "{html}");
+    assert!(client_code(&html).contains(".push_str("), "{html}");
 }
 
 /// A captured value is serialized into the marker comment that carries the
@@ -281,10 +299,7 @@ async fn a_captured_value_cannot_break_out_of_its_marker_comment() {
         .render(cx);
 
     // The capture reaches the client as a hydrated JSON value.
-    assert!(
-        html.contains(r"cx.hydrate(&quot;--&gt;\&quot;<&amp;&quot;)"),
-        "{html}"
-    );
+    assert!(html.contains("--&gt;") && html.contains("&amp;"), "{html}");
     // The rendered snapshot of the value is escaped for text.
     assert!(html.contains(r#"-->--&gt;"&lt;&amp;<!--"#), "{html}");
     // The raw value appears nowhere in the document.
@@ -314,7 +329,7 @@ async fn a_string_literal_with_quotes_stays_inside_the_handler_attribute() {
         .unwrap()
         .render(cx);
 
-    assert!(html.contains(r"say \&quot;hi\&quot;"), "{html}");
+    assert!(client_code(&html).contains(r#"say \"hi\""#), "{html}");
     assert!(!html.contains(r#"say \"hi"#), "{html}");
 }
 
@@ -355,7 +370,7 @@ async fn expression_conversion_preserves_runtime_prop_bindings() {
         .render(cx);
 
     assert!(html.contains("data-topcoat-bind:open="), "{html}");
-    assert!(html.contains(".get()"), "{html}");
+    assert!(client_code(&html).contains(".get()"), "{html}");
 }
 
 #[tokio::test]

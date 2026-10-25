@@ -38,7 +38,11 @@ impl<T> Expr<T> {
     /// list (`cx.row(0)`). Captures of it inside `$()` inline that JS.
     #[inline]
     pub fn evaluate_dynamic(value: T, js: Js) -> Self {
-        Self { evaluated: value, js, is_static: false }
+        Self {
+            evaluated: value,
+            js,
+            is_static: false,
+        }
     }
 
     /// Whether this expression is known not to require reactive evaluation.
@@ -81,7 +85,10 @@ where
     /// Panics if the value's surrogate cannot be serialized.
     fn from(value: T) -> Self {
         let surrogate = value.into_surrogate();
-        let js = Js::builder().surrogate(&surrogate).build();
+        let js = Js::builder()
+            .compiled("cx.hydrate(__topcoatCaptures.values[0])")
+            .surrogate(&surrogate)
+            .build();
         Self::evaluate(|| surrogate.into_real(), js)
     }
 }

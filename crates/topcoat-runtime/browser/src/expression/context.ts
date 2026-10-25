@@ -1,3 +1,4 @@
+import { compile } from "./compile";
 import type { SignalId, SignalRegistry } from "../signal-registry";
 import { Option, Record, Result, Tuple, WriteSignal } from "../surrogate";
 import { hydrate } from "./hydrate";
@@ -43,6 +44,11 @@ export class Context {
 	/** [hearth] Bridge to the local database (TanStack DB). */
 	get db(): LocalDb {
 		return localDb();
+	}
+
+	/** Evaluates a captured expression without flattening its code into its caller. */
+	expression(ref: string): unknown {
+		return compile(ref, "captured expression")(this);
 	}
 
 	hydrate(s: unknown) {

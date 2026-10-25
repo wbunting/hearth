@@ -30,6 +30,7 @@ ref-cast.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 sha2.workspace = true
+inventory.workspace = true
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 topcoat-router = { workspace = true, optional = true, features = ["websocket"] }

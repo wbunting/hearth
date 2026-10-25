@@ -1,8 +1,9 @@
+import { importExpressions } from "./module";
 import { parseComment } from "../dom/markers";
 import type { Context } from "./context";
 
 export type Expression<T = unknown> = (cx: Context) => T;
-type Factory = (cx: Context, captures: unknown[]) => unknown;
+type Factory = (cx: Context, captures: unknown) => unknown;
 
 let jsTable: string[] = [];
 export function getJsTable(): string[] {
@@ -15,6 +16,7 @@ export function setJsTable(table: string[]): string[] {
 }
 
 const factories = new Map<string, Factory>();
+const cache = new Map<string, Expression>();
 const pending = new Map<string, Promise<void>>();
 
 /** Finds references only in runtime metadata, never in user text or captures. */
@@ -22,7 +24,13 @@ function references(root: ParentNode): Set<string> {
 	const ids = new Set<string>();
 	const add = (ref: string) => {
 		const id = /^#([a-f0-9]{64}):/.exec(ref)?.[1];
-		if (id) ids.add(id);
+		if (id) {
+			ids.add(id);
+			const data = JSON.parse(ref.slice(66));
+			if (data && !Array.isArray(data) && Array.isArray(data.expressions)) {
+				data.expressions.forEach(add);
+			}
+		}
 	};
 	const decode = (text: string) =>
 		text
@@ -100,7 +108,7 @@ export async function loadExpressions(
 	for (let i = 0; i < fresh.length; i += 32) {
 		const batch = fresh.slice(i, i + 32);
 		const url = `/_topcoat/expressions.js?ids=${batch.join(",")}`;
-		const promise = import(/* @vite-ignore */ url)
+		const promise = importExpressions(url)
 			.then((module) => {
 				for (const id of batch) {
 					const factory = module.default[id];
@@ -130,11 +138,15 @@ export function compile<T = unknown>(
 			throw new Error(`Unknown JS reference ${ref} in ${label}`);
 		ref = resolved;
 	}
-	const match = /^#([a-f0-9]{64}):(\[.*\])$/s.exec(ref);
+	const match = /^#([a-f0-9]{64}):([\s\S]*)$/.exec(ref);
 	if (!match) throw new Error(`Invalid expression reference in ${label}`);
 	const factory = factories.get(match[1]!);
 	if (!factory)
 		throw new Error(`Expression not loaded in ${label}: ${match[1]}`);
-	const captures = JSON.parse(match[2]!) as unknown[];
-	return (cx) => factory(cx, captures) as T;
+	const hit = cache.get(ref);
+	if (hit) return hit as Expression<T>;
+	const captures = JSON.parse(match[2]!) as unknown;
+	const expression = (cx: Context) => factory(cx, captures);
+	cache.set(ref, expression);
+	return expression as Expression<T>;
 }

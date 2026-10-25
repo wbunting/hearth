@@ -27,7 +27,7 @@ use topcoat::{
 pub fn path(cx: &Cx) -> Expr<String> {
     let uri = topcoat::router::request::uri(cx);
     let p = uri.path_and_query().map_or_else(|| uri.path().to_owned(), |pq| pq.as_str().to_owned());
-    Expr::evaluate_dynamic(p, Js::source("cx.route.path()"))
+    Expr::evaluate_dynamic(p, Js::builder().compiled("cx.route.path()").source("cx.route.path()").build())
 }
 
 /// The `n`th path segment as a reactive `Expr<String>`.
@@ -35,7 +35,7 @@ pub fn path(cx: &Cx) -> Expr<String> {
 pub fn segment(cx: &Cx, n: usize) -> Expr<String> {
     let uri = topcoat::router::request::uri(cx);
     let seg = uri.path().split('/').filter(|s| !s.is_empty()).nth(n).unwrap_or("").to_owned();
-    Expr::evaluate_dynamic(seg, Js::source(format!("cx.route.segment({n})")))
+    Expr::evaluate_dynamic(seg, Js::builder().compiled("cx.route.segment(__topcoatCaptures.values[0])").source(format!("cx.route.segment({n})")).capture(&n).build())
 }
 
 static NEXT: AtomicU64 = AtomicU64::new(0);
@@ -85,3 +85,6 @@ pub fn _assert_view<V: View>(_: &V) {}
 pub fn _unused() -> Result<()> {
     Ok(())
 }
+
+ topcoat::runtime::internal::inventory::submit! { topcoat::runtime::expression_module::ExpressionSource("cx.route.path()") }
+topcoat::runtime::internal::inventory::submit! { topcoat::runtime::expression_module::ExpressionSource("cx.route.segment(__topcoatCaptures.values[0])") }

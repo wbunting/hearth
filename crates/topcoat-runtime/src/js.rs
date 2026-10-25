@@ -12,6 +12,7 @@ use topcoat_view::{AttributeValueViewParts, PartsWriter};
 #[derive(Debug, Clone)]
 pub struct Js {
     parts: Vec<JsPart>,
+    compiled: Option<(&'static str, Vec<String>, Vec<String>)>,
 }
 
 #[derive(Debug, Clone)]
@@ -34,13 +35,17 @@ impl Js {
     pub fn source(js: impl Into<Cow<'static, str>>) -> Self {
         Self {
             parts: vec![JsPart::Source(js.into())],
+            compiled: None,
         }
     }
 
     /// Starts source that interleaves captured values.
     #[must_use]
     pub fn builder() -> JsBuilder {
-        JsBuilder { parts: Vec::new() }
+        JsBuilder {
+            parts: Vec::new(),
+            compiled: None,
+        }
     }
 
     /// Returns executable JavaScript, including serialized captured values.
@@ -70,6 +75,14 @@ impl Js {
     /// module. Captured values never enter that module or its cache key.
     #[must_use]
     pub fn to_client(&self) -> String {
+        if let Some((source, expressions, values)) = &self.compiled {
+            let id = crate::expression_module::digest(source);
+            return format!(
+                "#{id}:{{\"expressions\":[{}],\"values\":[{}]}}",
+                expressions.join(","),
+                values.join(",")
+            );
+        }
         let mut source = String::new();
         let mut captures = Vec::new();
         for part in &self.parts {
@@ -83,7 +96,7 @@ impl Js {
                 }
             }
         }
-        let id = crate::expression_module::register(&source);
+        let id = crate::expression_module::digest(&source);
         format!("#{id}:[{}]", captures.join(","))
     }
 
@@ -111,12 +124,27 @@ impl AttributeValueViewParts for Js {
 #[derive(Debug)]
 pub struct JsBuilder {
     parts: Vec<JsPart>,
+    compiled: Option<(&'static str, Vec<String>, Vec<String>)>,
 }
 
 impl JsBuilder {
+    /// Uses a link-time registered function shape with expression references as captures.
+    #[must_use]
+    pub fn compiled(mut self, source: &'static str) -> Self {
+        self.compiled = Some((source, Vec::new(), Vec::new()));
+        self
+    }
+
     /// Appends an expression in parentheses, preserving its captured values.
+    ///
+    /// # Panics
+    ///
+    /// Panics if serializing the nested expression reference fails.
     #[must_use]
     pub fn expression<T>(mut self, expression: &crate::Expr<T>) -> Self {
+        if let Some((_, expressions, _)) = &mut self.compiled {
+            expressions.push(serde_json::to_string(&expression.js.to_client()).unwrap());
+        }
         self.parts.push(JsPart::Raw("("));
         self.parts.extend(expression.js.parts.iter().cloned());
         self.parts.push(JsPart::Raw(")"));
@@ -137,6 +165,22 @@ impl JsBuilder {
         self
     }
 
+    /// Adds data to a registered function without appending to the diagnostic source.
+    ///
+    /// # Panics
+    ///
+    /// Panics without a compiled function or if the value fails to serialize.
+    #[must_use]
+    pub fn capture(mut self, value: &(impl Serialize + ?Sized)) -> Self {
+        let json = serde_json::to_string(value).expect("failed to serialize capture");
+        self.compiled
+            .as_mut()
+            .expect("capture requires a compiled function")
+            .2
+            .push(json);
+        self
+    }
+
     /// Appends a captured value, serialized now so the Rust expression can
     /// consume it afterwards.
     ///
@@ -146,6 +190,9 @@ impl JsBuilder {
     #[must_use]
     pub fn surrogate(mut self, value: &(impl Serialize + ?Sized)) -> Self {
         let json = serde_json::to_string(value).expect("failed to serialize surrogate value");
+        if let Some((_, _, values)) = &mut self.compiled {
+            values.push(json.clone());
+        }
         self.parts.push(JsPart::Surrogate(json));
         self
     }
@@ -153,7 +200,10 @@ impl JsBuilder {
     /// Finishes the builder into a [`Js`].
     #[must_use]
     pub fn build(self) -> Js {
-        Js { parts: self.parts }
+        Js {
+            parts: self.parts,
+            compiled: self.compiled,
+        }
     }
 }
 
@@ -198,3 +248,5 @@ mod tests {
         );
     }
 }
+
+inventory::submit! { crate::expression_module::ExpressionSource("cx.hydrate(__topcoatCaptures.values[0])") }

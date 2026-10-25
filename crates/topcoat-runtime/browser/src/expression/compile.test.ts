@@ -1,20 +1,21 @@
 // @vitest-environment happy-dom
 import { afterEach, expect, it, vi } from "vitest";
 import { compile, loadExpressions, setJsTable } from "./compile";
-import type { Context } from "./context";
+import { Context } from "./context";
+import { SignalRegistry } from "../signal-registry";
 
 vi.unmock("./compile");
-vi.mock(
-	"/_topcoat/expressions.js?ids=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-	() => ({
+vi.mock("./module", () => ({
+	importExpressions: async () => ({
 		default: {
+			bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb: (cx: Context, captures: { expressions: string[] }) => cx.expression(captures.expressions[0]!),
 			aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: (
 				cx: { value: number },
 				captures: number[],
 			) => cx.value + captures[0]!,
 		},
 	}),
-);
+}));
 const id = "a".repeat(64);
 afterEach(() => {
 	setJsTable([]);
@@ -57,4 +58,17 @@ it("does not import reference-shaped text or captured strings", async () => {
 			fake +
 			`&quot;]"></button>`,
 	);
+});
+
+it("loads nested captured expression references but not value data", async () => {
+    const inner = `#${id}:[8]`;
+    const outer = "#" + "b".repeat(64) + ":" + JSON.stringify({ expressions: [inner], values: ["#" + "f".repeat(64) + ":[]"] });
+    const template = document.createElement("template");
+    const element = document.createElement("b");
+    element.setAttribute("data-topcoat-bind:title", outer);
+    template.content.append(element);
+    await loadExpressions(template.content);
+    const cx = new Context(new SignalRegistry());
+    Object.assign(cx, { value: 2 });
+    expect(compile<number>(outer, "nested")(cx)).toBe(10);
 });

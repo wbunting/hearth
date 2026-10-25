@@ -5,16 +5,15 @@ import { Runtime } from "../runtime";
 import { flushEffects } from "../reactivity";
 
 vi.unmock("./compile");
-vi.mock(
-	"/_topcoat/expressions.js?ids=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-	() => ({
+vi.mock("./module", () => ({
+	importExpressions: async () => ({
 		default: {
 			bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:
 				(cx: any, captures: unknown[]) => () =>
 					(cx.clicked = captures[0]),
 		},
 	}),
-);
+}));
 const ref = "#" + "b".repeat(64) + ":[&quot;new shard&quot;]";
 let runtime: Runtime;
 afterEach(() => {
