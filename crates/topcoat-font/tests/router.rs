@@ -1,6 +1,6 @@
 use topcoat::{
     context::Cx,
-    font::{Font, FontResolver, RouterBuilderFontExt, font},
+    font::{Font, FontData, FontResolver, RouterBuilderFontExt, font, font_face},
     router::{
         Body, Method, Router, RouterBuilder, RouterBuilderDiscoverExt, StatusCode, header,
         request::Request, to_bytes,
@@ -143,4 +143,36 @@ async fn different_faces_in_the_same_family_keep_separate_routes() {
     resolver.resolve(BOLD, &mut bold_path).unwrap();
     assert_ne!(normal_path, bold_path);
     assert_stylesheets_served(builder, &[DM_SANS, BOLD]).await;
+}
+
+#[test]
+#[should_panic = "conflicting font stylesheet"]
+fn different_stylesheets_at_the_same_path_are_rejected() {
+    use std::sync::LazyLock;
+
+    // Construct handles without discovery so these intentionally conflicting
+    // fonts do not affect the discovery tests in this binary.
+    static ONE_SOURCE: LazyLock<FontData> = LazyLock::new(|| {
+        FontData::new(
+            "Demo",
+            vec![font_face! {
+                font-family: "Demo";
+                src: local("AlB");
+            }],
+        )
+    });
+    static TWO_SOURCES: LazyLock<FontData> = LazyLock::new(|| {
+        FontData::new(
+            "Demo",
+            vec![font_face! {
+                font-family: "Demo";
+                src: local("A"), local("B");
+            }],
+        )
+    });
+    let a = Font::new(&ONE_SOURCE);
+    let b = Font::new(&TWO_SOURCES);
+    assert_eq!(a.hash(), b.hash());
+    assert_ne!(a.faces(), b.faces());
+    let _ = Router::builder().font(a).font(b).build();
 }

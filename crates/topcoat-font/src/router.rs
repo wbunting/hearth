@@ -1,4 +1,7 @@
-use std::{collections::HashSet, sync::OnceLock};
+use std::{
+    collections::{HashMap, hash_map::Entry},
+    sync::OnceLock,
+};
 
 use topcoat_core::context::Cx;
 use topcoat_router::{
@@ -87,7 +90,7 @@ impl Route for FontRoute {
 }
 
 #[derive(Default)]
-struct RegisteredFontRoutes(HashSet<PathBuf>);
+struct RegisteredFontRoutes(HashMap<PathBuf, Font>);
 
 pub trait RouterBuilderFontExt {
     /// Registers a font stylesheet. Registering the same stylesheet more than
@@ -106,13 +109,24 @@ impl RouterBuilderFontExt for RouterBuilder {
         if self.get_app_context::<RegisteredFontRoutes>().is_none() {
             self = self.app_context(RegisteredFontRoutes::default());
         }
-        if self
+        match self
             .get_app_context_mut::<RegisteredFontRoutes>()
             .unwrap()
             .0
-            .insert(route.path.clone())
+            .entry(route.path.clone())
         {
-            self = self.route(route);
+            Entry::Vacant(entry) => {
+                entry.insert(font);
+                self = self.route(route);
+            }
+            Entry::Occupied(entry) => {
+                let registered = entry.get();
+                assert!(
+                    registered.family() == font.family() && registered.faces() == font.faces(),
+                    "conflicting font stylesheet registered for `{}`",
+                    route.path
+                );
+            }
         }
         // Every font shares the same resolver, so register it only for the
         // first one; a second `app_context` of the same type would panic.
