@@ -101,12 +101,16 @@ topcoat asset bundle
 topcoat asset clean
 ```
 
-If Cargo would build more than one executable, choose the target:
+`topcoat asset bundle`, `topcoat asset list`, and `topcoat dev` use the same binary selection. Pass `--bin` to choose a binary explicitly. Otherwise, they use the package's `[package] default-run` or its only binary. A package with several binaries and no `default-run` requires `--bin`; the error lists the choices. Assets are bundled from the selected binary only, not merged across binaries.
+
+Use `--package` (`-p`) to select a workspace package, and `--bin` to select a binary within it:
 
 ```sh
-topcoat asset bundle --bin my-app
-topcoat asset bundle --package my-package
+topcoat asset bundle -p my-package --bin my-app
+topcoat dev -p my-package --bin my-app
 ```
+
+Set `default-run = "my-app"` in the manifest's `[package]` section to make that binary the default for both commands. An explicit `--bin` overrides it.
 
 The subcommands build the application to scan it, and they accept the same profile flags as `cargo build`. Bundle with the profile you are going to run, since each profile keeps its own bundle:
 

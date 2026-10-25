@@ -9,7 +9,7 @@ use clap::Args;
 use console::style;
 use tokio::{io::AsyncReadExt, process::Command};
 
-use super::{messages::Messages, progress::ProgressScanner, stderr::StderrTail};
+use super::{Metadata, messages::Messages, progress::ProgressScanner, stderr::StderrTail};
 
 /// Which target `cargo build` compiles and with which profile.
 #[derive(Clone, Default)]
@@ -29,7 +29,17 @@ impl BuildOpts {
         &self,
         mut on_progress: impl FnMut(u64, u64) + Send + 'static,
     ) -> Result<PathBuf, BuildError> {
-        let mut child = self
+        // Resolve for every build so dev rebuilds also pick up manifest changes.
+        // An explicit --bin always wins and Cargo validates its name.
+        let mut opts = self.clone();
+        if opts.bin.is_none()
+            && let Some(metadata) = Metadata::workspace().await
+        {
+            opts.bin = metadata
+                .binary_for_build(opts.package.as_deref())
+                .map_err(BuildError::MultipleBins)?;
+        }
+        let mut child = opts
             .command()
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -159,6 +169,7 @@ pub enum BuildError {
     },
     NoArtifact,
     Multiple(Vec<PathBuf>),
+    MultipleBins(Vec<String>),
     Read(io::Error),
 }
 
@@ -184,6 +195,11 @@ impl fmt::Display for BuildError {
             Self::NoArtifact => write!(
                 f,
                 "cargo build produced no executable or library to bundle; the crate must be a `bin`, `cdylib`, or `dylib` target"
+            ),
+            Self::MultipleBins(bins) => write!(
+                f,
+                "package has multiple binaries; pass --bin <name> or set `[package] default-run` in Cargo.toml; available binaries: {}",
+                bins.join(", ")
             ),
             Self::Multiple(paths) => {
                 write!(

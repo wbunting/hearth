@@ -83,17 +83,50 @@ impl Metadata {
             .map(str::to_owned)
     }
 
-    /// The bin target `[package] default-run` selects in the package a build targets, or
-    /// `None` when that package declares no default run.
-    ///
-    /// `package` is the `--package` the build was given; without one, a build compiles
-    /// the package containing the current directory.
-    pub fn default_run_for_build(&self, package: Option<&str>) -> Option<String> {
-        let package = match package {
-            Some(package) => package,
-            None => self.package_containing_dir(&std::env::current_dir().ok()?)?,
+    /// Select the package's default run or its only binary. Ambiguous packages return
+    /// the binary names so callers can ask for `--bin`. Packages without binaries
+    /// leave output selection to Cargo, allowing dynamic libraries to be bundled.
+    pub fn binary_for_build(&self, package: Option<&str>) -> Result<Option<String>, Vec<String>> {
+        let current_dir = std::env::current_dir().ok();
+        let package = package.or_else(|| {
+            current_dir
+                .as_deref()
+                .and_then(|dir| self.package_containing_dir(dir))
+                .or_else(|| self.default_package())
+        });
+        let Some(package) = package else {
+            return Ok(None);
         };
-        self.default_run(package)
+        if let Some(bin) = self.default_run(package) {
+            return Ok(Some(bin));
+        }
+        let mut bins: Vec<_> = self
+            .package(package)
+            .and_then(|package| package["targets"].as_array())
+            .into_iter()
+            .flatten()
+            .filter(|target| is_bin(target))
+            .filter_map(|target| target["name"].as_str().map(str::to_owned))
+            .collect();
+        bins.sort();
+        match bins.len() {
+            0 => Ok(None),
+            1 => Ok(bins.pop()),
+            _ => Err(bins),
+        }
+    }
+
+    /// A virtual workspace with one default member also identifies a single package.
+    fn default_package(&self) -> Option<&str> {
+        let members = self.0["workspace_default_members"].as_array()?;
+        if members.len() != 1 {
+            return None;
+        }
+        self.0["packages"]
+            .as_array()?
+            .iter()
+            .find(|package| package["id"] == members[0])?["name"]
+            .as_str()
     }
 
     fn package(&self, name: &str) -> Option<&serde_json::Value> {
@@ -175,6 +208,52 @@ mod tests {
                 bin("cli", "/w/app/src/bin/cli.rs"),
             ]),
         )]))
+    }
+
+    #[test]
+    fn build_selects_default_run_or_requires_an_explicit_binary() {
+        assert_eq!(
+            two_bin_app(Some("cli")).binary_for_build(Some("app")),
+            Ok(Some("cli".to_owned()))
+        );
+        let bins = two_bin_app(None).binary_for_build(Some("app")).unwrap_err();
+        assert_eq!(bins, ["app", "cli"]);
+    }
+
+    #[test]
+    fn build_selects_the_only_binary_even_beside_a_dynamic_library() {
+        let metadata = metadata(&json!([package(
+            "app",
+            None,
+            &json!([
+                target("app", &["cdylib"], "/w/app/src/lib.rs"),
+                bin("server", "/w/app/src/main.rs"),
+            ]),
+        )]));
+        assert_eq!(
+            metadata.binary_for_build(Some("app")),
+            Ok(Some("server".to_owned()))
+        );
+    }
+
+    #[test]
+    fn library_only_builds_leave_output_selection_to_cargo() {
+        let metadata = metadata(&json!([package(
+            "app",
+            None,
+            &json!([target("app", &["cdylib"], "/w/app/src/lib.rs")]),
+        )]));
+        assert_eq!(metadata.binary_for_build(Some("app")), Ok(None));
+    }
+
+    #[test]
+    fn virtual_workspace_selects_its_only_default_member() {
+        let mut metadata = two_bin_app(Some("cli"));
+        metadata.0["workspace_default_members"] = json!(["app-id"]);
+        metadata.0["packages"][0]["id"] = json!("app-id");
+        assert_eq!(metadata.binary_for_build(None), Ok(Some("cli".to_owned())));
+        metadata.0["workspace_default_members"] = json!(["app-id", "other-id"]);
+        assert_eq!(metadata.binary_for_build(None), Ok(None));
     }
 
     #[test]
