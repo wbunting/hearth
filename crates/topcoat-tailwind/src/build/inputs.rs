@@ -190,7 +190,7 @@ impl Inputs {
             let path = base.join(id);
             for candidate in [
                 path.clone(),
-                path.with_extension("css"),
+                path.with_added_extension("css"),
                 path.join("index.css"),
             ] {
                 if candidate.is_file() {
@@ -571,6 +571,32 @@ mod tests {
                 .paths()
                 .unwrap()
                 .contains(&root.join("src"))
+        );
+    }
+
+    #[test]
+    fn extensionless_imports_append_css_to_dotted_basenames() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = fs::canonicalize(dir.path()).unwrap();
+        fs::write(
+            root.join("app.css"),
+            "@import 'tailwindcss' source(none); @import './theme.dark';",
+        )
+        .unwrap();
+        fs::write(root.join("theme.dark.css"), ":root { --color: red; }").unwrap();
+        let command = Command {
+            input: "app.css".into(),
+            output: "target/out.css".into(),
+            cwd: root.clone(),
+            optimize: false,
+            minify: false,
+        };
+        assert!(
+            Inputs::discover(&command, None)
+                .unwrap()
+                .paths()
+                .unwrap()
+                .contains(&root.join("theme.dark.css"))
         );
     }
 
