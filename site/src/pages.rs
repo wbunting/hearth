@@ -174,14 +174,14 @@ async fn home(cx: &Cx) -> Result<impl View> {
                             </a>
                         </div>
                         <div class="install">
-                            <p>"From this checkout"</p>
+                            <p>"Start with crates.io"</p>
                             <pre>
                                 <code>
-                                    "cargo build --release -p hearth-site -p hearth-cli\n./target/release/hearth asset bundle \\\n  --release -p hearth-site\nPORT=3620 ./target/release/hearth-site"
+                                    "rustup toolchain install 1.99.1\ncargo new my-hearth-app\ncd my-hearth-app\nrustup override set 1.99.1\ncargo add hearth@=0.1.0\ncargo add tokio --features rt-multi-thread,macros\ncargo install hearth-cli --version 0.1.0 --locked"
                                 </code>
                             </pre>
                             <p class="install-note">
-                                "Registry release in preparation. The guide uses the verified source install until crates.io publication is complete."
+                                "Hearth 0.1.0 is published. Use Rust 1.99.1, then follow the guide for a complete first page. No Node.js or pnpm required for your app."
                             </p>
                             <a href=(href!(guide))>
                                 "See setup and running instructions →"
@@ -415,17 +415,17 @@ async fn guide() -> Result<impl View> {
                 <p class="lead">
                     "Build a server-rendered Rust page, then add local-first behavior where it matters."
                 </p>
-                <h2 id="source">"Get the source"</h2>
+                <h2>"Install from crates.io"</h2>
                 <p>
-                    "The first registry release is being prepared. Until it is published, build from the repository. Access to the private repository is currently required."
+                    "Hearth 0.1.0 is available now. Create an app with the tested Rust 1.99.1 toolchain; no Node.js or pnpm is needed."
                 </p>
                 <pre>
                     <code>
-                        "git clone git@github.com:wbunting/hearth.git\ncd hearth\npnpm install --frozen-lockfile\npnpm build:runtime\ncargo build --release -p hearth-cli -p hearth-site\n./target/release/hearth asset bundle --release -p hearth-site\nPORT=3620 ./target/release/hearth-site"
+                        "rustup toolchain install 1.99.1\ncargo new my-hearth-app\ncd my-hearth-app\nrustup override set 1.99.1\ncargo add hearth@=0.1.0\ncargo add tokio --features rt-multi-thread,macros\ncargo install hearth-cli --version 0.1.0 --locked"
                     </code>
                 </pre>
                 <p>
-                    "Open http://localhost:3620. The site uses an in-memory SQLite database by default. Each browser gets its own demo rows; a server restart resets them."
+                    "Replace src/main.rs with the first page below, then run cargo run --release. Open http://127.0.0.1:3000. For interactive pages, bundle assets from the same build as the binary."
                 </p>
                 <h2>"Your first page"</h2>
                 <p>
@@ -436,6 +436,18 @@ async fn guide() -> Result<impl View> {
                         "use hearth::{Result, router::{module_router, page}, view::{View, view}};\n\n#[tokio::main]\nasync fn main() {\n    hearth::start(module_router!().build()).await.unwrap();\n}\n\n#[page]\nasync fn home() -> Result<impl View> {\n    Ok(view! { <h1>\"Hello from Hearth\"</h1> })\n}"
                     </code>
                 </pre>
+                <h2 id="source">"Explore the source"</h2>
+                <p>
+                    "The public repository contains this website and the full issue tracker. These commands build the website from source; framework development uses pnpm 10.20.0."
+                </p>
+                <pre>
+                    <code>
+                        "git clone https://github.com/wbunting/hearth.git\ncd hearth\npnpm install --frozen-lockfile\npnpm build:runtime\ncargo build --release -p hearth-cli -p hearth-site\n./target/release/hearth asset bundle --release -p hearth-site\nPORT=3620 ./target/release/hearth-site"
+                    </code>
+                </pre>
+                <p>
+                    "Open http://localhost:3620. The site uses an in-memory SQLite database by default. Each browser gets its own demo rows; a server restart resets them."
+                </p>
                 <h2>"From page to app"</h2>
                 <ol>
                     <li>

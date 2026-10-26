@@ -105,7 +105,31 @@ The [issue tracker](https://github.com/wbunting/hearth/tree/main/examples/hearth
 
 ## Try it today
 
-Use the pinned **Rust 1.99.1** toolchain and **pnpm 10.20.0**. Registry publication is in progress; use the source checkout until the complete crate family is available.
+**Hearth 0.1.0 is available on crates.io.** Use **Rust 1.99.1** (the tested toolchain). A new application does not need Node.js or pnpm.
+
+```sh
+rustup toolchain install 1.99.1
+cargo new my-hearth-app
+cd my-hearth-app
+rustup override set 1.99.1
+cargo add hearth@=0.1.0
+cargo add tokio --features rt-multi-thread,macros
+cargo install hearth-cli --version 0.1.0 --locked
+```
+
+Replace `src/main.rs` with the reactive counter above, then build, bundle and run:
+
+```sh
+cargo build --release
+hearth asset bundle --release
+cargo run --release
+```
+
+Open <http://127.0.0.1:3000>. Make sure Cargo's binary directory is on your `PATH` so `hearth` and `cargo hearth` are available. See the [setup guide](https://github.com/wbunting/hearth/blob/main/docs/getting_started.md) for a static first page and development-server workflow.
+
+### Run the framework website from source
+
+Use **pnpm 10.20.0** when rebuilding the framework's own browser packages:
 
 ```sh
 git clone https://github.com/wbunting/hearth.git
@@ -117,7 +141,7 @@ cargo build --locked --release -p hearth-cli -p hearth-site
 PORT=3620 ./target/release/hearth-site
 ```
 
-Open <http://127.0.0.1:3620>. This builds the website and its live demo from source; no crates.io release of Hearth is required. Deploy applications with the assets from the same build as their binary.
+Open <http://127.0.0.1:3620>. This builds the website and its live demo from source. Deploy applications with the assets from the same build as their binary.
 
 ## Status
 
@@ -127,6 +151,8 @@ Open <http://127.0.0.1:3620>. This builds the website and its live demo from sou
 - Table scopes and write validation are security boundaries. Browser state is not authorization. See [tables](https://github.com/wbunting/hearth/blob/main/docs/hearth/tables.md).
 - Persistence caches server rows. Pending writes are **not a durable offline queue**, and delta sync currently scans scoped server tables. See [persistence](https://github.com/wbunting/hearth/blob/main/docs/hearth/persistence.md).
 - Compiled expression paths support strict CSP without `unsafe-eval`. App-authored inline styles and arbitrary raw HTML streaming have separate constraints. See [strict CSP](https://github.com/wbunting/hearth/blob/main/docs/hearth/strict-csp.md).
+
+The docs.rs build for `0.1.0` is blocked by a stale intra-doc link; a patch release is needed to restore hosted API documentation. The source guides linked below remain available.
 
 ## Explore
 

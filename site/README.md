@@ -16,7 +16,7 @@ Open `http://127.0.0.1:3620`. Build and deploy the binary with its matching `tar
 
 The page's strict CSP permits only same-origin scripts, styles, fonts, connections and images. Fonts are self-hosted. The Manrope license is in `assets/Manrope-LICENSE.txt`; logo assets come from `docs/hearth/brand`.
 
-The guide deliberately uses source installation until registry publication is confirmed. Update that copy only after verifying the real crates.io release and an independent consumer build.
+The public guide includes crates.io installation for Hearth 0.1.0. The source commands above build this website; they are not required to create a registry-installed Hearth application. Release verification used a standalone registry-only copy of the site, the installed 0.1.0 CLI and the real browser filter/write flow.
 
 ## Limits
 
