@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/hearth/brand/hearth-banner-dark.png">
-    <img src="docs/hearth/brand/hearth-banner.png" alt="Hearth. Local-first web apps. Authored in Rust." width="100%">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/wbunting/hearth/f1c8ab7ee0e68ee42cfd285be4847b7717b2b71c/docs/hearth/brand/hearth-banner-dark.png">
+    <img src="https://raw.githubusercontent.com/wbunting/hearth/f1c8ab7ee0e68ee42cfd285be4847b7717b2b71c/docs/hearth/brand/hearth-banner.png" alt="Hearth. Local-first web apps. Authored in Rust." width="100%">
   </picture>
 </p>
 
