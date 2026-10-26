@@ -1,0 +1,18 @@
+[package]
+name = "hearth-tracker"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+hearth = { workspace = true, features = ["tailwind", "fs", "ui"] }
+toasty = { workspace = true, features = ["sqlite"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+csv.workspace = true
+rand.workspace = true
+
+[build-dependencies]
+# `default-features = false` can't be combined with `workspace = true`.
+hearth = { path = "../../crates/hearth/", default-features = false, features = ["tailwind"] }

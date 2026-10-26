@@ -1,0 +1,5 @@
+packages:
+  - crates/hearth-runtime/browser
+  - crates/hearth-cli/browser
+  - legacy/zbugs-ts/client
+  - benchmarks/localfirst/react

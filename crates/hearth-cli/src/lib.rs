@@ -1,0 +1,48 @@
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
+mod asset;
+mod common;
+mod dev;
+mod fmt;
+mod ui;
+
+use clap::{Parser, Subcommand};
+
+#[derive(Parser)]
+#[command(name = "hearth", version)]
+pub struct HearthCli {
+    #[command(subcommand)]
+    command: Command,
+}
+
+impl HearthCli {
+    pub async fn run(self) {
+        match self.command {
+            Command::Ui(cmd) => cmd.run(),
+            Command::Fmt(cmd) => cmd.run().await,
+            Command::Dev(cmd) => cmd.run().await,
+            Command::Asset(cmd) => cmd.run().await,
+        }
+    }
+}
+
+#[derive(Subcommand)]
+enum Command {
+    /// Start a development server
+    Dev(dev::DevCommand),
+    /// Format Hearth macro bodies
+    Fmt(fmt::FmtCommand),
+    /// Inspect assets embedded in the binary
+    Asset(asset::AssetCommand),
+    /// Manage premade UI components in your project
+    Ui(ui::UiCommand),
+}
+
+pub async fn run() {
+    run_from(std::env::args_os()).await;
+}
+
+pub async fn run_from(args: impl IntoIterator<Item = std::ffi::OsString>) {
+    common::version::warn_on_mismatch();
+    HearthCli::parse_from(args).run().await;
+}

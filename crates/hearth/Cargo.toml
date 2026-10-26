@@ -1,0 +1,237 @@
+[package]
+include = ["/src/**", "/docs/**", "/README.md", "/Cargo.toml", "/LICENSE", "/NOTICE", "/build.rs", "/browser/src/**", "/browser/dist/*.js", "/browser/package.json", "/browser/tsconfig.json", "/browser/tsup*.ts", "/components/**", "/styles/**", "/registry.toml", "/themes/**"]
+name = "hearth"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+
+[features]
+local-first = ["asset", "session", "runtime", "router", "dep:hearth-macro", "dep:toasty", "dep:serde_json"]
+default = [
+	"local-first",
+	"asset",
+	"compression",
+	"cookie",
+	"font",
+	"icon",
+	"router",
+	"runtime",
+	"serve",
+	"session",
+	"view",
+	"discover",
+]
+full = [	"local-first",
+	"alpine-ajax",
+	"anyhow",
+	"asset",
+	"compression",
+	"cookie",
+	"datastar",
+	"discover",
+	"font",
+	"font-fontsource",
+	"fs",
+	"htmx",
+	"icon",
+	"icon-iconify",
+	"mail",
+	"mail-smtp",
+	"multipart",
+	"router",
+	"runtime",
+	"serve",
+	"session",
+	"sitemap",
+	"sse",
+	"tailwind",
+	"tower",
+	"ui",
+	"view",
+	"websocket",
+]
+
+alpine-ajax = [
+	"dep:hearth-alpine-ajax",
+]
+anyhow = [
+	"hearth-foundation/anyhow",
+]
+asset = [
+	"dep:hearth-asset",
+	"hearth-font?/asset",
+	"hearth-font-macro?/asset",
+]
+compression = [
+	"router",
+	"hearth-router/compression",
+]
+cookie = [
+	"dep:hearth-cookie",
+	"hearth-session?/cookie",
+]
+datastar = [
+	"dep:hearth-datastar",
+	"sse",
+]
+discover = [
+	"dep:inventory",
+	"hearth-font?/discover",
+	"hearth-router?/discover",
+	"hearth-router-macro?/discover",
+	"hearth-runtime-macro?/discover",
+]
+font = [
+	"dep:hearth-font",
+	"dep:hearth-font-macro",
+]
+font-fontsource = [
+	"font",
+	"hearth-font/fontsource",
+	"hearth-font-macro/fontsource",
+]
+fs = [
+	"router",
+	"hearth-router/fs",
+]
+htmx = [
+	"dep:hearth-htmx",
+]
+icon = [
+	"dep:hearth-icon",
+	"dep:hearth-icon-macro",
+	"view",
+]
+icon-iconify = [
+	"icon",
+	"hearth-icon-macro/iconify",
+	"hearth-icon/iconify-build",
+]
+mail = [
+	"dep:hearth-mail",
+	"dep:hearth-mail-macro",
+	"view",
+]
+mail-smtp = [
+	"mail",
+	"hearth-mail/smtp",
+]
+multipart = [
+	"router",
+	"hearth-router/multipart",
+]
+router = [
+	"dep:hearth-router",
+	"dep:hearth-router-macro",
+	"view",
+	"hearth-asset?/router",
+	"hearth-cookie?/router",
+	"hearth-font?/router",
+	"hearth-mail?/router",
+	"hearth-runtime?/router",
+	"hearth-session?/router",
+]
+serve = [
+	"router",
+	"dep:futures-util",
+	"dep:tokio",
+	"dep:tokio-tungstenite",
+	"hearth-asset?/serve",
+	"hearth-router/serve",
+]
+runtime = [
+	"dep:hearth-runtime",
+	"dep:hearth-runtime-macro",
+]
+session = [
+	"dep:hearth-session",
+]
+sitemap = [
+	"router",
+	"hearth-router/sitemap",
+]
+sse = [
+	"router",
+	"hearth-router/sse",
+]
+tailwind = [
+	"dep:hearth-tailwind",
+]
+tower = [
+	"router",
+	"hearth-router/tower",
+]
+ui = [
+	"dep:hearth-ui-registry",
+]
+view = [
+	"dep:hearth-view",
+	"dep:hearth-view-macro",
+	"hearth-asset?/view",
+	"hearth-font?/view",
+]
+websocket = [
+	"serve",
+	"hearth-router/websocket",
+]
+
+[dependencies]
+hearth-macro = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+toasty = { workspace = true, optional = true }
+hearth-alpine-ajax = { workspace = true, optional = true }
+hearth-asset = { workspace = true, optional = true }
+hearth-cookie = { workspace = true, optional = true }
+hearth-foundation.workspace = true
+hearth-foundation-macro.workspace = true
+hearth-datastar = { workspace = true, optional = true }
+hearth-font = { workspace = true, optional = true }
+hearth-font-macro = { workspace = true, optional = true }
+hearth-htmx = { workspace = true, optional = true }
+hearth-icon = { workspace = true, optional = true }
+hearth-icon-macro = { workspace = true, optional = true }
+hearth-mail = { workspace = true, optional = true }
+hearth-mail-macro = { workspace = true, optional = true }
+hearth-router = { workspace = true, optional = true }
+hearth-router-macro = { workspace = true, optional = true }
+hearth-runtime = { workspace = true, optional = true }
+hearth-runtime-macro = { workspace = true, optional = true }
+hearth-session = { workspace = true, optional = true }
+hearth-tailwind = { workspace = true, optional = true }
+hearth-ui-registry = { workspace = true, optional = true }
+hearth-view = { workspace = true, optional = true }
+hearth-view-macro = { workspace = true, optional = true }
+
+futures-util = { workspace = true, optional = true }
+inventory = { workspace = true, optional = true }
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, optional = true, features = ["macros", "net", "signal"] }
+tokio-tungstenite = { workspace = true, optional = true, features = ["connect"] }
+
+[dev-dependencies]
+http.workspace = true
+toasty = { workspace = true, features = ["sqlite"] }
+futures-core.workspace = true
+futures-util.workspace = true
+serde_json.workspace = true
+uuid = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.cargo-udeps.ignore]
+normal = ["hearth-ui-registry"]
+# Used by a doctest in the context guide, which cargo-udeps cannot see.
+development = ["uuid"]

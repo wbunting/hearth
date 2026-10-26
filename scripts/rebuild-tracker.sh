@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Rebuild runtime + hearth-tracker and restart on :3100.
+# The browser runtime is embedded via `asset!` in hearth-runtime, which cargo
+# does not track as a dependency: touch it so a rebuilt dist/index.js is used.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+(cd crates/hearth-runtime/browser && pnpm build >/dev/null)
+touch crates/hearth-runtime/src/lib.rs
+cargo build -p hearth-tracker --release 2>&1 | grep -E "^error" -A8 || true
+hearth asset bundle --release -p hearth-tracker >/dev/null
+pkill -f target/release/hearth-tracker || true
+sleep 1
+(SIMULATED_RTT_MS="${SIMULATED_RTT_MS:-0}" PORT=3100 nohup ./target/release/hearth-tracker >/tmp/hearth-tracker.log 2>&1 &)
+sleep 2
+curl -s -H "Cookie: $(cat /tmp/hearth-crew)" http://127.0.0.1:3100/issues | grep -o "hearth-[0-9a-f]*\.js" | head -1

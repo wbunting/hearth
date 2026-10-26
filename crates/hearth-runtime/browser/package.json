@@ -1,0 +1,21 @@
+{
+	"name": "@hearth-rs/runtime",
+	"version": "0.0.1",
+	"license": "MIT",
+	"type": "module",
+	"scripts": {
+		"lint": "biome ci --config-path . . ../../hearth-foundation/browser",
+		"build": "tsup && tsup --config tsup.coherence.config.ts",
+		"test": "vitest run"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.4.15",
+		"@tanstack/db": "0.15.2",
+		"fake-indexeddb": "6.2.5",
+		"happy-dom": "^20.14.0",
+		"tsup": "^8.5.1",
+		"typescript": "^6.0.3",
+		"vite": "^8.1.5",
+		"vitest": "^4.1.10"
+	}
+}

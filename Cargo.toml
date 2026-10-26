@@ -1,0 +1,214 @@
+[workspace]
+resolver = "2"
+members = [
+    "site",
+    "crates/hearth",
+    "crates/hearth-macro",
+    "examples/hearth-tracker",
+    "crates/hearth-alpine-ajax",
+    "crates/hearth-asset",
+    "crates/hearth-cli",
+    "crates/hearth-cookie",
+    "crates/hearth-foundation",
+    "crates/hearth-datastar",
+    "crates/hearth-foundation/grammar",
+    "crates/hearth-foundation/macro",
+    "crates/hearth-font",
+    "crates/hearth-font/grammar",
+    "crates/hearth-font/macro",
+    "crates/hearth-htmx",
+    "crates/hearth-icon",
+    "crates/hearth-icon/grammar",
+    "crates/hearth-icon/macro",
+    "crates/hearth-mail",
+    "crates/hearth-mail/grammar",
+    "crates/hearth-mail/macro",
+    "crates/hearth-router",
+    "crates/hearth-router/grammar",
+    "crates/hearth-router/macro",
+    "crates/hearth-runtime",
+    "crates/hearth-runtime/coherence",
+    "crates/hearth-runtime/grammar",
+    "crates/hearth-runtime/macro",
+    "crates/hearth-session",
+    "crates/hearth-tailwind",
+    "crates/hearth-ui",
+    "crates/hearth-ui/registry",
+    "crates/hearth-view",
+    "crates/hearth-view/grammar",
+    "crates/hearth-view/macro",
+
+    "examples/alpine-ajax",
+    "examples/app-context",
+    "examples/asset",
+    "examples/context",
+    "examples/cookie",
+    "examples/datastar",
+    "examples/error",
+    "examples/font",
+    "examples/hello-world",
+    "examples/htmx",
+    "examples/icon",
+    "examples/live",
+    "examples/mail",
+    "examples/manual-router",
+    "examples/module-router",
+    "examples/path-query-params",
+    "examples/request-response",
+    "examples/routerless",
+    "examples/runtime",
+    "examples/session",
+    "examples/sse",
+    "examples/suspense",
+    "examples/tailwind",
+    "examples/toasty-todo",
+    "examples/ui",
+    "examples/websocket",
+
+    "demos/coffee-shop",
+
+    "benchmarks/hearth",
+]
+exclude = [
+    "legacy",
+    "benchmarks/axum-maud",
+    "benchmarks/leptos",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["Will Bunting", "Julien Scholz <hello@julien-scholz.dev>"]
+license = "MIT"
+description = "Local-first web applications written in Rust. Server rendering, reactive queries and optimistic writes."
+repository = "https://github.com/wbunting/hearth"
+homepage = "https://github.com/wbunting/hearth"
+keywords = ["web", "framework", "ssr", "html", "server"]
+categories = ["web-programming", "web-programming::http-server"]
+rust-version = "1.99"
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny" 
+
+[workspace.lints.clippy]
+mod_module_files = "deny"
+pedantic = { level = "warn", priority = -1 }
+too_many_lines = "allow"
+
+[profile.dev]
+debug = true
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.test]
+debug = 1
+
+[profile.test.package."*"]
+debug = false
+
+[workspace.dependencies]
+hearth = { version = "0.1.0", path = "crates/hearth" }
+hearth-macro = { version = "0.1.0", path = "crates/hearth-macro" }
+hearth-alpine-ajax = { version = "0.1.0", path = "crates/hearth-alpine-ajax" }
+hearth-asset = { version = "0.1.0", path = "crates/hearth-asset" }
+hearth-cookie = { version = "0.1.0", path = "crates/hearth-cookie" }
+hearth-foundation = { version = "0.1.0", path = "crates/hearth-foundation" }
+hearth-foundation-grammar = { version = "0.1.0", path = "crates/hearth-foundation/grammar" }
+hearth-foundation-macro = { version = "0.1.0", path = "crates/hearth-foundation/macro" }
+hearth-datastar = { version = "0.1.0", path = "crates/hearth-datastar" }
+hearth-font = { version = "0.1.0", path = "crates/hearth-font" }
+hearth-font-grammar = { version = "0.1.0", path = "crates/hearth-font/grammar" }
+hearth-font-macro = { version = "0.1.0", path = "crates/hearth-font/macro" }
+hearth-htmx = { version = "0.1.0", path = "crates/hearth-htmx" }
+hearth-icon = { version = "0.1.0", path = "crates/hearth-icon" }
+hearth-icon-grammar = { version = "0.1.0", path = "crates/hearth-icon/grammar" }
+hearth-icon-macro = { version = "0.1.0", path = "crates/hearth-icon/macro" }
+hearth-mail = { version = "0.1.0", path = "crates/hearth-mail" }
+hearth-mail-grammar = { version = "0.1.0", path = "crates/hearth-mail/grammar" }
+hearth-mail-macro = { version = "0.1.0", path = "crates/hearth-mail/macro" }
+hearth-router = { version = "0.1.0", path = "crates/hearth-router" }
+hearth-router-grammar = { version = "0.1.0", path = "crates/hearth-router/grammar" }
+hearth-router-macro = { version = "0.1.0", path = "crates/hearth-router/macro" }
+hearth-runtime = { version = "0.1.0", path = "crates/hearth-runtime" }
+hearth-runtime-grammar = { version = "0.1.0", path = "crates/hearth-runtime/grammar" }
+hearth-runtime-macro = { version = "0.1.0", path = "crates/hearth-runtime/macro" }
+hearth-session = { version = "0.1.0", path = "crates/hearth-session" }
+hearth-tailwind = { version = "0.1.0", path = "crates/hearth-tailwind" }
+hearth-ui = { version = "0.1.0", path = "crates/hearth-ui" }
+hearth-ui-registry = { version = "0.1.0", path = "crates/hearth-ui/registry" }
+hearth-view = { version = "0.1.0", path = "crates/hearth-view" }
+hearth-view-grammar = { version = "0.1.0", path = "crates/hearth-view/grammar" }
+hearth-view-macro = { version = "0.1.0", path = "crates/hearth-view/macro" }
+
+anyhow = "1.0"
+anymap3 = "1.0"
+base64 = "0.22"
+boxcar = "0.2"
+bytes = "1"
+clap = "4.6.0"
+console = "0.16"
+cookie = "0.18"
+criterion = "0.8"
+cssparser = "0.36"
+tempfile = "3"
+dialoguer = { version = "0.12", default-features = false }
+elsa = "1.11"
+form_urlencoded = "1"
+futures-core = "0.3"
+futures-sink = "0.3"
+futures-util = "0.3"
+getrandom = "0.4"
+getrandom02 = { package = "getrandom", version = "0.2" }
+glob = "0.3.3"
+hashbrown = "0.17"
+heck = "0.5.0"
+http = "1.4.0"
+http-body = "1"
+http-body-util = "0.1"
+httpdate = "1"
+hyper = "1"
+hyper-util = "0.1"
+ignore = "0.4"
+indicatif = "0.18"
+inventory = "0.3.24"
+ipnet = "2"
+lettre = { version = "0.11", default-features = false }
+matchit = "0.9"
+memchr = "2.8"
+mime_guess = "2"
+multer = "3.1"
+notify = "8.1.0"
+percent-encoding = "2"
+pin-project-lite = "0.2"
+proc-macro-crate = "3"
+proc-macro2 = "1.0.106"
+quote = "1.0.45"
+ref-cast = "1.0"
+serde = "1"
+serde_json = "1"
+serde_path_to_error = "0.1"
+serde_urlencoded = "0.7"
+sha2 = "0.11"
+siphasher = "1"
+smallvec = "1"
+syn = "3.0.6"
+thiserror = "2.0.18"
+time = "0.3"
+toasty = "0.11"
+toasty-cli = "0.11"
+csv = "1"
+rand = "0.9"
+tokio = "1.51.1"
+tokio-util = "0.7"
+toml = "1.1.2"
+tokio-tungstenite = { version = "0.29", default-features = false }
+tower = "0.5"
+tower-http = "0.7"
+ureq = "3.3"
+uuid = "1.23"
+v8 = "152.0.0"
+web-time = "1.1"

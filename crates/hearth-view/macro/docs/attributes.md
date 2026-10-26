@@ -1,0 +1,1 @@
+../../../../docs/view/attributes.md

@@ -1,0 +1,84 @@
+name: CI
+
+# hearth's CI. Upstream Topcoat's workflow (release-plz, all-workspace
+# matrices, yarn) doesn't apply to this fork; these jobs cover what hearth
+# changes: the hearth crates, the forked view grammar, the browser runtime,
+# and the example app.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: rust (test + clippy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Toolchain comes from rust-toolchain.toml (pinned 1.99.1).
+      - run: rustup show
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --locked --release -p hearth -p hearth-macro -p hearth-view-grammar -p hearth-runtime -p hearth-router -p hearth-tailwind -p hearth-cli
+      - run: cargo test --locked --release -p hearth-view-grammar --features pretty --test pretty
+      - run: cargo test --locked --release -p hearth-runtime-grammar
+      - run: cargo test --locked --release -p hearth-runtime-macro --test csp --test expr
+      - run: cargo check --locked --release -p hearth --no-default-features
+      - run: cargo check --locked --release -p hearth --no-default-features --features local-first
+      - run: python3 scripts/release.py check
+      - run: cargo test --locked --release -p hearth-tracker -p hearth-site
+      - run: cargo test --locked --release -p hearth-font -p hearth-font-grammar -p hearth-font-macro
+      - run: cargo clippy --locked --release -p hearth-font -p hearth-font-grammar -p hearth-font-macro --all-targets -- -D warnings
+      - run: cargo build --locked --release -p hearth-tracker -p hearth-site
+      - run: cargo clippy --locked --release -p hearth -p hearth-macro -p hearth-tracker -p hearth-site -p hearth-router -p hearth-tailwind -p hearth-cli -- -D warnings
+
+  runtime:
+    name: runtime (browser)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - working-directory: crates/hearth-runtime/browser
+        run: npx tsc --noEmit
+      - working-directory: crates/hearth-runtime/browser
+        run: npx vitest run
+      - working-directory: crates/hearth-cli/browser
+        run: pnpm test && pnpm build && git diff --exit-code -- dist/index.js
+      # The runtime bundle is committed and embedded by the Rust crate:
+      # reject stale artifacts.
+      - working-directory: crates/hearth-runtime/browser
+        run: pnpm build && git diff --exit-code -- dist/index.js dist/coherence.js dist/persist.js
+
+  packages:
+    name: package (independent consumer)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - run: python3 scripts/release.py check
+      - run: python3 scripts/release.py package
+      - run: python3 scripts/package-smoke.py --build
+
+  format:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+      - run: cargo +nightly fmt --all -- --check

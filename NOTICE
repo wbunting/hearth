@@ -1,0 +1,8 @@
+Hearth is derived from Topcoat v0.10.0 (https://github.com/tokio-rs/topcoat).
+Topcoat copyright (c) 2026 Julien Scholz.
+The upstream MIT license is preserved in LICENSE.
+Hearth modifications copyright (c) 2026 Will Bunting.
+
+The development CLI and UI icon sources use Lucide and Feather icons.
+Their license terms are included in the corresponding THIRD-PARTY-NOTICES files.
+The legacy TypeScript app is source-only; rebuild its third-party bundles locally.

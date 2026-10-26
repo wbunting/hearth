@@ -1,0 +1,44 @@
+[package]
+include = ["/src/**", "/docs/**", "/README.md", "/Cargo.toml", "/LICENSE", "/NOTICE", "/build.rs", "/browser/src/**", "/browser/dist/*.js", "/browser/package.json", "/browser/tsconfig.json", "/browser/tsup*.ts", "/components/**", "/styles/**", "/registry.toml", "/themes/**"]
+name = "hearth-view"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+
+[features]
+http = [
+	"dep:http",
+]
+
+[dependencies]
+hearth-foundation.workspace = true
+
+futures-core.workspace = true
+futures-util.workspace = true
+http = { workspace = true, optional = true }
+memchr.workspace = true
+pin-project-lite.workspace = true
+siphasher.workspace = true
+smallvec.workspace = true
+
+[dev-dependencies]
+hearth = { path = "../hearth", features = ["view"] }
+
+criterion = { workspace = true }
+
+[[bench]]
+name = "render"
+harness = false
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

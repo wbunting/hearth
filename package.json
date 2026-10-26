@@ -1,0 +1,9 @@
+{
+  "name": "hearth",
+  "private": true,
+  "packageManager": "pnpm@10.20.0",
+  "scripts": {
+    "build:runtime": "pnpm --filter @hearth-rs/runtime build",
+    "test:runtime": "pnpm --filter @hearth-rs/runtime test"
+  }
+}

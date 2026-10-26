@@ -1,0 +1,232 @@
+[workspace]
+# The release job in ci.yml only runs for release PR merges and manual
+# dispatches, so release-plz itself does not need to check the commit.
+git_release_draft = true
+pr_draft = true
+pr_labels = ["release"]
+release_always = true
+
+# Default to NOT releasing. Each publishable crate opts in with `release = true`
+# below. This is deliberate: release-plz's release-order pass runs over *all*
+# workspace members (including the `publish = false` examples/benchmarks) and its
+# topological sort trips over the facade<->sub-crate dependencies, reporting a
+# spurious "circular dependency" error. Defaulting to `release = false` keeps the
+# non-publishable crates out of that pass. Keep the opt-in list below in sync with
+# the publishable members under `crates/`.
+release = false
+
+# One git tag and GitHub release per Hearth version, not one per crate. Every
+# crate shares the workspace version through the `hearth` version group, so the
+# facade crate alone opts back in below and tags plain `v{{ version }}`.
+git_tag_enable = false
+git_release_enable = false
+
+[[package]]
+name = "hearth"
+release = true
+version_group = "hearth"
+git_tag_enable = true
+git_tag_name = "v{{ version }}"
+git_release_enable = true
+git_release_name = "v{{ version }}"
+# The facade's changelog (and thus the release body) covers the whole
+# workspace, not just commits touching `crates/hearth`. Keep in sync with the
+# other publishable members below.
+changelog_include = [
+    "hearth-alpine-ajax",
+    "hearth-asset",
+    "hearth-cli",
+    "hearth-cookie",
+    "hearth-foundation",
+    "hearth-foundation-grammar",
+    "hearth-foundation-macro",
+    "hearth-datastar",
+    "hearth-font",
+    "hearth-font-grammar",
+    "hearth-font-macro",
+    "hearth-htmx",
+    "hearth-icon",
+    "hearth-icon-grammar",
+    "hearth-icon-macro",
+    "hearth-mail",
+    "hearth-mail-grammar",
+    "hearth-mail-macro",
+    "hearth-router",
+    "hearth-router-grammar",
+    "hearth-router-macro",
+    "hearth-runtime",
+    "hearth-runtime-grammar",
+    "hearth-runtime-macro",
+    "hearth-session",
+    "hearth-tailwind",
+    "hearth-ui",
+    "hearth-ui-registry",
+    "hearth-view",
+    "hearth-view-grammar",
+    "hearth-view-macro",
+]
+
+[[package]]
+name = "hearth-alpine-ajax"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-asset"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-cli"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-cookie"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-foundation"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-foundation-grammar"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-foundation-macro"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-datastar"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-font"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-font-grammar"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-font-macro"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-htmx"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-icon"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-icon-grammar"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-icon-macro"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-mail"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-mail-grammar"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-mail-macro"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-router"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-router-grammar"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-router-macro"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-runtime"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-runtime-coherence"
+release = false
+publish = false
+
+[[package]]
+name = "hearth-runtime-grammar"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-runtime-macro"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-session"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-tailwind"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-ui"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-ui-registry"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-view"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-view-grammar"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-view-macro"
+release = true
+version_group = "hearth"
+
+[[package]]
+name = "hearth-macro"
+release = true
+version_group = "hearth"

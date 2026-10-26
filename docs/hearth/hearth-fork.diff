@@ -1,0 +1,1245 @@
+diff -ruN --exclude=dist --exclude=node_modules --exclude=yarn.lock --exclude=package.json --exclude=.git /tmp/upstream/t/crates/topcoat-runtime/browser/src/dom/binding.ts vendor/topcoat/crates/topcoat-runtime/browser/src/dom/binding.ts
+--- /tmp/upstream/t/crates/topcoat-runtime/browser/src/dom/binding.ts	2026-10-23 22:24:44
++++ vendor/topcoat/crates/topcoat-runtime/browser/src/dom/binding.ts	2026-10-23 22:01:16
+@@ -22,7 +22,7 @@
+ 	const name = attr.name.substring(BIND_PREFIX.length);
+ 	const compute = compile(attr.value, `binding :${name}`);
+ 
+-	const { context } = scope.runtime;
++	const { context } = scope;
+ 	scope.effect(() => {
+ 		write(el, name, compute(context));
+ 	});
+diff -ruN --exclude=dist --exclude=node_modules --exclude=yarn.lock --exclude=package.json --exclude=.git /tmp/upstream/t/crates/topcoat-runtime/browser/src/dom/event.ts vendor/topcoat/crates/topcoat-runtime/browser/src/dom/event.ts
+--- /tmp/upstream/t/crates/topcoat-runtime/browser/src/dom/event.ts	2026-10-23 22:24:44
++++ vendor/topcoat/crates/topcoat-runtime/browser/src/dom/event.ts	2026-10-23 22:01:16
+@@ -11,7 +11,7 @@
+ 
+ 	const name = attr.name.substring(EVENT_HANDLER_PREFIX.length);
+ 	const expression = compile<EventHandler>(attr.value, `event @${name}`);
+-	const handler = expression(scope.runtime.context);
++	const handler = expression(scope.context);
+ 	// Dispose the listener with its scope. A DOM update may reuse the element
+ 	// and attach a new listener.
+ 	el.addEventListener(name, (event) => handler(new Event(event)), {
+diff -ruN --exclude=dist --exclude=node_modules --exclude=yarn.lock --exclude=package.json --exclude=.git /tmp/upstream/t/crates/topcoat-runtime/browser/src/dom/hydrate.ts vendor/topcoat/crates/topcoat-runtime/browser/src/dom/hydrate.ts
+--- /tmp/upstream/t/crates/topcoat-runtime/browser/src/dom/hydrate.ts	2026-10-23 22:24:44
++++ vendor/topcoat/crates/topcoat-runtime/browser/src/dom/hydrate.ts	2026-10-23 22:15:24
+@@ -6,7 +6,17 @@
+ import { setupEventHandler } from "./event";
+ import { type CommentMarker, parseComment } from "./markers";
+ import { setupTextExpression } from "./text";
++import { mountList, mountWhen, type ListMarker } from "../hearth/list";
+ 
++/** [hearth] Region markers: content between start/end is owned by the region. */
++const FC_LIST_RE = /^\s*::hearth::list::start\(([\s\S]*)\)\s*$/;
++const FC_WHEN_RE = /^\s*::hearth::when::start\(([\s\S]*)\)\s*$/;
++const FC_END_RE = /^\s*::hearth::(list|when)::end\s*$/;
++
++function decodeComment(s: string): string {
++	return s.replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
++}
++
+ type PendingTextExpression = {
+ 	start: Comment;
+ 	js: string;
+@@ -39,6 +49,8 @@
+ 	to: Node | null,
+ 	initialScope: Scope,
+ 	adoptable: Set<SignalId> = new Set(),
++	/** [hearth] Content was cloned from a template: render text on first run. */
++	fresh = false,
+ ): void {
+ 	const walker = document.createTreeWalker(
+ 		root,
+@@ -61,10 +73,36 @@
+ 		}
+ 
+ 		// COMMENT_NODE
++		// [hearth] Client list / when regions: skip their content here and
++		// let the region mount and hydrate it (per item / per arm scopes).
++		const data = (node as Comment).data;
++		const fl = FC_LIST_RE.exec(data) ?? FC_WHEN_RE.exec(data);
++		if (fl) {
++			const start = node as Comment;
++			let depth = 0;
++			let end: Node | null = null;
++			for (let n = walker.nextNode(); n; n = walker.nextNode()) {
++				if (n.nodeType !== Node.COMMENT_NODE) continue;
++				const d = (n as Comment).data;
++				if (FC_LIST_RE.test(d) || FC_WHEN_RE.test(d)) depth++;
++				else if (FC_END_RE.test(d)) {
++					if (depth === 0) {
++						end = n;
++						break;
++					}
++					depth--;
++				}
++			}
++			if (!end) throw new Error("[hearth] unterminated region");
++			const payload = JSON.parse(decodeComment(fl[1]!));
++			if (FC_LIST_RE.test(data)) mountList(start, end as Comment, payload as ListMarker, current);
++			else mountWhen(start, end as Comment, payload.cond, payload.template, current);
++			continue;
++		}
+ 		const marker = parseComment(node as Comment);
+ 		if (!marker) continue;
+ 
+-		processMarker(marker, node as Comment, stack, textExpressions, adoptable);
++		processMarker(marker, node as Comment, stack, textExpressions, adoptable, fresh);
+ 	}
+ }
+ 
+@@ -87,6 +125,7 @@
+ 	stack: Frame[],
+ 	textExpressions: PendingTextExpression[],
+ 	adoptable: Set<SignalId>,
++	fresh = false,
+ ): void {
+ 	// The last stack entry owns the content around this marker.
+ 	const current = stack[stack.length - 1]?.scope;
+@@ -131,7 +170,7 @@
+ 			if (!pending) {
+ 				throw new Error("Unbalanced text expression: end marker has no start");
+ 			}
+-			setupTextExpression(pending.start, node, pending.js, pending.scope);
++			setupTextExpression(pending.start, node, pending.js, pending.scope, fresh);
+ 			break;
+ 		}
+ 
+diff -ruN --exclude=dist --exclude=node_modules --exclude=yarn.lock --exclude=package.json --exclude=.git /tmp/upstream/t/crates/topcoat-runtime/browser/src/dom/text.ts vendor/topcoat/crates/topcoat-runtime/browser/src/dom/text.ts
+--- /tmp/upstream/t/crates/topcoat-runtime/browser/src/dom/text.ts	2026-10-23 22:24:44
++++ vendor/topcoat/crates/topcoat-runtime/browser/src/dom/text.ts	2026-10-23 22:15:24
+@@ -7,11 +7,13 @@
+ 	end: Comment,
+ 	js: string,
+ 	scope: Scope,
++	/** [hearth] Write on the first run too (cloned template content). */
++	syncText = false,
+ ): void {
+ 	const compute = compile(js, "text expression");
+-	const { context } = scope.runtime;
++	const { context } = scope;
+ 
+-	let first = true;
++	let first = !syncText;
+ 	scope.effect(() => {
+ 		const value = compute(context);
+ 		if (first) {
+diff -ruN --exclude=dist --exclude=node_modules --exclude=yarn.lock --exclude=package.json --exclude=.git /tmp/upstream/t/crates/topcoat-runtime/browser/src/expression/context.ts vendor/topcoat/crates/topcoat-runtime/browser/src/expression/context.ts
+--- /tmp/upstream/t/crates/topcoat-runtime/browser/src/expression/context.ts	2026-10-23 22:24:44
++++ vendor/topcoat/crates/topcoat-runtime/browser/src/expression/context.ts	2026-10-23 22:03:07
+@@ -1,6 +1,8 @@
+ import type { SignalId, SignalRegistry } from "../signal-registry";
+ import { Option, Record, Result, Tuple, WriteSignal } from "../surrogate";
+ import { hydrate } from "./hydrate";
++import { type LocalDb, localDb, type RowRef } from "../hearth/db";
++import { route } from "../hearth/router";
+ import type { DehydratedSurrogate } from "./serialized";
+ 
+ /**
+@@ -9,7 +11,37 @@
+  * Expressions execute as ordinary JavaScript with access to browser globals.
+  */
+ export class Context {
+-	constructor(private readonly registry: SignalRegistry) {}
++	constructor(
++		private readonly registry: SignalRegistry,
++		/** [hearth] Row refs of the enclosing client list items, outermost first. */
++		readonly rows: readonly RowRef[] = [],
++	) {}
++
++	/** [hearth] A context for content inside a client list item. */
++	withRow(row: RowRef): Context {
++		return new Context(this.registry, [...this.rows, row]);
++	}
++
++	/**
++	 * [hearth] The current row of the client list `depth` levels out from
++	 * the innermost (0 = innermost). Reading it subscribes the running effect,
++	 * so `$(row.title)` re-renders when that row changes.
++	 */
++	row(depth: number): unknown {
++		const ref = this.rows[this.rows.length - 1 - depth];
++		if (!ref) throw new Error(`cx.row(${depth}) outside a client list`);
++		return ref.read();
++	}
++
++	/** [hearth] Client router (reactive URL). */
++	get route() {
++		return route;
++	}
++
++	/** [hearth] Bridge to the local database (TanStack DB). */
++	get db(): LocalDb {
++		return localDb();
++	}
+ 
+ 	hydrate(s: unknown) {
+ 		return hydrate(s as DehydratedSurrogate, this);
+diff -ruN --exclude=dist --exclude=node_modules --exclude=yarn.lock --exclude=package.json --exclude=.git /tmp/upstream/t/crates/topcoat-runtime/browser/src/hearth/db.ts vendor/topcoat/crates/topcoat-runtime/browser/src/hearth/db.ts
+--- /tmp/upstream/t/crates/topcoat-runtime/browser/src/hearth/db.ts	1970-01-01 09:00:00
++++ vendor/topcoat/crates/topcoat-runtime/browser/src/hearth/db.ts	2026-10-23 22:23:49
+@@ -0,0 +1,443 @@
++// [hearth] Local database bridge: TanStack DB collections built from the
++// Rust-emitted schema, a query-IR interpreter, and row values that look like
++// Topcoat surrogates so `$()` expressions can read them.
++//
++// Nothing in here is app-specific. The app's tables, queries and mutations all
++// come from Rust (`#[client_table]`, `live_query!`, `mutate!`).
++
++import {
++	and,
++	BTreeIndex,
++	createCollection,
++	createLiveQueryCollection,
++	eq,
++	gt,
++	gte,
++	ilike,
++	inArray,
++	lt,
++	lte,
++	not,
++	or,
++	type Collection,
++} from "@tanstack/db";
++import { signal, type WriteSignal } from "../reactivity";
++import { Bool } from "../surrogate/bool";
++import { F64 } from "../surrogate/f64";
++import { Integer } from "../surrogate/integer";
++import { Option } from "../surrogate/option";
++import { Record } from "../surrogate/record";
++import { String as RString } from "../surrogate/string";
++
++// ---------------------------------------------------------------- schema
++
++export type ColumnType = "string" | "bool" | "i64" | "f64" | "opt_string" | "opt_i64";
++
++export type TableDesc = {
++	name: string;
++	key: string;
++	columns: Record_<string, ColumnType>;
++	indexes: string[];
++	load: string;
++	mutate: string;
++};
++type Record_<K extends string, V> = { [k in K]: V };
++
++export type Schema = { version: string; scope: string; tables: TableDesc[] };
++
++type Row = { [k: string]: unknown };
++
++// ---------------------------------------------------------------- IR
++// Mirrors hearth::ir::Query (Rust). Values are plain JSON; params are
++// `$(...)` expressions evaluated by the list region and passed in by index.
++
++export type Expr =
++	| { col: [string, string] } // [alias, column]
++	| { lit: unknown }
++	| { param: number }
++	| { op: "eq" | "ne" | "lt" | "lte" | "gt" | "gte" | "ilike"; l: Expr; r: Expr }
++	| { op: "and" | "or"; args: Expr[] }
++	| { op: "not"; arg: Expr }
++	| { op: "in"; l: Expr; r: Expr }
++	| { op: "if"; cond: Expr; then: Expr } // `cond ? then : true` (optional filters)
++	| { op: "contains"; l: Expr; r: Expr }; // ilike %r%
++
++export type Query = {
++	from: { table: string; alias: string };
++	joins: { table: string; alias: string; on: [Expr, Expr]; kind: "left" | "inner" }[];
++	where: Expr | null;
++	order: { expr: Expr; desc: boolean }[];
++	limit: number | null;
++	select: { [field: string]: Expr };
++	key: string; // output field used as the list key
++	types: { [field: string]: ColumnType };
++};
++
++// ---------------------------------------------------------------- db
++
++export type RowRef = { read(): unknown };
++
++export class LocalDb {
++	readonly tables = new Map<string, Collection<Row, string>>();
++	readonly desc = new Map<string, TableDesc>();
++	private servers = new Map<string, Map<string, Row>>();
++	private writers = new Map<string, Writer>();
++	/** Bumps when any table syncs, for coarse `ready` reactivity. */
++	readonly version: WriteSignal<number> = signal(0);
++
++	private schema: Schema | null = null;
++	private seeds: { [table: string]: Row[] } = {};
++	private backfillScheduled = false;
++
++	/** Tables are created lazily (on first seed/query) so SSR seeds can land first. */
++	init(schema: Schema, snapshot: { [table: string]: Row[] }) {
++		this.schema = schema;
++		for (const [t, rows] of Object.entries(snapshot)) this.seed(t, rows);
++	}
++
++	/** Seed rows for a table from SSR (first view). */
++	seed(table: string, rows: Row[]) {
++		if (this.tables.has(table)) {
++			this.apply(table, rows, false);
++			return;
++		}
++		(this.seeds[table] ??= []).push(...rows);
++	}
++
++	private ensure(name: string) {
++		if (this.tables.has(name)) return;
++		const t = this.schema?.tables.find((x) => x.name === name);
++		if (!t) throw new Error(`[hearth] unknown table ${name}`);
++		this.createTable(t, this.schema!.scope, this.seeds[name]);
++		delete this.seeds[name];
++		if (!this.backfillScheduled) {
++			this.backfillScheduled = true;
++			// After the first view is interactive, pull full tables.
++			setTimeout(() => this.backfill().then(() => ((window as any).__hearthBackfilled = performance.now())), 0);
++		}
++	}
++
++	private createTable(t: TableDesc, scope: string, initial: Row[] | undefined) {
++		this.desc.set(t.name, t);
++		const server = new Map<string, Row>();
++		this.servers.set(t.name, server);
++		const keyOf = (r: Row) => String(r[t.key]);
++		const coll = createCollection<Row, string>({
++			id: `${scope}/${t.name}`,
++			getKey: keyOf,
++			startSync: true,
++			gcTime: 0,
++			sync: {
++				rowUpdateMode: "full",
++				sync: (params) => {
++					const w = params as unknown as Writer;
++					this.writers.set(t.name, w);
++					if (initial) {
++						this.seededTables.add(t.name);
++						this.apply(t.name, initial, false);
++						params.markReady();
++					} else {
++						this.fetchTable(t)
++							.then((rows) => {
++								this.apply(t.name, rows, true);
++								params.markReady();
++							})
++							.catch((e) => params.markError(e));
++					}
++				},
++			},
++			onUpdate: async ({ transaction }) => {
++				for (const m of transaction.mutations) {
++					const row = (await post(t.mutate, { op: "update", key: m.key, changes: m.changes })) as Row;
++					this.apply(t.name, [row], false);
++				}
++			},
++			onInsert: async ({ transaction }) => {
++				for (const m of transaction.mutations) {
++					const row = (await post(t.mutate, { op: "insert", row: m.modified })) as Row;
++					this.apply(t.name, [row], false);
++				}
++			},
++			onDelete: async ({ transaction }) => {
++				for (const m of transaction.mutations) {
++					await post(t.mutate, { op: "delete", key: m.key });
++					this.apply(t.name, [], false, [String(m.key)]);
++				}
++			},
++		});
++		for (const f of t.indexes) coll.createIndex((r: any) => r[f], { indexType: BTreeIndex });
++		this.tables.set(t.name, coll);
++	}
++
++	private async fetchTable(t: TableDesc): Promise<Row[]> {
++		return (await get(t.load)) as Row[];
++	}
++
++	/** Apply server rows; `full` = the complete table (diff out deletions). */
++	apply(table: string, rows: Row[], full: boolean, deleted: string[] = []) {
++		const w = this.writers.get(table);
++		const server = this.servers.get(table)!;
++		const key = this.desc.get(table)!.key;
++		if (!w) return;
++		w.begin();
++		const seen = new Set<string>();
++		for (const row of rows) {
++			const k = String(row[key]);
++			seen.add(k);
++			const prev = server.get(k);
++			if (!prev) w.write({ type: "insert", value: row });
++			else if (!shallowEqual(prev, row)) w.write({ type: "update", value: row });
++			server.set(k, row);
++		}
++		const gone = full ? [...server.keys()].filter((k) => !seen.has(k)) : deleted;
++		for (const k of gone) {
++			const prev = server.get(k);
++			if (prev) w.write({ type: "delete", value: prev });
++			server.delete(k);
++		}
++		w.commit();
++		this.version.set((v) => v + 1);
++	}
++
++	/** Backfill every created table with its full scoped rows. */
++	async backfill() {
++		const seeded = [...this.desc.values()].filter((t) => this.seededTables.has(t.name));
++		await Promise.all(seeded.map(async (t) => this.apply(t.name, await this.fetchTable(t), true)));
++	}
++	private seededTables = new Set<string>();
++
++	// ------------------------------------------------------------ queries
++
++	/** Builds a TanStack live query from IR + evaluated params. */
++	live(q: Query, params: unknown[]): Collection<Row, string> {
++		// Planner rule (measured: 163ms -> 0.4ms at 50k rows): a point lookup
++		// `col == $x` on an indexed column with `limit 1` must not carry
++		// orderBy/limit, which forces TanStack's ordered top-K scan instead of
++		// the index lookup. The result has at most a few rows anyway.
++		const w = q.where as any;
++		const pointLookup =
++			q.limit === 1 && w && w.op === "eq" && "col" in w.l && w.l.col[0] === q.from.alias &&
++			this.desc.get(q.from.table)?.indexes.includes(w.l.col[1]);
++		if (pointLookup) q = { ...q, order: [], limit: null };
++		const tables = this.tables;
++		const coll = (name: string) => {
++			this.ensure(name);
++			const c = tables.get(name);
++			if (!c) throw new Error(`[hearth] unknown table ${name}`);
++			return c;
++		};
++		return createLiveQueryCollection({
++			startSync: true,
++			query: (qb: any) => {
++				let b = qb.from({ [q.from.alias]: coll(q.from.table) });
++				// Filter + order + limit on the base table first (indexes apply),
++				// then join: joins run over <= limit rows.
++				const baseOnly = q.joins.length > 0;
++				const where = q.where && lower(q.where, params);
++				if (where) b = b.where((refs: any) => where(refs));
++				for (const o of q.order) {
++					const ex = lower(o.expr, params);
++					b = b.orderBy((refs: any) => ex(refs), o.desc ? "desc" : "asc");
++				}
++				if (q.limit != null) b = b.limit(q.limit);
++				for (const j of q.joins) {
++					const [l, r] = j.on.map((e) => lower(e, params));
++					const method = j.kind === "inner" ? "innerJoin" : "leftJoin";
++					b = b[method]({ [j.alias]: coll(j.table) }, (refs: any) => eq(l!(refs), r!(refs)));
++				}
++				void baseOnly;
++				const sel = Object.entries(q.select).map(([k, e]) => [k, lower(e, params)] as const);
++				return b.select((refs: any) => Object.fromEntries(sel.map(([k, f]) => [k, f(refs)])));
++			},
++		}) as unknown as Collection<Row, string>;
++	}
++
++	/** Surrogate-shaped view of a plain row so `$()` can read fields. */
++	surrogate(row: Row, types: { [f: string]: ColumnType }): Record {
++		// Wire rows are camelCase; `$()` reads Rust field names (snake_case).
++		return new Record(Object.entries(types).map(([f, ty]) => [snake(f), toSurrogate(row[f], ty)]));
++	}
++
++	// ------------------------------------------------------------ mutations
++
++	update(table: string, key: unknown, changes: Row) {
++		this.ensure(table);
++		const c = this.tables.get(table)!;
++		const k = String(plain(key));
++		const tx = c.update(k, (d: Row) => Object.assign(d, changes));
++		tx.isPersisted.promise.catch((e: Error) => toast(`Rolled back: ${e.message}`));
++	}
++
++	insert(table: string, row: Row) {
++		const tx = this.tables.get(table)!.insert(row);
++		tx.isPersisted.promise.catch((e: Error) => toast(`Rolled back: ${e.message}`));
++	}
++
++	delete(table: string, key: unknown) {
++		const tx = this.tables.get(table)!.delete(String(plain(key)));
++		tx.isPersisted.promise.catch((e: Error) => toast(`Rolled back: ${e.message}`));
++	}
++
++	/** Handle used by Rust `hearth::table::<T>()` inside `$()`. */
++	table(name: string) {
++		return {
++			set: (key: unknown, field: unknown, value: unknown) => this.update(name, key, { [String(plain(field))]: plain(value) }),
++			dehydrate: () => name,
++		};
++	}
++
++	get(table: string, key: unknown): Row | undefined {
++		return this.tables.get(table)?.get(String(plain(key)));
++	}
++}
++
++type Writer = { begin(): void; write(m: { type: string; value: Row }): void; commit(): void };
++
++let instance: LocalDb | null = null;
++export function localDb(): LocalDb {
++	instance ??= new LocalDb();
++	return instance;
++}
++
++// ---------------------------------------------------------------- lowering
++
++type Refs = { [alias: string]: { [col: string]: unknown } };
++type Lowered = (refs: Refs) => any;
++
++function lower(e: Expr, params: unknown[]): Lowered {
++	if ("col" in e) {
++		const [a, c] = e.col;
++		return (refs) => (refs[a] as any)[c];
++	}
++	if ("lit" in e) return () => e.lit;
++	if ("param" in e) {
++		const v = plain(params[e.param]);
++		return () => v;
++	}
++	switch (e.op) {
++		case "eq":
++		case "ne":
++		case "lt":
++		case "lte":
++		case "gt":
++		case "gte":
++		case "ilike": {
++			const l = lower(e.l, params);
++			const r = lower(e.r, params);
++			const f = { eq, ne: (a: any, b: any) => not(eq(a, b)), lt, lte, gt, gte, ilike }[e.op] as any;
++			return (refs) => f(l(refs), r(refs));
++		}
++		case "contains": {
++			const l = lower(e.l, params);
++			const r = lower(e.r, params);
++			return (refs) => ilike(l(refs), `%${r(refs)}%`);
++		}
++		case "in": {
++			const l = lower(e.l, params);
++			const r = lower(e.r, params);
++			return (refs) => inArray(l(refs), r(refs));
++		}
++		case "and":
++		case "or": {
++			const args = e.args.map((a) => lower(a, params));
++			if (args.length === 0) return () => eq(1, 1);
++			if (args.length === 1) return args[0]!;
++			const f = e.op === "and" ? and : or;
++			return (refs) => (f as any)(...args.map((a) => a(refs)));
++		}
++		case "not": {
++			const a = lower(e.arg, params);
++			return (refs) => not(a(refs));
++		}
++		case "if": {
++			// Optional filter: skipped entirely when the param is falsy/empty,
++			// so it doesn't defeat indexes with a `true OR ...` predicate.
++			const cond = plain(evalParam(e.cond, params));
++			if (!cond) return () => eq(1, 1);
++			return lower(e.then, params);
++		}
++	}
++}
++
++function evalParam(e: Expr, params: unknown[]): unknown {
++	if ("param" in e) return params[e.param];
++	if ("lit" in e) return e.lit;
++	throw new Error("[hearth] `if` conditions must be params or literals");
++}
++
++/** Unwraps Topcoat surrogates (String, Bool, Integer, Option, Ref) to plain JS. */
++export function plain(v: unknown): unknown {
++	let cur = v;
++	for (let i = 0; i < 8 && cur && typeof cur === "object"; i++) {
++		const o = cur as any;
++		if (typeof o.deref === "function" && !(o instanceof Option)) {
++			cur = o.deref();
++			continue;
++		}
++		if (o instanceof Option) return o.is_some().dehydrate() ? plain(o.unwrap()) : null;
++		if (typeof o.dehydrate === "function") {
++			const d = o.dehydrate();
++			if (d && typeof d === "object" && "v" in d && (d as any).t !== "Record") {
++				const n = (d as any).v;
++				return typeof n === "string" && /^-?\d+$/.test(n) ? Number(n) : n;
++			}
++			return d;
++		}
++		return cur;
++	}
++	return cur;
++}
++
++function toSurrogate(v: unknown, ty: ColumnType): unknown {
++	switch (ty) {
++		case "string":
++			return new RString(String(v ?? ""));
++		case "bool":
++			return new Bool(Boolean(v));
++		case "i64":
++			return Integer.hydrate({ t: "i64", bits: 64, v: String(Math.trunc(Number(v ?? 0))) } as any);
++		case "f64":
++			return new F64(Number(v ?? 0));
++		case "opt_string":
++			return v == null ? Option.none() : Option.some(new RString(String(v)));
++		case "opt_i64":
++			return v == null ? Option.none() : Option.some(toSurrogate(v, "i64"));
++	}
++}
++
++function snake(s: string): string {
++	return s.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
++}
++
++function shallowEqual(a: Row, b: Row) {
++	for (const k in a) if (a[k] !== b[k]) return false;
++	for (const k in b) if (!(k in a)) return false;
++	return true;
++}
++
++async function get(url: string): Promise<unknown> {
++	const res = await fetch(url, { headers: { accept: "application/json" } });
++	if (res.redirected && new URL(res.url).pathname.startsWith("/login")) {
++		location.href = "/login";
++		throw new Error("signed out");
++	}
++	if (!res.ok) throw new Error(`${res.status}`);
++	return res.json();
++}
++
++async function post(url: string, body: unknown): Promise<unknown> {
++	const res = await fetch(url, {
++		method: "POST",
++		headers: { "content-type": "application/json", accept: "application/json" },
++		body: JSON.stringify(body),
++	});
++	if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 120)}`);
++	const t = await res.text();
++	return t ? JSON.parse(t) : null;
++}
++
++function toast(msg: string) {
++	const el = Object.assign(document.createElement("div"), { className: "hearth-toast", textContent: msg });
++	document.body.append(el);
++	setTimeout(() => el.remove(), 3500);
++}
+diff -ruN --exclude=dist --exclude=node_modules --exclude=yarn.lock --exclude=package.json --exclude=.git /tmp/upstream/t/crates/topcoat-runtime/browser/src/hearth/list.ts vendor/topcoat/crates/topcoat-runtime/browser/src/hearth/list.ts
+--- /tmp/upstream/t/crates/topcoat-runtime/browser/src/hearth/list.ts	1970-01-01 09:00:00
++++ vendor/topcoat/crates/topcoat-runtime/browser/src/hearth/list.ts	2026-10-23 22:23:49
+@@ -0,0 +1,203 @@
++// [hearth] Client regions: keyed lists over live queries, and `when`
++// (conditional/route) regions. Both clone a server-rendered <template> and
++// hydrate the clone with Topcoat's normal hydrator in a child Scope, so every
++// `$()` inside works exactly as elsewhere. List items get a per-row ref
++// (`cx.row(0)`) instead of a frozen capture.
++
++import { hydrate } from "../dom/hydrate";
++import { compile } from "../expression/compile";
++import { signal, type WriteSignal } from "../reactivity";
++import { Scope } from "../scope";
++import { localDb, plain, type Query } from "./db";
++
++type Item = {
++	key: string;
++	start: Comment;
++	end: Comment;
++	scope: Scope;
++	row: WriteSignal<unknown>;
++	raw: unknown;
++};
++
++export type ListMarker = { query: Query; params: string[]; template: string; seed?: { [table: string]: any[] } };
++
++/**
++ * Mounts a keyed list between `start` and `end`. Items rendered by the server
++ * are delimited by `<!--::hearth::item("key")-->` comments and adopted.
++ */
++export function mountList(start: Comment, end: Comment, marker: ListMarker, scope: Scope) {
++	const db = localDb();
++	for (const [table, rows] of Object.entries(marker.seed ?? {})) db.seed(table, rows);
++	const tpl = document.getElementById(marker.template) as HTMLTemplateElement | null;
++	if (!tpl) throw new Error(`[hearth] missing template ${marker.template}`);
++	const params = marker.params.map((js) => compile(js, "list param"));
++	const items = new Map<string, Item>();
++	const parent = start.parentNode!;
++
++	// Adopt server-rendered items (already hydrated by the parent pass into
++	// the parent scope, so their effects read a frozen capture). Re-hydrate
++	// them under item scopes, with the server nodes in place (no flicker).
++	let node: ChildNode | null = start.nextSibling;
++	const ssr: { key: string; start: Comment; end: Comment }[] = [];
++	while (node && node !== end) {
++		if (node.nodeType === Node.COMMENT_NODE) {
++			const m = /^::hearth::item\((.*)\)$/.exec((node as Comment).data.trim());
++			if (m) {
++				let e: ChildNode | null = node.nextSibling;
++				while (e && !(e.nodeType === Node.COMMENT_NODE && (e as Comment).data.trim() === "::hearth::item-end")) e = e.nextSibling;
++				if (!e) break;
++				const rawKey = decode(m[1]!);
++				ssr.push({ key: rawKey.startsWith('"') ? (JSON.parse(rawKey) as string) : rawKey, start: node as Comment, end: e as Comment });
++				node = e.nextSibling;
++				continue;
++			}
++		}
++		node = node.nextSibling;
++	}
++
++	let live: ReturnType<typeof db.live> | null = null;
++	let unsub: (() => void) | null = null;
++	let adopted = false;
++
++	const makeItem = (key: string, raw: unknown, at: { start: Comment; end: Comment } | null): Item => {
++		const row = signal<unknown>(db.surrogate(raw as any, marker.query.types));
++		const itemScope = new Scope(scope, scope.runtime, scope.unit);
++		itemScope.context = scope.context.withRow({ read: () => row() });
++		let s: Comment;
++		let e: Comment;
++		if (at) {
++			s = at.start;
++			e = at.end;
++		} else {
++			s = document.createComment(`::hearth::item(${JSON.stringify(key)})`);
++			e = document.createComment("::hearth::item-end");
++			const frag = document.createDocumentFragment();
++			frag.append(s, tpl.content.cloneNode(true), e);
++			// Insert detached first so hydration can find markers; position later.
++			parent.insertBefore(frag, end);
++		}
++		// SSR items: text already rendered; cloned items: render on first run.
++		hydrate(parent, s, e, itemScope, new Set(), at === null);
++		return { key, start: s, end: e, scope: itemScope, row, raw };
++	};
++
++	const nodesOf = (it: Item) => {
++		const out: ChildNode[] = [];
++		for (let n: ChildNode | null = it.start; n; n = n.nextSibling) {
++			out.push(n);
++			if (n === it.end) break;
++		}
++		return out;
++	};
++
++	const reconcile = () => {
++		if (!live || !live.isReady()) return;
++		const t0 = performance.now();
++		const rows = live.toArray as Array<{ [k: string]: unknown }>;
++		const keyField = marker.query.key;
++		if (!adopted) {
++			adopted = true;
++			const byKey = new Map(rows.map((r) => [String(r[keyField]), r]));
++			for (const s of ssr) {
++				const raw = byKey.get(s.key);
++				if (raw) items.set(s.key, makeItem(s.key, raw, s));
++			}
++		}
++		const seen = new Set<string>();
++		let cursor: ChildNode | null = start.nextSibling;
++		for (const raw of rows) {
++			const key = String(raw[keyField]);
++			seen.add(key);
++			let it = items.get(key);
++			if (!it) {
++				it = makeItem(key, raw, null);
++				items.set(key, it);
++			} else if (it.raw !== raw) {
++				it.raw = raw;
++				it.row.set(db.surrogate(raw as any, marker.query.types));
++			}
++			if (it.start !== cursor) {
++				const frag = document.createDocumentFragment();
++				frag.append(...nodesOf(it));
++				parent.insertBefore(frag, cursor);
++			}
++			cursor = it.end.nextSibling;
++		}
++		for (const [key, it] of items) {
++			if (seen.has(key)) continue;
++			it.scope.dispose();
++			for (const n of nodesOf(it)) n.remove();
++			items.delete(key);
++		}
++		// Anything else between start/end (unadopted SSR leftovers) goes.
++		while (cursor && cursor !== end) {
++			const next: ChildNode | null = cursor.nextSibling;
++			cursor.remove();
++			cursor = next;
++		}
++		(window as any).__hearthListMs = performance.now() - t0;
++	};
++
++	// Re-run the query whenever a param's signals change.
++	scope.effect(() => {
++		const values = params.map((p) => plain(p(scope.context)));
++		const tq = performance.now();
++		unsub?.();
++		live?.cleanup();
++		live = db.live(marker.query, values);
++		const sub = live.subscribeChanges(() => queueMicrotask(reconcile));
++		live.onFirstReady(() => {
++			reconcile();
++			(window as any).__hearthQueryMs = performance.now() - tq;
++		});
++		unsub = () => sub.unsubscribe();
++		reconcile();
++	});
++	scope.abortSignal.addEventListener("abort", () => {
++		unsub?.();
++		live?.cleanup();
++	});
++}
++
++/**
++ * Mounts a `when` region: renders `template` iff `cond` is truthy. Used for
++ * client `if` and route arms. Content is mounted once and then kept alive
++ * (hidden with `display: contents`/`none` wrappers) so switching back is
++ * instant and live queries inside aren't recompiled; queries inside a hidden
++ * arm keep running but their params only change when their signals do.
++ */
++export function mountWhen(start: Comment, end: Comment, cond: string, template: string, scope: Scope) {
++	const tpl = document.getElementById(template) as HTMLTemplateElement | null;
++	if (!tpl) throw new Error(`[hearth] missing template ${template}`);
++	const compute = compile(cond, "when condition");
++	const parent = start.parentNode!;
++	let shown: Scope | null = null;
++	let wrapper: HTMLElement | null = null;
++	scope.effect(() => {
++		const on = Boolean(plain(compute(scope.context)));
++		if (!wrapper) {
++			// First run: adopt server content (if any) into a wrapper.
++			wrapper = document.createElement("hearth-when");
++			wrapper.style.display = "contents";
++			const hasContent = start.nextSibling !== end;
++			if (hasContent) {
++				while (start.nextSibling && start.nextSibling !== end) wrapper.append(start.nextSibling);
++				parent.insertBefore(wrapper, end);
++				shown = new Scope(scope, scope.runtime, scope.unit);
++				hydrate(wrapper, null, null, shown);
++			} else {
++				parent.insertBefore(wrapper, end);
++			}
++		}
++		if (on && !shown) {
++			wrapper.append(tpl.content.cloneNode(true));
++			shown = new Scope(scope, scope.runtime, scope.unit);
++			hydrate(wrapper, null, null, shown, new Set(), true);
++		}
++		wrapper.style.display = on ? "contents" : "none";
++	});
++}
++
++function decode(s: string): string {
++	return s.replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
++}
+diff -ruN --exclude=dist --exclude=node_modules --exclude=yarn.lock --exclude=package.json --exclude=.git /tmp/upstream/t/crates/topcoat-runtime/browser/src/hearth/router.ts vendor/topcoat/crates/topcoat-runtime/browser/src/hearth/router.ts
+--- /tmp/upstream/t/crates/topcoat-runtime/browser/src/hearth/router.ts	1970-01-01 09:00:00
++++ vendor/topcoat/crates/topcoat-runtime/browser/src/hearth/router.ts	2026-10-23 22:03:07
+@@ -0,0 +1,44 @@
++// [hearth] Client routing. The URL path is a reactive value; Rust reads
++// it through `route::path()` / `route::param(n)` in `$()` (server value =
++// the request path) and `client_when!` regions switch on it. Same-origin
++// `<a data-hearth-link>` clicks push history instead of navigating.
++
++import { signal } from "../reactivity";
++import { String as RString } from "../surrogate/string";
++
++const path = signal(location.pathname + location.search);
++
++export const route = {
++	/** Current path+query as a Topcoat String surrogate (reactive). */
++	path(): RString {
++		return new RString(path());
++	},
++	/** `n`th path segment (0-based) or "". */
++	segment(n: number): RString {
++		const segs = path().split("?")[0]!.split("/").filter(Boolean);
++		return new RString(segs[n] ?? "");
++	},
++	navigate(to: string, push = true) {
++		const url = new URL(to, location.href);
++		if (url.origin !== location.origin) {
++			location.href = to;
++			return;
++		}
++		if (push) history.pushState({ hearth: true }, "", url);
++		const t0 = performance.now();
++		path.set(url.pathname + url.search);
++		requestAnimationFrame(() => ((window as any).__hearthNavMs = performance.now() - t0));
++		scrollTo(0, 0);
++	},
++};
++
++document.addEventListener("click", (e) => {
++	if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
++	const a = (e.target as Element | null)?.closest?.("a[data-hearth-link]") as HTMLAnchorElement | null;
++	if (!a) return;
++	e.preventDefault();
++	route.navigate(a.href);
++});
++addEventListener("popstate", () => route.navigate(location.href, false));
++history.replaceState({ hearth: true }, "");
++(globalThis as any).__hearthRoute = route;
+diff -ruN --exclude=dist --exclude=node_modules --exclude=yarn.lock --exclude=package.json --exclude=.git /tmp/upstream/t/crates/topcoat-runtime/browser/src/index.ts vendor/topcoat/crates/topcoat-runtime/browser/src/index.ts
+--- /tmp/upstream/t/crates/topcoat-runtime/browser/src/index.ts	2026-10-23 22:24:44
++++ vendor/topcoat/crates/topcoat-runtime/browser/src/index.ts	2026-10-23 22:23:49
+@@ -1,5 +1,16 @@
+ import { Runtime } from "./runtime";
+ 
++import { localDb } from "./hearth/db";
++import "./hearth/router";
++
++// [hearth] Local DB first, so list regions can query during hydration.
++const boot = document.getElementById("hearth-boot");
++if (boot) {
++	const b = JSON.parse(boot.textContent ?? "{}");
++	localDb().init(b.schema, b.snapshot ?? {});
++	(window as any).__hearth = { db: localDb(), boot: b };
++}
++
+ const runtime = new Runtime();
+ runtime.start(document);
+ runtime.page.listenForDevRefresh();
+diff -ruN --exclude=dist --exclude=node_modules --exclude=yarn.lock --exclude=package.json --exclude=.git /tmp/upstream/t/crates/topcoat-runtime/browser/src/scope.ts vendor/topcoat/crates/topcoat-runtime/browser/src/scope.ts
+--- /tmp/upstream/t/crates/topcoat-runtime/browser/src/scope.ts	2026-10-23 22:24:44
++++ vendor/topcoat/crates/topcoat-runtime/browser/src/scope.ts	2026-10-23 22:01:16
+@@ -3,6 +3,7 @@
+ import { Effect } from "./reactivity";
+ import type { RenderToken } from "./render/frames";
+ import type { RenderUnit } from "./render/unit";
++import type { Context } from "./expression/context";
+ import type { Runtime } from "./runtime";
+ import type { SignalId } from "./signal-registry";
+ 
+@@ -41,6 +42,16 @@
+ 	/** Aborted on release, removing listeners and cancelling owned requests. */
+ 	private readonly listenerController = new AbortController();
+ 	private disposed = false;
++	/** [hearth] Expression context; children inherit it (list items extend it). */
++	private ownContext: Context | null = null;
++
++	get context(): Context {
++		return this.ownContext ?? this.parent?.context ?? this.runtime.context;
++	}
++
++	set context(context: Context) {
++		this.ownContext = context;
++	}
+ 
+ 	constructor(
+ 		readonly parent: Scope | null,
+diff -ruN --exclude=dist --exclude=node_modules --exclude=yarn.lock --exclude=package.json --exclude=.git /tmp/upstream/t/crates/topcoat-runtime/src/expr.rs vendor/topcoat/crates/topcoat-runtime/src/expr.rs
+--- /tmp/upstream/t/crates/topcoat-runtime/src/expr.rs	2026-10-23 22:24:44
++++ vendor/topcoat/crates/topcoat-runtime/src/expr.rs	2026-10-23 22:00:09
+@@ -33,6 +33,14 @@
+         }
+     }
+ 
++    /// [hearth fork] A value whose browser JS is supplied by the caller and
++    /// which always renders as dynamic, e.g. the current row of a client
++    /// list (`cx.row(0)`). Captures of it inside `$()` inline that JS.
++    #[inline]
++    pub fn evaluate_dynamic(value: T, js: Js) -> Self {
++        Self { evaluated: value, js, is_static: false }
++    }
++
+     /// Whether this expression is known not to require reactive evaluation.
+     ///
+     /// Signal reads during [`evaluate`](Self::evaluate) make it dynamic.
+diff -ruN --exclude=dist --exclude=node_modules --exclude=yarn.lock --exclude=package.json --exclude=.git /tmp/upstream/t/crates/topcoat-view/grammar/src/view/for_loop.rs vendor/topcoat/crates/topcoat-view/grammar/src/view/for_loop.rs
+--- /tmp/upstream/t/crates/topcoat-view/grammar/src/view/for_loop.rs	2026-10-23 22:24:44
++++ vendor/topcoat/crates/topcoat-view/grammar/src/view/for_loop.rs	2026-10-23 22:19:24
+@@ -15,6 +15,10 @@
+ /// A view loop with an optional `#[key(expr)]` iteration key.
+ pub struct ForLoop {
+     pub template: TemplateForLoop<Nodes>,
++    /// [hearth] Tokens of `$(...)` when the iterable is a client query.
++    pub client: Option<proc_macro2::TokenStream>,
++    /// [hearth] Raw body tokens (for capture analysis).
++    pub client_body: proc_macro2::TokenStream,
+ }
+ 
+ impl ForLoop {
+@@ -35,8 +39,46 @@
+ 
+ impl Parse for ForLoop {
+     fn parse(input: ParseStream) -> syn::Result<Self> {
++        // [hearth] `for pat in $(query) { ... }`: parse the `$(...)` iterable
++        // ourselves (it isn't Rust syntax) and keep a placeholder expr.
++        let fork = input.fork();
++        if fork.call(syn::Attribute::parse_outer).is_ok()
++            && fork.parse::<syn::Token![for]>().is_ok()
++            && fork.call(syn::Pat::parse_single).is_ok()
++            && fork.parse::<syn::Token![in]>().is_ok()
++            && fork.peek(syn::Token![$])
++        {
++            let attributes = input.call(syn::Attribute::parse_outer)?;
++            let for_token = input.parse()?;
++            let pat = Box::new(input.call(syn::Pat::parse_single)?);
++            let in_token = input.parse()?;
++            input.parse::<syn::Token![$]>()?;
++            let content;
++            syn::parenthesized!(content in input);
++            let client: proc_macro2::TokenStream = content.parse()?;
++            let client_body: proc_macro2::TokenStream = {
++                let f = input.fork();
++                let g: proc_macro2::Group = f.parse()?;
++                g.stream()
++            };
++            let body = input.parse()?;
++            return Ok(Self {
++                template: TemplateForLoop {
++                    attributes,
++                    for_token,
++                    pat,
++                    in_token,
++                    expr: Box::new(syn::parse_quote!(())),
++                    body,
++                },
++                client: Some(client),
++                client_body,
++            });
++        }
+         let loop_ = Self {
+             template: input.parse()?,
++            client: None,
++            client_body: proc_macro2::TokenStream::new(),
+         };
+         for (index, attribute) in loop_.template.attributes.iter().enumerate() {
+             if !attribute.path().is_ident("key") {
+@@ -60,8 +102,58 @@
+     }
+ }
+ 
++impl ForLoop {
++    /// [hearth] `for row in $(query) { ... }` is a *client* loop over a live
++    /// query: the body becomes a row template rendered on the server for the
++    /// first view and cloned per row in the browser.
++    fn client_iterable(&self) -> Option<proc_macro2::TokenStream> {
++        self.client.clone()
++    }
++}
++
+ impl LowerView for ForLoop {
+     fn lower(&self, builder: &mut ViewBuilder) {
++        if let Some(query) = self.client_iterable() {
++            let pat = &self.template.pat;
++            let mut body_builder = ViewBuilder::new();
++            self.template.body.lower(&mut body_builder);
++            let body_owned = body_builder.finish().emit_view(true);
++            let hearth = quote::quote! { ::hearth };
++            // The body runs once per SSR row + once for the template, so it
++            // must be `Fn`: every capture is cloned into each invocation
++            // (captures are cheap: signals/handles/Exprs are Arc-like).
++            // Free identifiers the body may capture from the enclosing scope:
++            // the body runs once per SSR row + once for the template (an `Fn`),
++            // so each invocation clones what it uses. Unknown idents (fields,
++            // methods, locals) are filtered by `__hearth_clone_if_local!`,
++            // which only clones names bound in the enclosing scope.
++            let mut idents = std::collections::BTreeSet::new();
++            collect_expr_idents(self.client_body.clone(), &mut idents);
++            let pat_idents: std::collections::BTreeSet<String> =
++                collect_pat_idents(pat);
++            let clones = idents
++                .iter()
++                .filter(|i| !pat_idents.contains(*i) && is_capture_candidate(i))
++                .map(|i| {
++                    let id = syn::Ident::new(i, proc_macro2::Span::call_site());
++                    quote::quote! { let #id = ::core::clone::Clone::clone(&#id); }
++                });
++            let clones2 = clones.clone();
++            let clones2: Vec<_> = clones2.collect();
++            let tokens = quote::quote! {
++                #hearth::client_for(__cx, #query, {
++                    #(#clones2)*
++                    move |__cx_owned: ::topcoat::context::Cx, #pat| {
++                        #(#clones2)*
++                        let __cx = __cx_owned;
++                        ::topcoat::view::ViewExt::boxed(#body_owned)
++                    }
++                })
++            };
++            let _ = clones;
++            builder.expr(crate::view::hir::ExprKind::Node, tokens);
++            return;
++        }
+         builder.for_loop(
+             &self.template.pat,
+             &self.template.expr,
+@@ -114,6 +206,140 @@
+         ] {
+             let source = format!("{attribute} for item in items {{}}");
+             assert!(syn::parse_str::<ForLoop>(&source).is_err(), "{source}");
++        }
++    }
++}
++
++/// [hearth] Identifiers in a token stream (for capture cloning).
++fn collect_idents(ts: proc_macro2::TokenStream, out: &mut std::collections::BTreeSet<String>) {
++    let mut prev_dot = false;
++    for tt in ts {
++        match tt {
++            proc_macro2::TokenTree::Ident(i) => {
++                if !prev_dot {
++                    out.insert(i.to_string());
++                }
++                prev_dot = false;
++            }
++            proc_macro2::TokenTree::Group(g) => {
++                collect_idents(g.stream(), out);
++                prev_dot = false;
++            }
++            proc_macro2::TokenTree::Punct(p) => prev_dot = p.as_char() == '.' || p.as_char() == ':',
++            proc_macro2::TokenTree::Literal(_) => prev_dot = false,
++        }
++    }
++}
++
++fn collect_pat_idents(pat: &syn::Pat) -> std::collections::BTreeSet<String> {
++    let mut out = std::collections::BTreeSet::new();
++    collect_idents(quote::ToTokens::to_token_stream(pat), &mut out);
++    out
++}
++
++/// Lowercase snake identifiers that aren't keywords/HTML tag names are
++/// candidate captures. (Spike heuristic; the real version resolves names
++/// with the same `NameResolver` the `$()` lowering uses.)
++fn is_capture_candidate(i: &str) -> bool {
++    const SKIP: &[&str] = &[
++        "if", "else", "for", "in", "let", "match", "move", "async", "await", "true", "false", "mut", "ref",
++        "self", "Self", "return", "as", "fn", "e", "_e", "class", "type", "value", "selected", "placeholder",
++        "href", "id", "li", "ul", "span", "button", "a", "div", "input", "select", "option", "strong", "p",
++        "clone", "unwrap", "is_some", "is_none", "to_owned", "get", "set", "target", "len", "Some", "None",
++    ];
++    i.chars().next().is_some_and(|c| c.is_ascii_lowercase()) && !SKIP.contains(&i) && !i.starts_with("__")
++}
++
++/// Idents inside `$(...)` runtime exprs and `(...)` template exprs only (not
++/// tag names, attribute names or text).
++fn collect_expr_idents(ts: proc_macro2::TokenStream, out: &mut std::collections::BTreeSet<String>) {
++    let mut prev: Option<proc_macro2::TokenTree> = None;
++    for tt in ts {
++        if let proc_macro2::TokenTree::Group(g) = &tt {
++            let is_expr = g.delimiter() == proc_macro2::Delimiter::Parenthesis
++                && !matches!(&prev, Some(proc_macro2::TokenTree::Ident(_)));
++            if is_expr {
++                collect_idents(g.stream(), out);
++            } else {
++                collect_expr_idents(g.stream(), out);
++            }
++        }
++        prev = Some(tt);
++    }
++}
++
++/// [hearth] `if $(cond) { body }` in view position: rendered on the server
++/// when `cond` is true, and switched in the browser when it changes.
++pub struct ClientIf {
++    pub cond: proc_macro2::TokenStream,
++    pub body: crate::template::TemplateBlock<Nodes>,
++    pub raw_body: proc_macro2::TokenStream,
++}
++
++impl ClientIf {
++    pub fn peek(input: ParseStream) -> bool {
++        input.peek(syn::Token![if]) && input.peek2(syn::Token![$])
++    }
++}
++
++impl Parse for ClientIf {
++    fn parse(input: ParseStream) -> syn::Result<Self> {
++        input.parse::<syn::Token![if]>()?;
++        input.parse::<syn::Token![$]>()?;
++        let c;
++        syn::parenthesized!(c in input);
++        let cond = c.parse()?;
++        let raw_body = {
++            let f = input.fork();
++            let g: proc_macro2::Group = f.parse()?;
++            g.stream()
++        };
++        Ok(Self { cond, body: input.parse()?, raw_body })
++    }
++}
++
++impl LowerView for ClientIf {
++    fn lower(&self, builder: &mut ViewBuilder) {
++        let mut body_builder = ViewBuilder::new();
++        self.body.lower(&mut body_builder);
++        let body_owned = body_builder.finish().emit_view(true);
++        let mut idents = std::collections::BTreeSet::new();
++        collect_expr_idents(self.raw_body.clone(), &mut idents);
++        // Names bound by `for <pat> in` inside the body aren't captures.
++        let mut bound = std::collections::BTreeSet::new();
++        collect_for_bindings(self.raw_body.clone(), &mut bound);
++        let clones = idents.iter().filter(|i| is_capture_candidate(i) && !bound.contains(*i)).map(|i| {
++            let id = syn::Ident::new(i, proc_macro2::Span::call_site());
++            quote::quote! { let #id = ::core::clone::Clone::clone(&#id); }
++        });
++        let clones: Vec<_> = clones.collect();
++        let cond = &self.cond;
++        // Clone captures once for this region (outer), then per invocation (inner).
++        let tokens = quote::quote! {
++            ::hearth::route::when(__cx, ::topcoat::runtime::expr!(#cond), {
++                #(#clones)*
++                move |__cx_owned: ::topcoat::context::Cx| {
++                    #(#clones)*
++                    let __cx = __cx_owned;
++                    ::topcoat::view::ViewExt::boxed(#body_owned)
++                }
++            })
++        };
++        builder.expr(crate::view::hir::ExprKind::Node, tokens);
++    }
++}
++
++fn collect_for_bindings(ts: proc_macro2::TokenStream, out: &mut std::collections::BTreeSet<String>) {
++    let toks: Vec<_> = ts.into_iter().collect();
++    for (i, tt) in toks.iter().enumerate() {
++        match tt {
++            proc_macro2::TokenTree::Ident(id) if id == "for" => {
++                if let Some(proc_macro2::TokenTree::Ident(b)) = toks.get(i + 1) {
++                    out.insert(b.to_string());
++                }
++            }
++            proc_macro2::TokenTree::Group(g) => collect_for_bindings(g.stream(), out),
++            _ => {}
+         }
+     }
+ }
+diff -ruN --exclude=dist --exclude=node_modules --exclude=yarn.lock --exclude=package.json --exclude=.git /tmp/upstream/t/crates/topcoat-view/grammar/src/view/node.rs vendor/topcoat/crates/topcoat-view/grammar/src/view/node.rs
+--- /tmp/upstream/t/crates/topcoat-view/grammar/src/view/node.rs	2026-10-23 22:24:44
++++ vendor/topcoat/crates/topcoat-view/grammar/src/view/node.rs	2026-10-23 22:18:54
+@@ -28,6 +28,8 @@
+     If(Box<TemplateIf<Nodes>>),
+     Local(TemplateLocal),
+     ForLoop(ForLoop),
++    /// [hearth] `if $(cond) { ... }`: a client-switchable region.
++    ClientIf(crate::view::ClientIf),
+     Continue(TemplateContinue),
+     Break(TemplateBreak),
+     Match(TemplateMatch<Node>),
+@@ -62,6 +64,7 @@
+             Self::If(inner) => inner.lower(builder),
+             Self::Local(inner) => inner.lower(builder),
+             Self::ForLoop(inner) => inner.lower(builder),
++            Self::ClientIf(inner) => inner.lower(builder),
+             Self::Continue(inner) => inner.lower(builder),
+             Self::Break(inner) => inner.lower(builder),
+             Self::Match(inner) => inner.lower(builder),
+@@ -82,6 +85,8 @@
+             Self::Expr(input.parse()?)
+         } else if RuntimeExpr::peek(input) {
+             Self::RuntimeExpr(input.parse()?)
++        } else if crate::view::ClientIf::peek(input) {
++            Self::ClientIf(input.parse()?)
+         } else if TemplateIf::<Nodes>::peek(input) {
+             Self::If(input.parse()?)
+         } else if TemplateLocal::peek(input) {
+@@ -129,6 +134,7 @@
+             Self::If(inner) => inner.pretty_print(printer),
+             Self::Local(inner) => inner.pretty_print(printer),
+             Self::ForLoop(inner) => inner.pretty_print(printer),
++            Self::ClientIf(_) => "if $(..) { .. }".pretty_print(printer),
+             Self::Continue(inner) => inner.pretty_print(printer),
+             Self::Break(inner) => inner.pretty_print(printer),
+             Self::Match(inner) => inner.pretty_print(printer),

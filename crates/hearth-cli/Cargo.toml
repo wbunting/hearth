@@ -1,0 +1,59 @@
+[package]
+include = ["/src/**", "/docs/**", "/README.md", "/Cargo.toml", "/LICENSE", "/NOTICE", "/THIRD-PARTY-NOTICES", "/build.rs", "/browser/src/**", "/browser/dist/*.js", "/browser/package.json", "/browser/tsconfig.json", "/browser/tsup*.ts", "/components/**", "/styles/**", "/registry.toml", "/themes/**"]
+name = "hearth-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+rust-version.workspace = true
+default-run = "hearth"
+
+[[bin]]
+name = "hearth"
+path = "src/bin/hearth.rs"
+
+[[bin]]
+name = "cargo-hearth"
+path = "src/bin/cargo_hearth.rs"
+
+[dependencies]
+hearth-asset = { workspace = true, features = ["bundler"] }
+hearth-foundation = { workspace = true, features = ["build"] }
+hearth-foundation-grammar = { workspace = true, features = ["pretty"] }
+hearth-font-grammar = { workspace = true, features = ["fontsource", "pretty"] }
+hearth-mail-grammar = { workspace = true, features = ["pretty"] }
+hearth-router = { workspace = true, features = ["websocket"] }
+hearth-ui.workspace = true
+hearth-view-grammar = { workspace = true, features = ["pretty"] }
+
+clap = { workspace = true, features = ["derive"] }
+console.workspace = true
+dialoguer.workspace = true
+futures-util.workspace = true
+glob.workspace = true
+ignore.workspace = true
+indicatif.workspace = true
+notify.workspace = true
+proc-macro2 = { workspace = true, features = ["span-locations"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+syn.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "process", "signal", "io-util", "time", "sync"] }
+toml.workspace = true
+
+[dev-dependencies]
+hearth = { path = "../hearth" }
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[package.metadata.cargo-udeps.ignore]
+development = ["hearth"]
