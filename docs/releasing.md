@@ -4,6 +4,12 @@ Hearth's first own release is 0.1.0. All first-party runtime and build dependenc
 
 Topcoat v0.10.0 is the upstream source. Preserve its MIT license and copyright in every package. Historical changelogs remain upstream history, not Hearth releases.
 
+## 0.1.0 release status
+
+All 33 crates are published on crates.io from audited commit `bae6bcbb1671834bef6bbc68eba6500b5676e631`. A clean standalone app using registry dependencies passed its four isolation, retention, restart and cursor tests, built in release mode, installed hearth-cli 0.1.0 from crates.io and bundled assets. Browser verification confirmed local filtering without another load request, a successful mutation with server readback, and no observed CSP violations.
+
+The docs.rs build of hearth 0.1.0 fails on a stale intra-doc link to `base_query`. That link is corrected on main, but immutable 0.1.0 source cannot be changed. Publish a patch version to restore hosted API documentation; use the source guides meanwhile. Do not describe 0.1.0 API docs as successfully hosted.
+
 ## Verify the release
 
 ```sh

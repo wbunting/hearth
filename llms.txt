@@ -6,7 +6,7 @@ Links point to authoritative guides in this checkout. Runnable patterns: `exampl
 
 ## Start
 
-`cargo new app`; `cargo add hearth` (after registry publication); `cargo add tokio --features rt-multi-thread,macros`. Install `cargo install hearth-cli`; run `hearth dev` (build/bundle/reload). `start` defaults to `127.0.0.1:3000`; override `HOST`/`PORT`. [Setup](docs/getting_started.md).
+`cargo new app`; `cargo add hearth@=0.1.0`; `cargo add tokio --features rt-multi-thread,macros`. Install `cargo install hearth-cli --version 0.1.0 --locked`; run `hearth dev` (build/bundle/reload). `start` defaults to `127.0.0.1:3000`; override `HOST`/`PORT`. [Setup](docs/getting_started.md).
 
 ```rust
 use hearth::{Result, router::{module_router, page}, view::{View, view}};
@@ -125,4 +125,4 @@ For custom cookie/token authentication, install a trusted `sync::Principal` in r
 
 Published CLI and UI archives include third-party Lucide/Feather license notices. Legacy client bundles are intentionally untracked and must be rebuilt locally. Local .env credentials are ignored; image generation reads only OPENROUTER_API_KEY from its process environment.
 
-[Project overview](README.md): the four goals are pure Rust app authoring, compiled JavaScript UI expressions, Rust-declared browser-local data and a high end-to-end performance ceiling. Performance comparisons require measured equivalent workloads. README/header and social-preview assets: docs/hearth/brand/build-github.py; do not change licensing attribution or claim a completed registry release while publication is pending.
+[Project overview](README.md): the four goals are pure Rust app authoring, compiled JavaScript UI expressions, Rust-declared browser-local data and a high end-to-end performance ceiling. Performance comparisons require measured equivalent workloads. README/header and social-preview assets: docs/hearth/brand/build-github.py; preserve licensing attribution. Hearth 0.1.0 and all 32 supporting crates are published; the public guides use verified registry installation.
