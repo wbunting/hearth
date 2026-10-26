@@ -2,8 +2,8 @@
 //!
 //! `#[derive(Table)]` generates a `SqlColumns` impl that knows, per column,
 //! how to build a typed Toasty filter (`eq/ne/lt/.../in/contains`) and
-//! order-by from JSON values. [`base_query`] walks the base-table part of a
-//! query's IR and pushes everything it can into SQL:
+//! order-by from JSON values. [`lower_where`] and [`order`] lower the base-table
+//! predicates and ordering that SQL can evaluate:
 //!
 //! - `where`: conjunctions/disjunctions/negations of column-vs-param/literal comparisons on the
 //!   base alias; `if $(cond) { … }` is resolved with the param value (dropped when falsy). Anything

@@ -124,3 +124,5 @@ For framework changes, also read [AGENTS.md](AGENTS.md) and [CONTRIBUTING.md](CO
 For custom cookie/token authentication, install a trusted `sync::Principal` in request context in a layer so delta cursors use the same viewer identity as table read scopes. The website demonstrates this with isolated, bounded demo datasets. `hearth fmt` preserves client `for ... in $(...)` and `if $(...)` regions.
 
 Published CLI and UI archives include third-party Lucide/Feather license notices. Legacy client bundles are intentionally untracked and must be rebuilt locally. Local .env credentials are ignored; image generation reads only OPENROUTER_API_KEY from its process environment.
+
+[Project overview](README.md): the four goals are pure Rust app authoring, compiled JavaScript UI expressions, Rust-declared browser-local data and a high end-to-end performance ceiling. Performance comparisons require measured equivalent workloads. README/header and social-preview assets: docs/hearth/brand/build-github.py; do not change licensing attribution or claim a completed registry release while publication is pending.
