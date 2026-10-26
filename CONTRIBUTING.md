@@ -6,7 +6,7 @@ This guide explains how to prepare and submit a change to Hearth.
 
 Open a pull request for a bug fix or documentation improvement. You do not need to discuss it first.
 
-If you want to build a feature, please talk to us in the [Tokio Discord](https://discord.gg/tokio) before you write the code.
+If you want to build a feature, open an [issue in this repository](https://github.com/wbunting/hearth/issues) before you write the code.
 
 New features need to fit the framework's design and be maintainable over time. Discussing a proposal first helps you avoid writing code we cannot accept.
 
@@ -23,7 +23,8 @@ Use the toolchain selected by `rust-toolchain.toml` to build and test. Formattin
 ```sh
 git clone https://github.com/wbunting/hearth
 cd hearth
-cargo test --workspace --all-features
+pnpm install --frozen-lockfile
+cargo test --locked --release -p hearth -p hearth-macro -p hearth-cli
 ```
 
 If you use Nix, `nix develop` gives you a shell with the toolchain already set up.
@@ -31,7 +32,7 @@ If you use Nix, `nix develop` gives you a shell with the toolchain already set u
 Install the CLI from the workspace so `hearth fmt` and the dev server match the code you are working on:
 
 ```sh
-cargo install --path crates/hearth-cli
+cargo install --path crates/hearth-cli --locked
 ```
 
 Try framework changes in an example or demo. Run `hearth dev` in an example directory to build and serve it. Examples focus on individual features, while demos show how features work together in an app.
@@ -51,33 +52,23 @@ Pull requests are squash-merged, so you do not need to tidy up your commit histo
 Run these checks before opening a pull request:
 
 ```sh
-cargo +nightly fmt --all # nightly is required, CI checks formatting with it
-cargo hearth fmt # formats Hearth macro bodies inside source files
-cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-cargo test --workspace --all-features
-RUSTDOCFLAGS="--cfg docsrs -Dwarnings" cargo +nightly doc --workspace --all-features --no-deps --locked
+cargo +nightly fmt --all -- --check
+cargo test --locked --release -p hearth -p hearth-macro -p hearth-cli
+cargo clippy --locked --release -p hearth -p hearth-macro -p hearth-cli -- -D warnings
 ```
 
-Run these additional checks when your change affects feature combinations or dependencies:
-
-```sh
-# feature combinations that do not build (needs cargo-hack)
-cargo hack clippy --workspace --each-feature --exclude-features stage-icons --no-dev-deps -- -D warnings
-
-# unused dependencies (needs cargo-udeps on nightly)
-cargo +nightly udeps --workspace --all-targets --all-features --locked
-```
+Run the affected crate's tests and exercise the changed application flow as well. The full fork CI commands, feature checks and package-consumer verification are maintained in the [check skill](.agents/skills/check/SKILL.md) and [.github/workflows/ci.yml](.github/workflows/ci.yml). Avoid substituting the upstream all-workspace/all-features matrix for this fork's checks. Rebuild the CLI after changing a grammar before using `hearth fmt` on your source.
 
 For browser changes, run the following commands from `crates/hearth-runtime/browser` or `crates/hearth-cli/browser`, depending on the project you changed. Changes to the shared code in `crates/hearth-foundation/browser` need both projects checked and rebuilt. CI checks formatting, linting, tests, and that the committed bundles match their source:
 
 ```sh
-yarn install --frozen-lockfile
-yarn lint
-yarn build
-yarn test
+pnpm install --frozen-lockfile
+pnpm lint
+pnpm build
+pnpm test
 ```
 
-Commit the regenerated `dist/index.js` with the source changes. The runtime also builds `dist/coherence.js`, which must be committed when it changes.
+Commit the regenerated `dist/index.js` with the source changes. The runtime also builds `dist/coherence.js` and `dist/persist.js`, which must be committed when they change.
 
 The full check list, including when each command is needed, is in the [`check`](.agents/skills/check/SKILL.md) skill.
 

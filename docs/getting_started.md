@@ -2,6 +2,8 @@
 
 Create a Hearth app and run it locally with automatic updates as you edit.
 
+Registry publication is in progress. Until the complete crate family is indexed on crates.io, use the source-checkout instructions in the [project README](https://github.com/wbunting/hearth#try-it-today). The registry commands below describe the installation flow after publication.
+
 ## Create a new project
 
 Create a Cargo binary project:

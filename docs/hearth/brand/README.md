@@ -36,3 +36,18 @@ rsvg-convert -w 512 docs/hearth/brand/hearth-icon.svg -o docs/hearth/brand/heart
 
 Small sizes: below about 24 px the opening closes up; use the icon (with its
 ivory ground and padding) rather than the bare mark for favicons.
+
+## GitHub banners
+
+The README uses 1600 x 500 light and dark PNG headers. The social-preview image is 1280 x 640. SVG sources have outlined lettering and no external font or image requests. They reuse the existing logo and Manrope from the website; Manrope's license is in site/assets/Manrope-LICENSE.txt. These are authored brand assets, not application screenshots.
+
+Rebuild with:
+
+```sh
+uv run --with fonttools python docs/hearth/brand/build-github.py
+rsvg-convert docs/hearth/brand/hearth-banner.svg -o docs/hearth/brand/hearth-banner.png
+rsvg-convert docs/hearth/brand/hearth-banner-dark.svg -o docs/hearth/brand/hearth-banner-dark.png
+rsvg-convert docs/hearth/brand/hearth-social.svg -o docs/hearth/brand/hearth-social-1280.png
+```
+
+Set the social preview in GitHub repository Settings -> General -> Social preview. It is separate from the README banner. Keep banner copy readable at half size, and preserve both the outlined source and its raster output when changing it.
