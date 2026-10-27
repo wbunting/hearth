@@ -1,4 +1,5 @@
 packages:
+  - web
   - crates/hearth-runtime/browser
   - crates/hearth-cli/browser
   - legacy/zbugs-ts/client

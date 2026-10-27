@@ -15,3 +15,12 @@ site/.impeccable/mocks/
 
 # Legacy bundles are rebuilt locally, not redistributed.
 /legacy/zbugs-ts/client/dist/
+
+/web/public/
+/web/.generated/
+/web/.wrangler/
+/web/test-results/
+/web/.evidence/
+
+__pycache__/
+*.pyc

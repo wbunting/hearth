@@ -1,0 +1,82 @@
+name: Site and demo
+
+on:
+  push:
+    branches: [main]
+    paths: ["web/**", "site/**", "docs/**", "crates/**", "Cargo.toml", "Cargo.lock", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/workflows/site-deploy.yml"]
+  pull_request:
+    paths: ["web/**", "site/**", "docs/**", "crates/**", "Cargo.toml", "Cargo.lock", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/workflows/site-deploy.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hearth-site-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  static:
+    name: Static site and docs
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037
+        with:
+          tool: zola@0.23.6
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @hearth/site build
+      - working-directory: web
+        run: pnpm exec playwright install --with-deps chromium && pnpm test
+      - name: Deploy exact main commit to Pages
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        working-directory: web
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Set a restricted Cloudflare Pages token as CLOUDFLARE_API_TOKEN before enabling automatic deployment"; exit 1; }
+          pnpm exec wrangler pages deploy public --project-name hearth-site --branch main --commit-hash "${{ github.sha }}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+
+  demo:
+    name: Rust demo container
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: .
+          file: site/Dockerfile
+          load: true
+          tags: hearth-demo:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke test unprivileged container
+        run: |
+          docker run -d --name hearth-demo -p 8080:8080 -e HEARTH_SITE_SECURE=0 hearth-demo:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/healthz; then break; fi
+            sleep 1
+          done
+          curl -fsS http://localhost:8080/healthz
+          curl -fsS -c /tmp/hearth-cookie http://localhost:8080/ > /tmp/hearth-demo.html
+          curl -fsS -b /tmp/hearth-cookie http://localhost:8080/_hearth/demo_issues/load
+          test "$(docker exec hearth-demo id -u)" != 0
+      - name: Install Fly CLI
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1
+      - name: Deploy exact main checkout to Fly
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: flyctl deploy --config site/fly.toml --remote-only --ha=false
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

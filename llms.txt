@@ -119,7 +119,7 @@ For framework changes, also read [AGENTS.md](AGENTS.md) and [CONTRIBUTING.md](CO
 
 ## Website and release
 
-[Website](site/README.md): Rust-built site with scoped live-query and optimistic mutation demo. [Release](docs/releasing.md): check and package the dependency graph with `scripts/release.py`, then verify archives using `scripts/package-smoke.py --build`. The facade is `hearth`, CLI is `hearth-cli`, internal core is `hearth-foundation`. Own version starts at 0.1.0. Verify publication against crates.io.
+[Static website/docs](web/README.md): Zola site on Cloudflare Pages. [Live demo](site/README.md): Rust-built scoped query/mutation app on Fly.io. [Hosting](docs/deployment.md): split deployment, security and CI credentials. [Release](docs/releasing.md): check and package the dependency graph with `scripts/release.py`, then verify archives using `scripts/package-smoke.py --build`. The facade is `hearth`, CLI is `hearth-cli`, internal core is `hearth-foundation`. Own version starts at 0.1.0. Verify publication against crates.io.
 
 For custom cookie/token authentication, install a trusted `sync::Principal` in request context in a layer so delta cursors use the same viewer identity as table read scopes. The website demonstrates this with isolated, bounded demo datasets. `hearth fmt` preserves client `for ... in $(...)` and `if $(...)` regions.
 

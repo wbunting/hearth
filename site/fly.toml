@@ -1,0 +1,33 @@
+app = "wbunting-hearth-demo"
+primary_region = "nrt"
+
+[build]
+  dockerfile = "site/Dockerfile"
+
+[env]
+  HOST = "0.0.0.0"
+  PORT = "8080"
+  HEARTH_SITE_SECURE = "1"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 80
+    hard_limit = 120
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "3s"
+    grace_period = "15s"
+    method = "GET"
+    path = "/healthz"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

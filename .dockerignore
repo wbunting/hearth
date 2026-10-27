@@ -1,0 +1,12 @@
+.git
+**/target
+**/node_modules
+**/.env
+**/.env.*
+**/*.db
+**/*.db-*
+web/public
+web/.generated
+web/.wrangler
+web/.evidence
+site/.impeccable

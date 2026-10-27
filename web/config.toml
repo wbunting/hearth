@@ -1,0 +1,13 @@
+base_url = "https://hearth-site-tvw.pages.dev"
+title = "Hearth - Local-first web apps, authored in Rust"
+description = "A Rust web framework with server-rendered HTML, generated JavaScript interactions and Rust-declared local-first data."
+compile_sass = false
+build_search_index = false
+minify_html = true
+
+[markdown]
+external_links_target_blank = false
+
+[extra]
+demo_url = "https://wbunting-hearth-demo.fly.dev"
+repository_url = "https://github.com/wbunting/hearth"

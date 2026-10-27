@@ -46,3 +46,9 @@ python3 scripts/package-smoke.py --build
 The package smoke test uses actual `.crate` archives in a temporary sparse registry. It builds an independent app with versioned dependencies, installs the CLI, and bundles the app's assets. No workspace patches or source path dependencies are used. Run and exercise that app in a browser before publishing. Passing this check does not establish actual crates.io authentication or publication.
 
 For user-visible work, exercise the real application on desktop and mobile. Verify browser errors, CSP, query results, persisted writes and rollback where affected. Unit tests alone do not establish the user flow works.
+
+## Static site and hosting
+
+Use Zola 0.23.6, then run `pnpm --filter @hearth/site build`, followed by `pnpm --filter @hearth/site test` after installing the Playwright Chromium browser. The static build checks every generated internal link and asset. Python regressions cover Rustdoc symbol links, hidden doctest lines and code preservation. Browser checks exercise no-JavaScript mobile/desktop navigation.
+
+For live-demo deployment changes, run `cargo test --locked --release -p hearth-site`, release clippy, `flyctl config validate --config site/fly.toml`, and the Linux container smoke test. Do not treat a deployment upload as end-to-end proof: check HTTPS, cookies, scoped loads, a mutation with server readback and CSP on the deployed host.

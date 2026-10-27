@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ page.title }} - Hearth docs{% endblock title %}
+{% block main %}
+<div class="docs-layout wrap">
+  <aside class="docs-nav" aria-label="Documentation navigation">
+    {% for group in config.extra.doc_groups %}
+    <nav aria-label="{{ group.title }}">
+      <h2>{{ group.title }}</h2>
+      <ul>{% for entry in group.pages %}<li><a href="{{ entry.url }}"{% if page.path == entry.url %} aria-current="page"{% endif %}>{{ entry.title }}</a></li>{% endfor %}</ul>
+    </nav>
+    {% endfor %}
+  </aside>
+  <details class="docs-mobile-nav"><summary>Browse documentation</summary><div class="docs-mobile-groups">    {% for group in config.extra.doc_groups %}
+    <nav aria-label="{{ group.title }}">
+      <h2>{{ group.title }}</h2>
+      <ul>{% for entry in group.pages %}<li><a href="{{ entry.url }}"{% if page.path == entry.url %} aria-current="page"{% endif %}>{{ entry.title }}</a></li>{% endfor %}</ul>
+    </nav>
+    {% endfor %}
+</div></details>
+  <main id="main" class="doc-article">
+    <a class="doc-back" href="/docs/">Documentation</a>
+    <h1>{{ page.title }}</h1>
+    {% if page.extra.source %}<p class="doc-source"><a href="https://github.com/wbunting/hearth/blob/main/{{ page.extra.source }}">Edit this guide on GitHub</a></p>{% endif %}
+    {{ page.content | safe }}
+    <div class="doc-footer"><a href="/docs/getting-started/">Getting started</a><a href="{{ config.extra.demo_url }}">Try the live demo ↗</a></div>
+  </main>
+  {% if page.toc %}<aside class="docs-toc" aria-label="On this page"><h2>On this page</h2><ul>{% for heading in page.toc %}<li><a href="#{{ heading.id }}">{{ heading.title }}</a></li>{% endfor %}</ul></aside>{% endif %}
+</div>
+{% endblock main %}

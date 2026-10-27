@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block main %}
+<main id="main">
+  <section class="hero wrap">
+    <h1>Close to your data.<br><span>Entirely in Rust.</span></h1>
+    <div class="hero-bottom">
+      <p>A local-first web framework. Render on the server. Query in the browser. Write your app in one language.</p>
+      <div class="actions"><a class="button primary" href="/docs/getting-started/">Start building <span aria-hidden="true">↗</span></a><a class="text-link" href="{{ config.extra.demo_url }}">Open the live demo <span aria-hidden="true">↗</span></a></div>
+    </div>
+  </section>
+  <section class="workbench wrap" aria-labelledby="specimen-title">
+    <div class="bench-heading"><h2 id="specimen-title">Rust in. A living interface out.</h2><p>One query, on the server and in the browser.</p></div>
+    <div class="static-specimen">
+      <div class="code-side"><div class="code-toolbar"><span>query.rs</span><span>Rust</span></div>
+        <pre class="source"><code><span class="syntax-accent">let</span> issues = <span class="syntax-gold">live_query!</span> {
+    IssueItem from i in IssueRow
+    where if <span class="syntax-gold">$(!search.get().is_empty())</span> {
+        i.title contains <span class="syntax-gold">$(search.get())</span>
+    }
+    order by i.modified desc
+    limit 50
+    select { id: i.id, title: i.title }
+};</code></pre>
+        <div class="code-foot">Illustrative query. The complete example is in the repository.</div>
+      </div>
+      <div class="demo-invitation">
+        <img src="/assets/mark.svg" alt="" width="62" height="62">
+        <h3>Don't take a screenshot's word for it.</h3>
+        <p>Try a real Hearth app: filter local rows, toggle an issue, and watch the Rust server validate the write.</p>
+        <a class="button primary" href="{{ config.extra.demo_url }}">Try the live demo <span aria-hidden="true">↗</span></a>
+        <p class="invitation-note">Illustrative data, isolated to your browser. Hosted separately on Fly.io; no third-party cookies or embedded app are needed to read these docs.</p>
+      </div>
+    </div>
+    <p class="bench-caption">This page is static and served from Cloudflare Pages. The live demo is the real Rust/Hearth application, not a simulated interaction.</p>
+  </section>
+  <section id="how" class="architecture wrap">
+    <h2>The first view comes from the server.<br><span>The next move is yours.</span></h2>
+    <div class="flow">
+      <article><h3>One source of truth.</h3><p>Declare a table, authorize its rows, and write a query in Rust. Hearth uses the query for the initial render and the browser's live results.</p><code>#[derive(Table)]<br>live_query! { ... }</code></article>
+      <article><h3>HTML, already useful.</h3><p>The server sends rendered content. Client expressions become JavaScript functions. No client-side Rust or WebAssembly runtime download.</p><code>Rust → HTML + JavaScript</code></article>
+      <article><h3>Keep the data close.</h3><p>Indexed queries run against browser-local tables. Writes update the interface immediately, then the server validates them. Rejections roll back.</p><code>local query → update → sync</code></article>
+    </div>
+  </section>
+  <section class="principles wrap">
+    <div><img src="/assets/mark.svg" alt="" width="72" height="72"><h2>Less between<br>you and the app.</h2><p>A framework for the page, the data, and the space between. Pure Rust application code. Generated JavaScript where the browser needs it.</p></div>
+    <dl>
+      <div><dt>Rust all the way down</dt><dd>Views, handlers, read scopes and write validation live together. You don't maintain a second JavaScript application.</dd></div>
+      <div><dt>Local queries, live results</dt><dd>Filter, join and sort without a request for every interaction. Declare browser data and indexes alongside the Rust model.</dd></div>
+      <div><dt>The server stays in charge</dt><dd>Read scopes are mandatory. Writes are explicitly allowed and checked on the server. Browser state is never authorization.</dd></div>
+      <div><dt>A high performance ceiling</dt><dd>Native Rust server execution, server-rendered startup, indexed local queries and a small JavaScript runtime. Architectural goals, not an unmeasured promise that every Rust app beats every JavaScript app.</dd></div>
+    </dl>
+  </section>
+  <section class="start-section"><div class="wrap start-inner">
+    <div><h2>Make yourself<br>at home.</h2><p>Hearth 0.1.0 is available on crates.io. Start small, read the source, and tell us where it gets in your way.</p><a class="button light" href="/docs/getting-started/">Build your first page <span aria-hidden="true">↗</span></a></div>
+    <div class="install"><pre><code>cargo add hearth@=0.1.0
+cargo install hearth-cli --version 0.1.0 --locked</code></pre><p class="install-note">Use the tested Rust 1.99.1 toolchain. No Node.js or pnpm required for your app.</p><a href="/docs/getting-started/">Complete setup and running instructions →</a></div>
+  </div></section>
+  <section class="early wrap"><h2>An honest starting point.</h2><p>Experimental APIs. Defined Rust expression vocabulary. IndexedDB caches server rows, not a durable offline write queue. Delta sync currently scans scoped server tables. Test with your own data and permissions.</p><a class="text-link" href="/docs/local-first/persistence/">Read the current boundaries →</a></section>
+</main>
+{% endblock main %}
