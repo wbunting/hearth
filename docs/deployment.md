@@ -8,12 +8,12 @@ Use web/README.md for local build and deployment. Its Zola build derives pages f
 
 ## Fly demo
 
-The Fly app wbunting-hearth-demo uses site/fly.toml and the root-context site/Dockerfile. The multi-stage image builds the application and matching assets together and runs as a non-root user. It uses one 512 MB shared CPU machine in nrt, with automatic suspend/start and zero minimum running machines to limit idle cost. Suspension preserves the process where supported; cold starts, deployments and restarts reset in-memory data and are not a durability promise. No persistent volume is needed for illustrative rows.
+The Fly app wbunting-hearth-demo uses fly.toml and the root-context site/Dockerfile. Keep fly.toml at the repository root: Fly resolves its Dockerfile and default source context relative to the configuration directory. A config under site/ would resolve site/Dockerfile as site/site/Dockerfile and omit the root workspace. The multi-stage image builds the application and matching assets together and runs as a non-root user. It uses one 512 MB shared CPU machine in nrt, with automatic suspend/start and zero minimum running machines to limit idle cost. Suspension preserves the process where supported; cold starts, deployments and restarts reset in-memory data and are not a durability promise. No persistent volume is needed for illustrative rows.
 
 The server binds 0.0.0.0:8080, responds to /healthz, and enables Secure demo cookies in production. Trusted proxy addresses are configured only in Fly's environment, and the rate limiter uses the framework's resolved client IP instead of accepting arbitrary forwarded headers. It caps new landing requests per IP, total requests per IP, global visitor allocations and limiter storage. Table authorization, cursor isolation and a 256-visitor FIFO remain separate protections. Limits are per process, not a distributed abuse-prevention system.
 
 ```sh
-flyctl deploy --config site/fly.toml --remote-only --ha=false
+flyctl deploy --config fly.toml --remote-only --ha=false
 ```
 
 Do not deploy a second machine without accounting for the process-local database. Each instance has independent demo data; a browser might need a reload to reseed after migration or restart. Deploy binary and assets from the same image. Health checks bypass allocation and rate limiting.

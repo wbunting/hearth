@@ -3,9 +3,9 @@ name: Site and demo
 on:
   push:
     branches: [main]
-    paths: ["web/**", "site/**", "docs/**", "crates/**", "Cargo.toml", "Cargo.lock", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/workflows/site-deploy.yml"]
+    paths: ["web/**", "site/**", "docs/**", "crates/**", "Cargo.toml", "Cargo.lock", "fly.toml", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/workflows/site-deploy.yml"]
   pull_request:
-    paths: ["web/**", "site/**", "docs/**", "crates/**", "Cargo.toml", "Cargo.lock", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/workflows/site-deploy.yml"]
+    paths: ["web/**", "site/**", "docs/**", "crates/**", "Cargo.toml", "Cargo.lock", "fly.toml", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/workflows/site-deploy.yml"]
   workflow_dispatch:
 
 permissions:
@@ -77,6 +77,6 @@ jobs:
         uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1
       - name: Deploy exact main checkout to Fly
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-        run: flyctl deploy --config site/fly.toml --remote-only --ha=false
+        run: flyctl deploy --config fly.toml --remote-only --ha=false
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
