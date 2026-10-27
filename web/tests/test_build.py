@@ -27,6 +27,11 @@ class GuideConversion(unittest.TestCase):
         self.assertIn('[Fontsource](https://fontsource.org/)', result)
         self.assertIn('[asset guide](/docs/asset/)', result)
 
+    def test_titles_ignore_doctest_lines_and_subsection_headings(self):
+        self.assertEqual(build.title_for('font/font.md', '```rust\n# use hearth::font::*;\n```\n# Cargo.toml'), 'Font declarations')
+        self.assertEqual(build.title_for('router/page.md', '# Handler signature'), 'Router: Page')
+        self.assertEqual(build.title_for('runtime.md', '# Cargo.toml'), 'Runtime')
+
     def test_rustdoc_hidden_lines_and_escaped_hash(self):
         result = build.convert_markdown('```rust\n#\n    # unreachable!();\n# let hidden = 1;\n## visible\nlet value = 2;\n```', 'context.md', {})
         self.assertNotIn('unreachable', result)

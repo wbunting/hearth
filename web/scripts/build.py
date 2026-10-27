@@ -13,7 +13,7 @@ WEB = Path(__file__).resolve().parent.parent
 ROOT = WEB.parent
 GROUPS = [
     ("Start", [("getting_started.md", "Getting started"), ("context.md", "Request context"), ("asset.md", "Assets"), ("tailwind.md", "Tailwind")]),
-    ("Local-first", [("hearth/tables.md", "Tables and permissions"), ("hearth/authentication.md", "Authentication"), ("hearth/persistence.md", "Persistence and sync"), ("hearth/idle-warming.md", "Idle warming"), ("hearth/strict-csp.md", "Strict CSP")]),
+    ("Local-first", [("hearth/tables.md", "Server-only table fields"), ("hearth/authentication.md", "Authentication"), ("hearth/persistence.md", "Persistence and sync"), ("hearth/idle-warming.md", "Idle warming"), ("hearth/strict-csp.md", "Strict CSP")]),
     ("Views and runtime", [("view/view.md", "Views"), ("view/component.md", "Components"), ("runtime/expr.md", "Runtime expressions"), ("runtime/record.md", "Records"), ("runtime/link.md", "Navigation"), ("runtime/procedure.md", "Procedures"), ("runtime/shard.md", "Shards")]),
     ("Server", [("router.md", "Routing"), ("router/module.md", "Module routing"), ("router/error.md", "Errors"), ("cookie.md", "Cookies"), ("session.md", "Sessions"), ("font.md", "Fonts"), ("ui.md", "UI components")]),
 ]
@@ -33,8 +33,14 @@ def title_for(source, body):
         for name, title in pages:
             if name == source:
                 return title
-    first = next((l[2:].strip() for l in body.splitlines() if l.startswith("# ")), None)
-    return first or Path(source).stem.replace("_", " ").capitalize()
+    # Topic names come from the source path, never doctest or subsection H1s.
+    names = {"alpine_ajax": "Alpine AJAX", "fmt": "Macro formatting", "functions_not_middlewares": "Functions, not middleware", "memoize": "Request memoization", "font": "Font declarations", "fontsource_font": "Fontsource families", "fontsource_font_face": "Fontsource faces", "iconify_icon": "Iconify icons", "include": "Including icon sets", "href": "Typed links", "not_found": "Not-found pages", "props": "Component properties", "app_context": "Application context", "class": "Classes", "coherence": "Rust and JavaScript parity", "fn": "Functions", "font_face": "Font faces", "htmx": "HTMX", "iconify": "Iconify", "module_param": "Module parameters", "path_param": "Path parameters", "query_params": "Query parameters", "sse": "Server-sent events", "ui": "UI components", "websocket": "WebSockets"}
+    stem = Path(source).stem
+    topic = names.get(stem, stem.replace("_", " ").capitalize())
+    parent = Path(source).parent.name
+    if parent not in {"", ".", "hearth"} and stem not in names:
+        topic = parent.capitalize() + ": " + topic
+    return topic
 
 
 SYMBOL_GUIDES = {

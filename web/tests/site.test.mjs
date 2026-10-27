@@ -34,10 +34,11 @@ for (const width of [390, 1280]) {
     await page.waitForLoadState('networkidle');
     assert.equal(await page.locator('h1').innerText(), 'Getting started');
     assert.match(await page.locator('main').innerText(),/cargo add hearth@=0.1.0/);
-    await page.getByRole('navigation',{name:'Local-first'}).getByRole('link',{name:'Tables and permissions'}).click();
+    if(width<750) await page.getByText('Browse documentation',{exact:true}).click();
+    await page.locator('nav[aria-label="Local-first"]:visible').getByRole('link',{name:'Server-only table fields'}).click();
     await page.waitForLoadState('networkidle');
-    assert.match(await page.locator('h1').innerText(),/Tables and permissions/);
-    assert.equal(await page.locator('a[aria-current=page]').count(),1);
+    assert.match(await page.locator('h1').innerText(),/Server-only table fields/);
+    assert.ok(await page.locator('a[aria-current=page]').count()>=1);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true);
     await page.screenshot({path:`.evidence/tables-${width}.png`,fullPage:true});
     assert.deepEqual(failed,[]);
@@ -68,4 +69,18 @@ test('table of contents stays on the current preview origin', async () => {
   assert.ok(await source.count() > 0);
   assert.equal(await source.first().getAttribute('href'), 'https://fontsource.org/');
   await page.close();
+});
+
+
+test('mobile docs show article before expanded navigation and use readable topic names', async()=>{
+ const page=await browser.newPage({viewport:{width:320,height:720},javaScriptEnabled:false});
+ await page.goto(origin+'/docs/getting-started/');
+ assert.ok((await page.locator('main h1').boundingBox()).y<400);
+ assert.equal(await page.locator('details').getAttribute('open'),null);
+ await page.getByText('Browse documentation',{exact:true}).click();
+ assert.ok(await page.locator('details').getAttribute('open')!==null);
+ await page.goto(origin+'/docs/');
+ assert.equal(await page.getByRole('link',{name:'Cargo.toml',exact:true}).count(),0);
+ assert.equal(await page.getByRole('link',{name:'Handler signature',exact:true}).count(),0);
+ await page.close();
 });

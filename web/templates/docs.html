@@ -10,6 +10,13 @@
     </nav>
     {% endfor %}
   </aside>
+  <details class="docs-mobile-nav"><summary>Browse documentation</summary><div class="docs-mobile-groups">    {% for group in config.extra.doc_groups %}
+    <nav aria-label="{{ group.title }}">
+      <h2>{{ group.title }}</h2>
+      <ul>{% for entry in group.pages %}<li><a href="{{ entry.url }}"{% if page.path == entry.url %} aria-current="page"{% endif %}>{{ entry.title }}</a></li>{% endfor %}</ul>
+    </nav>
+    {% endfor %}
+</div></details>
   <main id="main" class="doc-article">
     <a class="doc-back" href="/docs/">Documentation</a>
     <h1>{{ page.title }}</h1>
