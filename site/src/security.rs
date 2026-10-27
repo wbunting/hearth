@@ -92,7 +92,7 @@ impl Layer for RateLimit {
             // Count every landing request against the stricter budget. A caller
             // can forge an unknown but valid cookie, so cookie presence cannot
             // safely exempt requests that may allocate a fresh demo dataset.
-            let new_visitor = path == "/";
+            let new_visitor = path == "/" || path == "/embed";
             let client = request::client_ip(cx).unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
             if !self.admit(client, new_visitor, Instant::now()) {
                 return Err(too_many_requests(60).into());

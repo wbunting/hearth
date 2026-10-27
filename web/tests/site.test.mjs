@@ -28,13 +28,14 @@ for (const width of [390, 1280]) {
   test(`landing and docs work without JavaScript at ${width}px`, async () => {
     const page = await browser.newPage({viewport: {width, height: 900}, javaScriptEnabled: false});
     const failed = [];
-    page.on('response', r => { if (r.status() >= 400) failed.push(`${r.status()} ${r.url()}`); });
+    page.on('response', r => { if (r.status() >= 400 && r.frame() === page.mainFrame()) failed.push(`${r.status()} ${r.url()}`); });
     await page.goto(origin, {waitUntil:'networkidle'});
     await page.screenshot({path:`.evidence/home-${width}.png`,fullPage:true});
     assert.match(await page.locator('h1').innerText(), /Entirely in Rust/);
-    assert.equal(await page.locator('script,iframe,input[type=search]').count(), 0);
+    assert.equal(await page.locator('script,input[type=search]').count(), 0);
+    assert.equal(await page.locator('iframe.demo-frame').getAttribute('src'), demoUrl + '/embed');
     for(const href of await page.locator('link[rel=stylesheet]').evaluateAll(xs=>xs.map(x=>x.getAttribute('href')))) assert.match(href,/\?v=[a-f0-9]{12}$/);
-    assert.equal(await page.getByRole('link',{name:/Try the live demo/}).getAttribute('href'), demoUrl);
+    assert.equal(await page.getByRole('link',{name:/Open in a new tab/}).getAttribute('href'), demoUrl);
     assert.equal(await page.locator('link[rel=canonical]').getAttribute('href'), siteUrl + '/');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Get started',exact:true}).click();

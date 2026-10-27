@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#f5f0e6">
   <title>{% block title %}{{ config.title }}{% endblock title %}</title>
   <meta name="description" content="{{ config.description }}">
-  <link rel="canonical" href="{% if page %}{{ page.permalink }}{% else %}{{ config.base_url }}/{% endif %}">
+  {% block canonical %}<link rel="canonical" href="{% if page %}{{ page.permalink }}{% else %}{{ config.base_url }}/{% endif %}">{% endblock canonical %}
   <meta property="og:type" content="website">
   <meta property="og:title" content="{{ config.title }}">
   <meta property="og:description" content="{{ config.description }}">
@@ -15,6 +15,7 @@
   <link rel="preload" href="/assets/manrope.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="/assets/site.css?v={{ config.extra.asset_revision }}">
   <link rel="stylesheet" href="/assets/docs.css?v={{ config.extra.asset_revision }}">
+  <link rel="stylesheet" href="/giallo.css?v={{ config.extra.asset_revision }}">
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -29,9 +30,13 @@
 </header>
 {% block main %}{% endblock main %}
 <footer class="wrap">
-  <a href="/"><img src="/assets/logo.svg" alt="hearth" width="118" height="40"></a>
-  <p>Built with care. Derived from <a href="https://github.com/tokio-rs/topcoat">Topcoat</a>. MIT licensed.</p>
-  <span>Rust on the server. Data close to the UI.</span>
+  <a href="/" aria-label="Hearth home"><img src="/assets/logo.svg" alt="hearth" width="118" height="40"></a>
+  <p>MIT licensed.</p>
+  <nav aria-label="Footer">
+    <a href="/docs/">Docs</a>
+    <a href="https://crates.io/crates/hearth">crates.io</a>
+    <a href="{{ config.extra.repository_url }}">GitHub</a>
+  </nav>
 </footer>
 </body>
 </html>

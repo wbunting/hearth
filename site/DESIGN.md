@@ -8,7 +8,7 @@ Use self-hosted Manrope for body and display type. Its open geometric forms echo
 
 ## Layout
 
-A broad, left-aligned headline leads into a single connected workbench: live Rust code alongside a working issue list. The workbench is the main proof, not an ornamental mockup. Below it, a sparse horizontal architecture explanation gives way to an asymmetric feature index and a solid terracotta getting-started section. Avoid repeated feature cards, fake statistics and testimonials.
+The demo is a single page: the shared site header, a short left-aligned intro, then the connected workbench of live Rust code alongside a working issue list. The workbench is the proof, not an ornamental mockup. It does not repeat the landing page; usehearth.dev (web/) owns the marketing sections and guides, and the header links there. The landing page frames /embed, which renders only the workbench. The landing page and the demo share site.css, so palette, type and header stay identical.
 
 ## Interaction
 
