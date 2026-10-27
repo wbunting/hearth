@@ -101,7 +101,7 @@ async fn home(cx: &Cx) -> Result<impl View> {
 - **`for row in $(query)`** renders a live keyed list. **`if $(condition)`** switches regions in the browser.
 - **`table_handle::<T>()`** makes optimistic writes from Rust-authored event handlers. The Rust server remains authoritative.
 
-The [issue tracker](https://github.com/wbunting/hearth/tree/main/examples/hearth-tracker) puts this together: search, filters, detail navigation, comments and edits. Its application code is Rust. The [live demo](https://wbunting-hearth-demo.fly.dev) is a Hearth application, with a smaller interactive query/write example. The [static website and guides](https://hearth-site-tvw.pages.dev) are served from Cloudflare Pages.
+The [issue tracker](https://github.com/wbunting/hearth/tree/main/examples/hearth-tracker) puts this together: search, filters, detail navigation, comments and edits. Its application code is Rust. The [live demo](https://demo.usehearth.dev) is a Hearth application, with a smaller interactive query/write example. The [static website and guides](https://usehearth.dev) are served from Cloudflare Pages.
 
 ## Try it today
 

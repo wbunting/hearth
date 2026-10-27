@@ -24,4 +24,4 @@ Preserve the existing keyed-arch logo, ivory/charcoal/terracotta palette, Manrop
 
 ## Hosting
 
-Initial default URLs are https://hearth-site-tvw.pages.dev and https://wbunting-hearth-demo.fly.dev. A custom domain has not been chosen. Stenly's services, credentials and deployments are outside this change.
+Production URLs are https://usehearth.dev and https://demo.usehearth.dev. Stenly's services, credentials and deployments are outside this change.

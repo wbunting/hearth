@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { chromium } from '@playwright/test';
+
+const config = readFileSync('config.toml', 'utf8');
+const siteUrl = (process.env.HEARTH_SITE_URL || config.match(/^base_url = "([^"]+)"/m)[1]).replace(/\/+$/, '');
+const demoUrl = (process.env.HEARTH_DEMO_URL || config.match(/^demo_url = "([^"]+)"/m)[1]).replace(/\/+$/, '');
 
 let server, browser;
 const origin = 'http://127.0.0.1:3630';
@@ -29,7 +34,8 @@ for (const width of [390, 1280]) {
     assert.match(await page.locator('h1').innerText(), /Entirely in Rust/);
     assert.equal(await page.locator('script,iframe,input[type=search]').count(), 0);
     for(const href of await page.locator('link[rel=stylesheet]').evaluateAll(xs=>xs.map(x=>x.getAttribute('href')))) assert.match(href,/\?v=[a-f0-9]{12}$/);
-    assert.match(await page.getByRole('link',{name:/Try the live demo/}).getAttribute('href'), /^https:\/\/wbunting-hearth-demo\.fly\.dev/);
+    assert.equal(await page.getByRole('link',{name:/Try the live demo/}).getAttribute('href'), demoUrl);
+    assert.equal(await page.locator('link[rel=canonical]').getAttribute('href'), siteUrl + '/');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Get started',exact:true}).click();
     await page.waitForLoadState('networkidle');
