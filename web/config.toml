@@ -8,6 +8,13 @@ minify_html = true
 [markdown]
 external_links_target_blank = false
 
+# Build-time highlighting with Zola's TextMate grammars (the same grammars
+# VS Code and Shiki use). Class output keeps the no-script, self-only CSP.
+[markdown.highlighting]
+theme = "hearth"
+extra_themes = ["hearth-syntax.json"]
+style = "class"
+
 [extra]
 demo_url = "https://demo.usehearth.dev"
 repository_url = "https://github.com/wbunting/hearth"

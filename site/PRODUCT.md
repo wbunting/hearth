@@ -28,4 +28,4 @@ The existing keyed-arch logo, lowercase hearth wordmark, ivory ground, charcoal 
 
 ## Evidence on Hand
 
-The tracker in examples/hearth-tracker is a full Rust application. The site will include a small live-query example with illustrative data, clearly identified as a demo. Topcoat's MIT license and attribution must be preserved.
+The tracker in examples/hearth-tracker is a full Rust application. The site will include a small live-query example with illustrative data, clearly identified as a demo. Topcoat's MIT license and attribution must be preserved in the repository NOTICE, LICENSE and README.

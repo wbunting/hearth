@@ -148,12 +148,13 @@ def main():
     if stage.exists(): shutil.rmtree(stage)
     stage.mkdir()
     for directory in ["templates", "static"]: shutil.copytree(WEB / directory, stage / directory)
+    shutil.copyfile(WEB / "hearth-syntax.json", stage / "hearth-syntax.json")
     assets = stage / "static/assets"
     for name in ["site.css", "manrope.ttf", "Manrope-LICENSE.txt", "logo.svg", "mark.svg", "favicon.svg"]:
         shutil.copyfile(ROOT / "site/assets" / name, assets / name)
     shutil.copyfile(ROOT / "docs/hearth/brand/hearth-social-1280.png", assets / "social.png")
     shutil.copyfile(ROOT / "site/assets/Manrope-LICENSE.txt", assets / "Manrope-LICENSE.txt")
-    revision = hashlib.sha256(b"".join(p.read_bytes() for p in sorted(assets.iterdir()) if p.is_file())).hexdigest()[:12]
+    revision = hashlib.sha256(b"".join(p.read_bytes() for p in sorted(assets.iterdir()) if p.is_file()) + (WEB / "hearth-syntax.json").read_bytes()).hexdigest()[:12]
     text = (WEB / "config.toml").read_text().replace(config["base_url"], base).replace(config["extra"]["demo_url"], demo)
     text += f'\nasset_revision = "{revision}"\n'
     for group, pages in GROUPS:
@@ -166,17 +167,26 @@ def main():
     sources = doc_sources(); known = {p.resolve(): p.relative_to(ROOT / "docs").as_posix() for p in sources}
     for path in sources:
         source = path.relative_to(ROOT / "docs").as_posix(); body = path.read_text(); title = title_for(source, body)
+        # The template renders the page title; drop a leading H1 that repeats it.
+        body = re.sub(r"\A\s*# " + re.escape(title) + r"[ \t]*\n", "", body, flags=re.IGNORECASE)
         front = f'+++\ntitle = "{title}"\npath = "docs/{slug(source)}"\ntemplate = "docs.html"\n[extra]\nsource = "docs/{source}"\n+++\n\n'
         (content / (source.replace("/", "--") + ".md")).write_text(front + convert_markdown(body, source, known))
-    index = ['## Build a Rust app that keeps data close\n', 'Hearth renders the initial view on the server and compiles browser interactions to JavaScript. Start with a page, then add scoped tables and local queries.\n']
+    index = ['Hearth renders the initial view on the server and compiles browser interactions to JavaScript. Start with a page, then add scoped tables and local queries.\n',
+             '## Start here\n',
+             '1. [Getting started](/docs/getting-started/): install the CLI and render a first page.',
+             '2. [Views](/docs/view/view/): write markup and reactive expressions in Rust.',
+             '3. [Server-only table fields](/docs/local-first/tables/): declare a table and choose what reaches the browser.',
+             '4. [Persistence and sync](/docs/local-first/persistence/): learn what is cached locally and what the server checks.\n']
+    blurbs = {'Start': 'Project setup, request context and static assets.', 'Local-first': 'Tables, authorization and how browser data stays in sync.', 'Views and runtime': 'Markup, components and the expressions that run in the browser.', 'Server': 'Routing, errors, cookies, sessions and fonts.'}
     for group, pages in GROUPS:
         index.append('## ' + group + '\n')
+        index.append(blurbs[group] + '\n')
         index.extend(f'- [{title}](/docs/{slug(source)}/)' for source, title in pages)
         index.append('')
     index += ['## More guides\n'] + [f'- [{title_for(p.relative_to(ROOT / "docs").as_posix(), p.read_text())}](/docs/{slug(p.relative_to(ROOT / "docs").as_posix())}/)' for p in sources if p.relative_to(ROOT / "docs").as_posix() not in {s for _, pages in GROUPS for s, _ in pages}]
     (content / 'docs-index.md').write_text('+++\ntitle = "Documentation"\npath = "docs"\ntemplate = "docs.html"\n+++\n\n' + '\n'.join(index))
-    headers = '''/*
-  Content-Security-Policy: default-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; script-src 'none'; connect-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
+    headers = f'''/*
+  Content-Security-Policy: default-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; script-src 'none'; connect-src 'none'; frame-src {demo}; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()

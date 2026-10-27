@@ -1,6 +1,6 @@
 # Hearth website
 
-The real Rust application and live demo, deployed separately from the static website in web/. It includes a real local-query and optimistic-write demo. No hand-written application JavaScript is required. Demo data is scoped to a random HttpOnly browser cookie. The in-memory database resets when the process restarts; opening the page reseeds the browser's rows.
+The live demo at demo.usehearth.dev: a single-page Hearth issue tracker with a real local query and optimistic write. The landing page and guides are the static website in web/; this app does not duplicate them. The landing page frames `/embed`, a chrome-less copy of the workbench. Only `/embed` permits framing, and only by `HEARTH_EMBED_ANCESTORS` (default `https://usehearth.dev`); every other page keeps `frame-ancestors 'none'`. Both hosts share the usehearth.dev site, so the SameSite=Lax demo cookie works inside the frame. No hand-written application JavaScript is required. Demo data is scoped to a random HttpOnly browser cookie. The in-memory database resets when the process restarts; opening the page reseeds the browser's rows.
 
 From the repository root:
 
@@ -16,7 +16,7 @@ Open `http://127.0.0.1:3620`. Build and deploy the binary with its matching `tar
 
 The page's strict CSP permits only same-origin scripts, styles, fonts, connections and images. Fonts are self-hosted. The Manrope license is in `assets/Manrope-LICENSE.txt`; logo assets come from `docs/hearth/brand`.
 
-The public guide includes crates.io installation for Hearth 0.1.0. The source commands above build this website; they are not required to create a registry-installed Hearth application. Release verification used a standalone registry-only copy of the site, the installed 0.1.0 CLI and the real browser filter/write flow.
+The source commands above build this demo; they are not required to create a registry-installed Hearth application. Release verification used a standalone registry-only copy of the site, the installed 0.1.0 CLI and the real browser filter/write flow.
 
 ## Limits
 

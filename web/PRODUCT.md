@@ -20,7 +20,7 @@ Hearth 0.1.0 is published and verified. It is experimental. Client expressions g
 
 ## Brand commitments
 
-Preserve the existing keyed-arch logo, ivory/charcoal/terracotta palette, Manrope and the website's structure. This is a hosting split and documentation extension, not a rebrand. No sponsor or invented adoption claims. Preserve upstream Topcoat MIT attribution.
+Preserve the existing keyed-arch logo, ivory/charcoal/terracotta palette, Manrope and the website's structure. This is a hosting split and documentation extension, not a rebrand. No sponsor or invented adoption claims. Preserve upstream Topcoat MIT attribution in the repository NOTICE, LICENSE and README; the site footer need not repeat it.
 
 ## Hosting
 

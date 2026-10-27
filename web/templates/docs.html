@@ -18,11 +18,11 @@
     {% endfor %}
 </div></details>
   <main id="main" class="doc-article">
-    <a class="doc-back" href="/docs/">Documentation</a>
+    {% if page.path != "/docs/" %}<a class="doc-back" href="/docs/">Docs</a>{% endif %}
     <h1>{{ page.title }}</h1>
     {% if page.extra.source %}<p class="doc-source"><a href="https://github.com/wbunting/hearth/blob/main/{{ page.extra.source }}">Edit this guide on GitHub</a></p>{% endif %}
     {{ page.content | safe }}
-    <div class="doc-footer"><a href="/docs/getting-started/">Getting started</a><a href="{{ config.extra.demo_url }}">Try the live demo ↗</a></div>
+    <div class="doc-footer"><a href="/docs/">← All guides</a><a href="{{ config.extra.demo_url }}">Live demo ↗</a></div>
   </main>
   {% if page.toc %}<aside class="docs-toc" aria-label="On this page"><h2>On this page</h2><ul>{% for heading in page.toc %}<li><a href="#{{ heading.id }}">{{ heading.title }}</a></li>{% endfor %}</ul></aside>{% endif %}
 </div>
