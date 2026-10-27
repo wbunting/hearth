@@ -1,0 +1,15 @@
+{
+  "name": "@hearth/site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "python3 scripts/build.py",
+    "check": "python3 scripts/build.py --check",
+    "test": "python3 -m unittest discover -s tests -p 'test_*.py' && node --test tests/*.test.mjs",
+    "deploy": "pnpm build && wrangler pages deploy public --project-name hearth-site --branch main"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.58.2",
+    "wrangler": "4.152.0"
+  }
+}

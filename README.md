@@ -101,7 +101,7 @@ async fn home(cx: &Cx) -> Result<impl View> {
 - **`for row in $(query)`** renders a live keyed list. **`if $(condition)`** switches regions in the browser.
 - **`table_handle::<T>()`** makes optimistic writes from Rust-authored event handlers. The Rust server remains authoritative.
 
-The [issue tracker](https://github.com/wbunting/hearth/tree/main/examples/hearth-tracker) puts this together: search, filters, detail navigation, comments and edits. Its application code is Rust. The [framework website](https://github.com/wbunting/hearth/tree/main/site) is also a Hearth application, with a smaller interactive query/write example.
+The [issue tracker](https://github.com/wbunting/hearth/tree/main/examples/hearth-tracker) puts this together: search, filters, detail navigation, comments and edits. Its application code is Rust. The [live demo](https://wbunting-hearth-demo.fly.dev) is a Hearth application, with a smaller interactive query/write example. The [static website and guides](https://hearth-site-tvw.pages.dev) are served from Cloudflare Pages.
 
 ## Try it today
 
@@ -127,7 +127,7 @@ cargo run --release
 
 Open <http://127.0.0.1:3000>. Make sure Cargo's binary directory is on your `PATH` so `hearth` and `cargo hearth` are available. See the [setup guide](https://github.com/wbunting/hearth/blob/main/docs/getting_started.md) for a static first page and development-server workflow.
 
-### Run the framework website from source
+### Run the live demo from source
 
 Use **pnpm 10.20.0** when rebuilding the framework's own browser packages:
 
@@ -141,7 +141,7 @@ cargo build --locked --release -p hearth-cli -p hearth-site
 PORT=3620 ./target/release/hearth-site
 ```
 
-Open <http://127.0.0.1:3620>. This builds the website and its live demo from source. Deploy applications with the assets from the same build as their binary.
+Open <http://127.0.0.1:3620>. This builds the real Rust demo from source. The static landing page and guides live in `web/`; see [hosting](https://github.com/wbunting/hearth/blob/main/docs/deployment.md). Deploy applications with the assets from the same build as their binary.
 
 ## Status
 

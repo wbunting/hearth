@@ -12,4 +12,4 @@ A broad, left-aligned headline leads into a single connected workbench: live Rus
 
 ## Interaction
 
-Filtering and toggling demo rows use real Hearth queries and mutations. Filtering stays in the browser. Rows are scoped to a signed browser cookie on the server. The code tabs show explicitly labeled, simplified excerpts from the demo. On small screens, the demo precedes its code, and all navigation remains available without a hamburger menu. Use visible keyboard focus, labeled inputs, honest empty states and reduced-motion support.
+Filtering and toggling demo rows use real Hearth queries and mutations. Filtering stays in the browser. Rows are scoped to a random HttpOnly bearer cookie on the server. The cookie is not a signed account identity. The code tabs show explicitly labeled, simplified excerpts from the demo. On small screens, the demo precedes its code, and all navigation remains available without a hamburger menu. Use visible keyboard focus, labeled inputs, honest empty states and reduced-motion support.

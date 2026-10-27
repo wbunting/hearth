@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-Hearth, built in Rust. The site exercises the same public API it documents. The user authorized building the framework package and website together.
+Hearth, built in Rust. The live demo exercises the same public API described by the separate static documentation site in web/. The user authorized building the framework package and website together.
 
 ## Users
 
