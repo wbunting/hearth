@@ -51,4 +51,4 @@ For user-visible work, exercise the real application on desktop and mobile. Veri
 
 Use Zola 0.23.6, then run `pnpm --filter @hearth/site build`, followed by `pnpm --filter @hearth/site test` after installing the Playwright Chromium browser. The static build checks every generated internal link and asset. Python regressions cover Rustdoc symbol links, hidden doctest lines and code preservation. Browser checks exercise no-JavaScript mobile/desktop navigation.
 
-For live-demo deployment changes, run `cargo test --locked --release -p hearth-site`, release clippy, `flyctl config validate --config site/fly.toml`, and the Linux container smoke test. Do not treat a deployment upload as end-to-end proof: check HTTPS, cookies, scoped loads, a mutation with server readback and CSP on the deployed host.
+For live-demo deployment changes, run `cargo test --locked --release -p hearth-site`, release clippy, `flyctl config validate --config fly.toml`, and the Linux container smoke test. Do not treat a deployment upload as end-to-end proof: check HTTPS, cookies, scoped loads, a mutation with server readback and CSP on the deployed host.
