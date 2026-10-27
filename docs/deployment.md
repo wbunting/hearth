@@ -1,10 +1,10 @@
 # Hosting Hearth's website and live demo
 
-Hearth follows the same separation as Stenly: Cloudflare Pages serves static marketing and guide content; Fly.io runs the illustrative Rust application. The provider URLs work before a custom domain is chosen.
+Hearth follows the same separation as Stenly: Cloudflare Pages serves static marketing and guide content; Fly.io runs the illustrative Rust application. The public site is https://usehearth.dev and the demo is https://demo.usehearth.dev.
 
 ## Static site
 
-Use web/README.md for local build and deployment. Its Zola build derives pages from top-level docs/ so guides are not maintained twice. Cloudflare project hearth-site serves https://hearth-site-tvw.pages.dev. A no-script CSP, self-hosted assets and same-origin navigation keep documentation independent of the application server.
+Use web/README.md for local build and deployment. Its Zola build derives pages from top-level docs/ so guides are not maintained twice. Cloudflare project hearth-site serves https://usehearth.dev. Its provider URL https://hearth-site-tvw.pages.dev remains available. A no-script CSP, self-hosted assets and same-origin navigation keep documentation independent of the application server.
 
 ## Fly demo
 
@@ -26,4 +26,6 @@ After a deployment, verify HTTPS, the health endpoint, secure cookie behavior, s
 
 ## Custom domain
 
-Choose the public Hearth domain before adding DNS records or certificates. Set the Pages custom domain and Fly demo hostname separately, then update HEARTH_SITE_URL, HEARTH_DEMO_URL and configuration defaults. Do not change Stenly's domain or DNS records as part of Hearth deployment.
+The usehearth.dev zone is on Cloudflare. The apex is attached to Pages project hearth-site and has a proxied CNAME to hearth-site-tvw.pages.dev. The demo subdomain has a DNS-only CNAME to the app-specific target returned by `flyctl certs setup demo.usehearth.dev --app wbunting-hearth-demo`. Keep the Fly record DNS-only so TLS terminates at Fly and ownership validation reaches the application directly.
+
+Fly manages the certificate for demo.usehearth.dev. Check it with `flyctl certs check demo.usehearth.dev --app wbunting-hearth-demo`. Pages manages the apex certificate. DNS changes and certificates are separate from publishing code. The defaults in web/config.toml use the custom domains; HEARTH_SITE_URL and HEARTH_DEMO_URL allow build-time overrides. Do not change Stenly's domain or DNS records as part of Hearth deployment.
