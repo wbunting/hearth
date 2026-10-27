@@ -28,6 +28,7 @@ for (const width of [390, 1280]) {
     await page.screenshot({path:`.evidence/home-${width}.png`,fullPage:true});
     assert.match(await page.locator('h1').innerText(), /Entirely in Rust/);
     assert.equal(await page.locator('script,iframe,input[type=search]').count(), 0);
+    for(const href of await page.locator('link[rel=stylesheet]').evaluateAll(xs=>xs.map(x=>x.getAttribute('href')))) assert.match(href,/\?v=[a-f0-9]{12}$/);
     assert.match(await page.getByRole('link',{name:/Try the live demo/}).getAttribute('href'), /^https:\/\/wbunting-hearth-demo\.fly\.dev/);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Get started',exact:true}).click();

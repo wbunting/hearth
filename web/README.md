@@ -33,3 +33,5 @@ The site-deploy workflow builds/tests pull requests without deployment credentia
 The static CSP prohibits scripts, frames and connections; the demo opens as a normal link on its own origin. This avoids cross-origin iframe cookies and does not make docs depend on the demo's uptime. Fonts and icon/license assets are local.
 
 The first deployment may be performed locally using the existing Cloudflare OAuth login. Production Actions deployment requires the separate restricted Pages token; without it, PR checks still pass but automatic deployment must be treated as blocked, not configured.
+
+Stylesheet URLs carry a content-derived asset revision so a page deployment cannot silently reuse the previous build's CSS. Canonical URLs stay stable.

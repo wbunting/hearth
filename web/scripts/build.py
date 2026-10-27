@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Build a static Zola site from the authoritative repository guides."""
 import argparse
+import hashlib
 import os
 from pathlib import Path
 import re
@@ -152,7 +153,9 @@ def main():
         shutil.copyfile(ROOT / "site/assets" / name, assets / name)
     shutil.copyfile(ROOT / "docs/hearth/brand/hearth-social-1280.png", assets / "social.png")
     shutil.copyfile(ROOT / "site/assets/Manrope-LICENSE.txt", assets / "Manrope-LICENSE.txt")
+    revision = hashlib.sha256(b"".join(p.read_bytes() for p in sorted(assets.iterdir()) if p.is_file())).hexdigest()[:12]
     text = (WEB / "config.toml").read_text().replace(config["base_url"], base).replace(config["extra"]["demo_url"], demo)
+    text += f'\nasset_revision = "{revision}"\n'
     for group, pages in GROUPS:
         text += f'\n[[extra.doc_groups]]\ntitle = "{group}"\n'
         for source, title in pages:
