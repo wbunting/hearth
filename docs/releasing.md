@@ -10,6 +10,14 @@ All 33 crates are published on crates.io from audited commit `bae6bcbb1671834bef
 
 The docs.rs build of hearth 0.1.0 fails on a stale intra-doc link to `base_query`. That link is corrected on main, but immutable 0.1.0 source cannot be changed. Publish a patch version to restore hosted API documentation; use the source guides meanwhile. Do not describe 0.1.0 API docs as successfully hosted.
 
+## Facade patch releases
+
+The hearth facade can release independently of supporting crates. Set its explicit package version and the root workspace dependency requirement without changing workspace.package.version. Keep supporting dependency requirements at their published versions. Package smoke tests derive the facade and CLI versions independently.
+
+Use `python3 scripts/release.py package -p hearth` and, after verification and committing, `python3 scripts/release.py publish -p hearth` for a facade-only patch. Use `python3 scripts/package-smoke.py --build -p hearth` to test that archive with supporting crates and the CLI from crates.io. The package selector does not publish dependencies; they must already be available on crates.io. Omit the selector only when intentionally publishing the whole family.
+
+Build all-feature API documentation before publication with `cargo doc --locked --release -p hearth --all-features --no-deps`. Also test the extracted archive with nightly rustdoc and `--cfg docsrs` to exercise the hosted configuration against registry dependencies. Check the actual docs.rs result after publication before describing hosted API docs as working.
+
 ## Verify the release
 
 ```sh
