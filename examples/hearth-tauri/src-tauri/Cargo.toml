@@ -1,0 +1,24 @@
+# A separate workspace so Tauri's dependency tree stays out of the main
+# workspace lock file and CI. Uses the same pinned toolchain.
+[workspace]
+
+[package]
+name = "hearth-tauri-app"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+hearth-tauri = { path = ".." }
+hearth = { path = "../../../crates/hearth" }
+tokio = { version = "1.51.1", features = ["rt-multi-thread", "macros"] }
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+debug = false
