@@ -1876,6 +1876,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "hearth-tauri"
+version = "0.1.0"
+dependencies = [
+ "hearth",
+ "http",
+ "serde",
+ "serde_json",
+ "toasty",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "hearth-tracker"
 version = "0.1.0"
 dependencies = [

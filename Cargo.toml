@@ -5,6 +5,7 @@ members = [
     "crates/hearth",
     "crates/hearth-macro",
     "examples/hearth-tracker",
+    "examples/hearth-tauri",
     "crates/hearth-alpine-ajax",
     "crates/hearth-asset",
     "crates/hearth-cli",

@@ -1,0 +1,26 @@
+[package]
+name = "hearth-tauri"
+version.workspace = true
+edition.workspace = true
+publish = false
+default-run = "hearth-tauri-server"
+
+[lib]
+name = "hearth_tauri"
+path = "src/lib.rs"
+
+[[bin]]
+name = "hearth-tauri-server"
+path = "src/main.rs"
+
+[dependencies]
+hearth = { workspace = true }
+toasty = { workspace = true, features = ["sqlite"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "time"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+uuid = { workspace = true, features = ["v4"] }
+http.workspace = true
+
+[lints]
+workspace = true
