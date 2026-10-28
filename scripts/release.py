@@ -37,7 +37,6 @@ def ordered(packages):
 
 def check(packages):
     for name, package in packages.items():
-        assert package["version"] == "0.1.0", (name, "unexpected release version")
         assert package["license"] == "MIT", (name, "missing MIT license metadata")
         path = pathlib.Path(package["manifest_path"]).parent
         assert (path / "LICENSE").is_file(), (name, "missing license file")
@@ -46,16 +45,22 @@ def check(packages):
             assert not dep["name"].startswith("topcoat"), (name, "upstream package dependency")
             if dep.get("path") and dep["kind"] != "dev":
                 assert dep["name"] in packages, (name, "unpublished internal dependency", dep["name"])
-                assert dep["req"] != "*", (name, "path-only release dependency", dep["name"])
+                expected = "^" + packages[dep["name"]]["version"]
+                assert dep["req"] == expected, (name, "internal dependency version mismatch", dep["name"], dep["req"], expected)
         print(f"checked {name} {package['version']}")
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["check", "order", "package", "publish"])
+    parser.add_argument("-p", "--package", action="append", default=[],
+                        help="Select a package (repeatable); omit for the full family")
     args = parser.parse_args()
     crates = packages()
-    order = ordered(crates)
+    unknown = set(args.package) - crates.keys()
+    if unknown:
+        parser.error("Unknown publishable package: " + ", ".join(sorted(unknown)))
+    order = [name for name in ordered(crates) if not args.package or name in args.package]
     if args.command == "order":
         print("\n".join(order))
         return

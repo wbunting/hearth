@@ -35,9 +35,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build", action="store_true")
     parser.add_argument("--out", type=pathlib.Path)
+    parser.add_argument("-p", "--package", action="append", default=[],
+                        help="Stage only selected archives; resolve other crates from crates.io")
     args = parser.parse_args()
     metadata = json.loads(subprocess.check_output(["cargo", "metadata", "--no-deps", "--format-version", "1"], cwd=ROOT))
     packages = {p["name"]: p for p in metadata["packages"] if p["name"].startswith("hearth") and p["publish"] != []}
+    unknown = set(args.package) - packages.keys()
+    if unknown:
+        parser.error("Unknown publishable package: " + ", ".join(sorted(unknown)))
     out = args.out or pathlib.Path(tempfile.mkdtemp(prefix="hearth-package-smoke-"))
     if out.exists() and any(out.iterdir()):
         sys.exit("Output directory must be empty: " + str(out))
@@ -46,6 +51,8 @@ def main():
     archives = {}
     entries = {}
     for name, package in packages.items():
+        if args.package and name not in args.package:
+            continue
         archive = staged / f"{name}-{package['version']}.crate"
         if not archive.exists():
             archive = ROOT / "target/package" / archive.name
@@ -104,13 +111,13 @@ name = "hearth-packaged-site"
 version = "0.0.0"
 edition = "2024"
 [dependencies]
-hearth = { version = "=0.1.0", features = ["fs"] }
+hearth = { version = "=HEARTH_VERSION", features = ["fs"] }
 toasty = { version = "0.11", features = ["sqlite"] }
 tokio = { version = "1.51.1", features = ["rt-multi-thread", "macros"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 uuid = { version = "1.23", features = ["v4"] }
-''')
+'''.replace('HEARTH_VERSION', packages['hearth']['version']))
     (out / ".cargo").mkdir()
     (out / ".cargo/config.toml").write_text(f'''[source.crates-io]
 replace-with = "staged-release"
@@ -121,7 +128,7 @@ registry = "sparse+http://127.0.0.1:{server.server_port}/"
     try:
         subprocess.run(["cargo", "build" if args.build else "check", "--release"], cwd=out, check=True)
         if args.build:
-            subprocess.run(["cargo", "--config", str(out / ".cargo/config.toml"), "install", "hearth-cli", "--version", "=0.1.0", "--root", str(out / "cli"), "--target-dir", str(out / "target"), "--locked"], cwd=out, check=True)
+            subprocess.run(["cargo", "--config", str(out / ".cargo/config.toml"), "install", "hearth-cli", "--version", "=" + packages["hearth-cli"]["version"], "--root", str(out / "cli"), "--target-dir", str(out / "target"), "--locked"], cwd=out, check=True)
             subprocess.run([str(out / "cli/bin/hearth"), "asset", "bundle", "--release"], cwd=out, check=True)
         print("PACKAGED CONSUMER PASS", out, flush=True)
     finally:

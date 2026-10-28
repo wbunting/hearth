@@ -18,6 +18,8 @@ cargo test --locked --release -p hearth-font -p hearth-font-grammar -p hearth-fo
 cargo clippy --locked --release -p hearth-font -p hearth-font-grammar -p hearth-font-macro --all-targets -- -D warnings
 cargo build --locked --release -p hearth-tracker -p hearth-site
 cargo clippy --locked --release -p hearth -p hearth-macro -p hearth-tracker -p hearth-site -p hearth-router -p hearth-tailwind -p hearth-cli -- -D warnings
+cargo doc --locked --release -p hearth --all-features --no-deps
+python3 -m unittest discover -s scripts/tests
 python3 scripts/release.py check
 ```
 

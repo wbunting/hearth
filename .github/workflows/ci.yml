@@ -32,8 +32,10 @@ jobs:
       - run: cargo test --locked --release -p hearth-view-grammar --features pretty --test pretty
       - run: cargo test --locked --release -p hearth-runtime-grammar
       - run: cargo test --locked --release -p hearth-runtime-macro --test csp --test expr
+      - run: cargo doc --locked --release -p hearth --all-features --no-deps
       - run: cargo check --locked --release -p hearth --no-default-features
       - run: cargo check --locked --release -p hearth --no-default-features --features local-first
+      - run: python3 -m unittest discover -s scripts/tests
       - run: python3 scripts/release.py check
       - run: cargo test --locked --release -p hearth-tracker -p hearth-site
       - run: cargo test --locked --release -p hearth-font -p hearth-font-grammar -p hearth-font-macro
@@ -69,6 +71,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
+      - run: python3 -m unittest discover -s scripts/tests
       - run: python3 scripts/release.py check
       - run: python3 scripts/release.py package
       - run: python3 scripts/package-smoke.py --build

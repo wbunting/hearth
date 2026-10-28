@@ -112,7 +112,7 @@ debug = 1
 debug = false
 
 [workspace.dependencies]
-hearth = { version = "0.1.0", path = "crates/hearth" }
+hearth = { version = "0.1.1", path = "crates/hearth" }
 hearth-macro = { version = "0.1.0", path = "crates/hearth-macro" }
 hearth-alpine-ajax = { version = "0.1.0", path = "crates/hearth-alpine-ajax" }
 hearth-asset = { version = "0.1.0", path = "crates/hearth-asset" }
