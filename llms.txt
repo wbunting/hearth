@@ -101,6 +101,8 @@ Ok(view! {
 
 [Authentication failures](docs/hearth/authentication.md): set `client_schema(...).on_unauthorized(hearth::OnUnauthorized::Redirect(url))` in the `hearth-boot` schema for a custom sign-in URL, or `OnUnauthorized::Error` to surface errors without navigation. Default is `/login`. Loads and mutations detect HTTP 401 and followed redirects to the configured endpoint. Cache clearing remains an explicit `data-hearth-clear` marker, independent of the URL.
 
+[Desktop embedding (experiment)](docs/hearth/tauri.md): `examples/hearth-tauri` runs the router in a Tauri 2 process over app-data SQLite. Prefer a custom URI scheme handler calling `Router::handle_with(req, (Trusted,))` (strip `Accept-Encoding`, buffer the body) over loopback TCP; loopback needs a per-launch token and changes origin each launch, orphaning the IndexedDB cache. Bundle assets from the exact shipped binary and load them with `AssetBundle::load_dir(resource_dir/assets)`. Layers that read cookies need `path() == Some("/")` and registration before `.cookies()`.
+
 ## Optional HTTP integrations
 
 - `fs`: import `RouterBuilderDirectoryExt`; `.public_dir("./public")` or `.serve_dir("/files/{*rest}", dir)` for fixed file URLs.
